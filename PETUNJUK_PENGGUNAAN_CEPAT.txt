@@ -1,33 +1,36 @@
 ================================================================================
-   PANDUAN CEPAT MEMBUKA & MENGGUNAKAN APLIKASI PERPUSTAKAAN SBTH TK
+   PANDUAN MEMBUKA & MENGGUNAKAN APLIKASI PERPUSTAKAAN SBTH TK
 ================================================================================
 
-A. CARA MEMBUKA APLIKASI (HANYA 2 KLIK):
-   Cara 1 (Dari Folder Ini):
-   - Cukup KLIK 2X file: "1_BUKA_APLIKASI_PERPUSTAKAAN.bat"
-   - Server akan otomatis aktif dan browser web langsung terbuka ke:
-     http://localhost:3000
+A. CARA MEMBUKA APLIKASI (MODE RESMI - TANPA JENDELA HITAM CMD):
+   Cara 1 (Dari Layar Desktop Komputer):
+   - Di Desktop komputer Anda sudah ada ikon aplikasi "Perpustakaan SBTH TK".
+   - Cukup KLIK 2X ikon tersebut.
+   - Aplikasi akan otomatis berjalan di latar belakang dan browser web (Chrome/Edge)
+     langsung terbuka ke: http://localhost:3000
 
-   Cara 2 (Dari Layar Desktop Windows):
-   - Ikon shortcut "Perpustakaan SBTH TK" sudah tersedia di Desktop komputer Anda.
-   - Cukup KLIK 2X ikon tersebut di Desktop, aplikasi langsung terbuka!
+   Cara 2 (Dari Dalam Folder Ini):
+   - Cukup KLIK 2X file: "Perpustakaan SBTH.exe"
+   - Server otomatis aktif secara senyap (100% tanpa jendela hitam CMD)
+     dan browser langsung terbuka ke aplikasi.
 
 B. CARA MENUTUP APLIKASI:
-   - Cukup tutup jendela hitam/terminal yang sedang berjalan, ATAU
-   - KLIK 2X file: "2_HENTIKAN_APLIKASI.bat"
+   - Klik kanan ikon kecil Perpustakaan di pojok kanan bawah layar (dekat jam Windows),
+     lalu pilih "🛑 Tutup & Keluar Aplikasi", ATAU
+   - KLIK 2X file: "HENTIKAN_APLIKASI.bat"
 
-C. IMPORT DATA BUKU DARI EXCEL:
+C. CARA PASANG IKON DI KOMPUTER LAIN:
+   - Jika Anda memindahkan folder ini ke komputer sekolah lain:
+     Cukup KLIK 2X file: "PASANG_IKON_DESKTOP.bat"
+   - Ikon aplikasi akan langsung terpasang di Desktop komputer tersebut.
+
+D. IMPORT DATA BUKU DARI EXCEL:
    - Gunakan file: "Template_Master_Impor_Buku_SBTH_TK.xlsx"
    - Isi judul, pengarang, penerbit, ISBN, dan jumlah eksemplar.
    - Buka menu "Manajemen Buku" di aplikasi lalu pilih "Import Excel".
 
-D. DOKUMEN DAN PANDUAN LENGKAP:
-   - Seluruh panduan lengkap format Word (.docx), VPS deploy online,
-     dan video demo tersimpan rapi di dalam folder:
-     "DOKUMENTASI_DAN_PANDUAN"
-
-E. BANTUAN INSTALLER:
-   - Jika ingin memindahkan atau menginstal aplikasi ke komputer lain,
-     file instalasi Node.js tersedia di folder:
-     "INSTALLER_PENDUKUNG"
+E. BANTUAN & PANDUAN LENGKAP:
+   - Seluruh panduan lengkap format Word (.docx) dan petunjuk VPS online
+     tersimpan rapi di dalam folder: "DOKUMENTASI_DAN_PANDUAN"
+   - File installer Node.js tersimpan di: "INSTALLER_PENDUKUNG"
 ================================================================================

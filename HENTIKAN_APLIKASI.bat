@@ -10,7 +10,7 @@ echo ================================================================
 echo.
 echo Menutup server aplikasi dan membebaskan memori komputer...
 
-taskkill /F /FI "WINDOWTITLE eq Perpustakaan SBTH Server*" >nul 2>&1
+taskkill /F /IM "Perpustakaan SBTH.exe" >nul 2>&1
 taskkill /F /IM node.exe >nul 2>&1
 
 echo.
