@@ -36,6 +36,7 @@ import {
   Layers,
   ChevronRightCircle,
   Tag,
+  ArrowUp,
 } from 'lucide-react';
 import { Book, CategoryId, AgeGroup, Category, SchoolProfile, WishlistNotification, Language, LibraryNewsArticle, Reservation } from '@/types';
 import { libraryStore } from '@/lib/storage';
@@ -51,6 +52,7 @@ interface KidsVisualOpacProps {
   isKioskMode?: boolean;
   onOpenLibrarianLogin?: () => void;
   onOpenStudentPortal?: () => void;
+  onSwitchToKioskMode?: () => void;
 }
 
 export const KidsVisualOpac: React.FC<KidsVisualOpacProps> = ({
@@ -60,6 +62,7 @@ export const KidsVisualOpac: React.FC<KidsVisualOpacProps> = ({
   isKioskMode = false,
   onOpenLibrarianLogin,
   onOpenStudentPortal,
+  onSwitchToKioskMode,
 }) => {
   const [mounted, setMounted] = useState<boolean>(false);
   const [lang, setLang] = useState<Language>(language || 'id');
@@ -97,6 +100,9 @@ export const KidsVisualOpac: React.FC<KidsVisualOpacProps> = ({
   const [reservationBook, setReservationBook] = useState<Book | null>(null);
   const [desiredPickupDate, setDesiredPickupDate] = useState<string>('');
   const [reservationNotice, setReservationNotice] = useState<string | null>(null);
+
+  // 🚀 Floating Back to Top Button state for deep scrolling
+  const [showBackToTop, setShowBackToTop] = useState<boolean>(false);
 
   const newArrivalsScrollRef = useRef<HTMLDivElement>(null);
   const catalogSectionRef = useRef<HTMLDivElement>(null);
@@ -204,6 +210,29 @@ export const KidsVisualOpac: React.FC<KidsVisualOpacProps> = ({
       setIsHighlightsMinimized(true);
     }
   }, [searchQuery]);
+
+  // Scroll listener for Floating Back to Top Button
+  useEffect(() => {
+    const handleScroll = () => {
+      const scrollPos = window.scrollY || document.documentElement.scrollTop || 0;
+      const mainContainer = document.querySelector('main')?.parentElement;
+      const parentPos = mainContainer ? mainContainer.scrollTop : 0;
+      setShowBackToTop(scrollPos > 240 || parentPos > 240);
+    };
+
+    window.addEventListener('scroll', handleScroll, true);
+    return () => window.removeEventListener('scroll', handleScroll, true);
+  }, []);
+
+  const scrollToTop = () => {
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+    const mainContainer = document.querySelector('main')?.parentElement;
+    if (mainContainer) {
+      mainContainer.scrollTo({ top: 0, behavior: 'smooth' });
+    }
+    document.documentElement.scrollTo({ top: 0, behavior: 'smooth' });
+    soundFx.playScanBeep();
+  };
 
   // Compute borrow counts per book
   const borrowCountMap: Record<string, number> = {};
@@ -2093,6 +2122,23 @@ export const KidsVisualOpac: React.FC<KidsVisualOpacProps> = ({
             </div>
           </div>
         </div>
+      )}
+
+      {/* =========================================================================
+          FLOATING BACK TO TOP BUTTON (UNTUK OPAC YANG BISA SCROLL PANJANG KE BAWAH)
+          ========================================================================= */}
+      {showBackToTop && (
+        <button
+          type="button"
+          onClick={scrollToTop}
+          className="fixed bottom-6 right-6 z-40 flex items-center gap-2.5 px-4 py-2.5 rounded-full bg-linear-to-r from-amber-500 to-orange-500 hover:from-amber-600 hover:to-orange-600 active:scale-95 text-slate-950 font-extrabold text-xs shadow-xl shadow-amber-500/35 border border-amber-300 transition-all cursor-pointer animate-in fade-in slide-in-from-bottom-4 group select-none"
+          title="Kembali ke Atas Halaman"
+        >
+          <div className="flex h-5 w-5 items-center justify-center rounded-full bg-slate-950/20 group-hover:-translate-y-0.5 transition-transform">
+            <ArrowUp className="h-3.5 w-3.5 text-slate-950 stroke-[3]" />
+          </div>
+          <span>Kembali ke Atas</span>
+        </button>
       )}
     </div>
   );

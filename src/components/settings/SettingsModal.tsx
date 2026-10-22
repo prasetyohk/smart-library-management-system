@@ -1831,20 +1831,20 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                 <div className="p-3.5 rounded-xl bg-amber-500/10 border border-amber-500/30 text-xs text-amber-300 flex items-center gap-2.5">
                   <span className="text-base">💡</span>
                   <p>
-                    Tombol pintasan hanya aktif saat berada di <strong>Mode Pustakawan</strong>. Tekan tombol <strong>F1</strong> kapan saja di layar pustakawan untuk membuka ringkasan panduan shortcut cepat.
+                    Tombol pintasan disetel ke <strong>Alt + 1 s/d Alt + 8</strong> dan <strong>F1</strong> agar 100% aman dan tidak pernah bentrok dengan Google Chrome di Windows (terhindar dari tab tertutup seperti Ctrl+W). Tekan <strong>F1</strong> kapan saja untuk membuka ringkasan panduan shortcut cepat.
                   </p>
                 </div>
 
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                   {[
-                    { key: 'newLoan' as const, label: 'Peminjaman Baru', desc: 'Sirkulasi: Buka tab Peminjaman Baru', defaultVal: 'Control+q' },
-                    { key: 'returnBook' as const, label: 'Pengembalian Kilat', desc: 'Sirkulasi: Buka tab Pengembalian Kilat 4-Langkah', defaultVal: 'Control+t' },
-                    { key: 'renewLoan' as const, label: 'Perpanjangan Pinjaman', desc: 'Sirkulasi: Buka tab Perpanjangan Pinjaman', defaultVal: 'Control+e' },
-                    { key: 'overdueTab' as const, label: 'Tagihan & Terlambat', desc: 'Sirkulasi: Buka tab Buku Terlambat', defaultVal: 'Control+r' },
-                    { key: 'booksTab' as const, label: 'Koleksi & Eksemplar Buku', desc: 'Buka tab Koleksi & Eksemplar Buku', defaultVal: 'Control+b' },
-                    { key: 'membersTab' as const, label: 'Data Anggota Siswa', desc: 'Buka tab Anggota & Data Siswa', defaultVal: 'Control+m' },
-                    { key: 'opacTab' as const, label: 'Katalog Visual Anak (OPAC)', desc: 'Buka Katalog Visual Anak (OPAC)', defaultVal: 'Control+k' },
-                    { key: 'settingsModal' as const, label: 'Pengaturan Sistem', desc: 'Buka Pengaturan Sistem Perpustakaan', defaultVal: 'Control+p' },
+                    { key: 'newLoan' as const, label: 'Peminjaman Baru', desc: 'Sirkulasi: Buka tab Peminjaman Baru', defaultVal: 'Alt+1' },
+                    { key: 'returnBook' as const, label: 'Pengembalian Kilat', desc: 'Sirkulasi: Buka tab Pengembalian Kilat 4-Langkah (Aman dari close tab)', defaultVal: 'Alt+2' },
+                    { key: 'renewLoan' as const, label: 'Perpanjangan Pinjaman', desc: 'Sirkulasi: Buka tab Perpanjangan Pinjaman', defaultVal: 'Alt+3' },
+                    { key: 'overdueTab' as const, label: 'Tagihan & Terlambat', desc: 'Sirkulasi: Buka tab Buku Terlambat', defaultVal: 'Alt+4' },
+                    { key: 'booksTab' as const, label: 'Koleksi & Eksemplar Buku', desc: 'Buka tab Koleksi & Eksemplar Buku', defaultVal: 'Alt+5' },
+                    { key: 'membersTab' as const, label: 'Data Anggota Siswa', desc: 'Buka tab Anggota & Data Siswa', defaultVal: 'Alt+6' },
+                    { key: 'opacTab' as const, label: 'Katalog Visual Anak (OPAC)', desc: 'Buka Katalog Visual Anak (OPAC)', defaultVal: 'Alt+7' },
+                    { key: 'settingsModal' as const, label: 'Pengaturan Sistem', desc: 'Buka Pengaturan Sistem Perpustakaan', defaultVal: 'Alt+8' },
                     { key: 'helpModal' as const, label: 'Panduan Pintasan Keyboard', desc: 'Tampilkan panduan tombol pintasan cepat', defaultVal: 'F1' },
                   ].map((item) => (
                     <div

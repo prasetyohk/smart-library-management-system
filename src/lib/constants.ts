@@ -1353,16 +1353,17 @@ export const DEFAULT_LOAN_RULES: import('@/types').LoanRules = {
 };
 
 // Keyboard Shortcuts Configuration for Librarian Workspace
+// Menggunakan Alt + [1-8] & F1 agar 100% AMAN dari bentrok Google Chrome (bebas dari tab tertutup Ctrl+W)
 export const DEFAULT_KEYBOARD_SHORTCUTS: import('@/types').KeyboardShortcutConfig = {
-  newLoan: 'Control+q',       // Ctrl + Q: Sirkulasi - Peminjaman Baru
-  returnBook: 'Control+t',    // Ctrl + T: Sirkulasi - Pengembalian Kilat (Aman dari close tab)
-  renewLoan: 'Control+e',     // Ctrl + E: Sirkulasi - Perpanjangan Pinjaman
-  overdueTab: 'Control+r',    // Ctrl + R: Sirkulasi - Tagihan Terlambat
-  booksTab: 'Control+b',      // Ctrl + B: Meja Koleksi Buku & Eksemplar
-  membersTab: 'Control+m',    // Ctrl + M: Data Anggota Siswa & Guru
-  opacTab: 'Control+k',       // Ctrl + K: Katalog Visual Anak (OPAC)
-  settingsModal: 'Control+p', // Ctrl + P: Pengaturan Sistem (Memerlukan Admin)
-  helpModal: 'F1',            // F1: Buka Bantuan Panduan Shortcut
+  newLoan: 'Alt+1',       // Alt + 1: Sirkulasi - Peminjaman Baru
+  returnBook: 'Alt+2',    // Alt + 2: Sirkulasi - Pengembalian Kilat (Aman dari close tab)
+  renewLoan: 'Alt+3',     // Alt + 3: Sirkulasi - Perpanjangan Pinjaman
+  overdueTab: 'Alt+4',    // Alt + 4: Sirkulasi - Tagihan Terlambat
+  booksTab: 'Alt+5',      // Alt + 5: Meja Koleksi Buku & Eksemplar
+  membersTab: 'Alt+6',    // Alt + 6: Data Anggota Siswa & Guru
+  opacTab: 'Alt+7',       // Alt + 7: Katalog Visual Anak (OPAC)
+  settingsModal: 'Alt+8', // Alt + 8: Pengaturan Sistem (Memerlukan Admin)
+  helpModal: 'F1',        // F1: Buka Bantuan Panduan Shortcut
 };
 
 // SLiMS 9 Bulian Pattern Generator Preset
@@ -1395,6 +1396,98 @@ export function generateSlimsCallNumber(title: string, author: string, categoryI
   const titleCode = (cleanTitle[0] || 'b').toLowerCase();
 
   return `${ddc} ${authorCode} ${titleCode}`;
+}
+
+// ========================================================
+// STANDAR PENAMAAN FISIK BUKU RAK PERPUSTAKAAN SBTH
+// ========================================================
+// Format Punggung Buku Fisik SBTH (4 Baris Vertikal):
+// Baris 1: Kode Rak / Kategori (Default: "SR", bisa kustom rak: "AG", "SN", dll.)
+// Baris 2: Nomor Klasifikasi DDC (e.g. "813", "220", "398.2")
+// Baris 3: 3 Huruf Kapital Pengarang (Cutter, e.g. "KID", "JUL")
+// Baris 4: 1 Huruf Kecil Pertama Judul Buku (e.g. "m", "t")
+
+export interface SbthSpineParts {
+  shelfCode: string;   // Baris 1: e.g. "SR"
+  ddc: string;         // Baris 2: e.g. "813" / "220"
+  authorCode: string;  // Baris 3: e.g. "KID" / "JUL"
+  titleCode: string;   // Baris 4: e.g. "m" / "t"
+}
+
+export function getSbthSpineCode(
+  title: string,
+  author: string,
+  categoryId?: string,
+  customShelfCode?: string,
+  customClassification?: string
+): SbthSpineParts {
+  // Baris 1: Kode Rak (Default: "SR")
+  const shelfCode = (customShelfCode && customShelfCode.trim()) ? customShelfCode.trim().toUpperCase() : 'SR';
+
+  // Baris 2: Nomor DDC
+  let ddc = (customClassification && customClassification.trim()) ? customClassification.trim() : '';
+  if (!ddc) {
+    if (categoryId === 'cat-alam') ddc = '500';
+    else if (categoryId === 'cat-aktivitas') ddc = '372.2';
+    else if (categoryId === 'cat-karakter') ddc = '170';
+    else if (categoryId === 'cat-ensiklopedia') ddc = '030';
+    else if (categoryId === 'cat-bahasa') ddc = '495.1';
+    else if (categoryId === 'cat-dongeng') ddc = '398.2';
+    else ddc = '813'; // Default Fiksi Anak SBTH
+  }
+
+  // Baris 3: 3 Huruf Kapital Pengarang
+  const cleanAuthor = author.replace(/^(Tim|Kak|Dr\.|Dra\.|Mr\.|Ms\.|Miss)\s+/i, '').trim();
+  const authorWords = cleanAuthor.split(/\s+/).filter(Boolean);
+  const mainAuthor = authorWords[authorWords.length - 1] || authorWords[0] || 'SBTH';
+  const authorCode = mainAuthor.substring(0, 3).toUpperCase().padEnd(3, 'X');
+
+  // Baris 4: 1 Huruf Kecil Judul Buku
+  const cleanTitle = title.replace(/^(Seri|Kumpulan|Buku|Cerita|Si|Sang|The|A|An)\s+/i, '').trim();
+  const titleCode = (cleanTitle[0] || 'b').toLowerCase();
+
+  return {
+    shelfCode,
+    ddc,
+    authorCode,
+    titleCode,
+  };
+}
+
+// Format Bagian Dalam Buku Fisik SBTH (Cap/Slip Buku):
+// No. Daftar: 4 digit angka (e.g. "0101")
+// Tanggal: DD/MM/TTTT (e.g. "22/10/2026")
+export function getSbthInsideSlipData(barcode: string, copyNum: number, acquisitionDate?: string) {
+  const digits = barcode.replace(/\D/g, '');
+  let accessionNumber = '0001';
+  if (digits.length >= 4) {
+    accessionNumber = digits.slice(-4);
+  } else if (digits.length > 0) {
+    accessionNumber = digits.padStart(4, '0');
+  } else {
+    accessionNumber = String(copyNum).padStart(4, '0');
+  }
+
+  let dateStr = '';
+  if (acquisitionDate && acquisitionDate.includes('-')) {
+    const parts = acquisitionDate.split('-');
+    if (parts.length === 3) {
+      dateStr = `${parts[2].padStart(2, '0')}/${parts[1].padStart(2, '0')}/${parts[0]}`;
+    }
+  }
+  
+  if (!dateStr) {
+    const now = new Date();
+    const d = String(now.getDate()).padStart(2, '0');
+    const m = String(now.getMonth() + 1).padStart(2, '0');
+    const y = now.getFullYear();
+    dateStr = `${d}/${m}/${y}`;
+  }
+
+  return {
+    accessionNumber,
+    dateStr,
+  };
 }
 
 // Berita & Pengumuman Perpustakaan Resmi SBTH (CMS Ringkas)

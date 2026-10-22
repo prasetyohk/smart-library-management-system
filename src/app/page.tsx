@@ -65,7 +65,7 @@ import { DICTIONARY } from '@/lib/i18n';
 export default function Home() {
   const [activeTab, setActiveTab] = useState<
     'OPAC' | 'CIRCULATION' | 'BOOKS' | 'MEMBERS'
-  >('OPAC');
+  >('CIRCULATION');
 
   // Modals state
   const [isScanIsbnOpen, setIsScanIsbnOpen] = useState<boolean>(false);
@@ -247,59 +247,59 @@ export default function Home() {
         return e.key.toLowerCase() === mainKey.toLowerCase();
       };
 
-      if (matchShortcut(sc.newLoan || 'Control+q')) {
+      if (matchShortcut(sc.newLoan || 'Alt+1') || (e.altKey && (e.key === '1' || e.key.toLowerCase() === 'q'))) {
         e.preventDefault();
         setActiveTab('CIRCULATION');
         setCirculationSubTab('BORROW');
         soundFx.playScanBeep();
         return;
       }
-      if (matchShortcut(sc.returnBook || 'Control+t')) {
+      if (matchShortcut(sc.returnBook || 'Alt+2') || (e.altKey && (e.key === '2' || e.key.toLowerCase() === 'w'))) {
         e.preventDefault();
         setActiveTab('CIRCULATION');
         setCirculationSubTab('RETURN');
         soundFx.playScanBeep();
         return;
       }
-      if (matchShortcut(sc.renewLoan || 'Control+e')) {
+      if (matchShortcut(sc.renewLoan || 'Alt+3') || (e.altKey && (e.key === '3' || e.key.toLowerCase() === 'e'))) {
         e.preventDefault();
         setActiveTab('CIRCULATION');
         setCirculationSubTab('RENEW');
         soundFx.playScanBeep();
         return;
       }
-      if (matchShortcut(sc.overdueTab || 'Control+r')) {
+      if (matchShortcut(sc.overdueTab || 'Alt+4') || (e.altKey && (e.key === '4' || e.key.toLowerCase() === 'r'))) {
         e.preventDefault();
         setActiveTab('CIRCULATION');
         setCirculationSubTab('OVERDUE');
         soundFx.playScanBeep();
         return;
       }
-      if (matchShortcut(sc.booksTab || 'Control+b')) {
+      if (matchShortcut(sc.booksTab || 'Alt+5') || (e.altKey && (e.key === '5' || e.key.toLowerCase() === 'b'))) {
         e.preventDefault();
         setActiveTab('BOOKS');
         soundFx.playScanBeep();
         return;
       }
-      if (matchShortcut(sc.membersTab || 'Control+m')) {
+      if (matchShortcut(sc.membersTab || 'Alt+6') || (e.altKey && (e.key === '6' || e.key.toLowerCase() === 'm'))) {
         e.preventDefault();
         setActiveTab('MEMBERS');
         soundFx.playScanBeep();
         return;
       }
-      if (matchShortcut(sc.opacTab || 'Control+k')) {
+      if (matchShortcut(sc.opacTab || 'Alt+7') || (e.altKey && (e.key === '7' || e.key.toLowerCase() === 'k'))) {
         e.preventDefault();
         setActiveTab('OPAC');
         soundFx.playScanBeep();
         return;
       }
-      if (matchShortcut(sc.settingsModal || 'Control+p')) {
+      if (matchShortcut(sc.settingsModal || 'Alt+8') || (e.altKey && (e.key === '8' || e.key.toLowerCase() === 'p'))) {
         e.preventDefault();
         setIsAdminAuthOpen(true);
         soundFx.playScanBeep();
         return;
       }
-      if (matchShortcut(sc.helpModal || 'F1')) {
+      if (matchShortcut(sc.helpModal || 'F1') || e.key === 'F1') {
         e.preventDefault();
         setIsShortcutHelpOpen(true);
         soundFx.playScanBeep();
@@ -394,12 +394,14 @@ export default function Home() {
         <div className="flex-1 flex min-h-screen overflow-x-hidden">
           {/* ======================================================== */}
           {/* 1. MODERN LEFT SIDEBAR (MODE PERPUSTAKAWAN)               */}
+          {/* Sembunyikan total jika Portal Siswa sedang aktif agar bersih */}
           {/* ======================================================== */}
-          <aside
-            className={`print:hidden flex flex-col shrink-0 border-r border-border bg-surface transition-all duration-300 z-30 select-none ${
-              isSidebarCollapsed ? 'w-20' : 'w-64'
-            }`}
-          >
+          {!isStudentPortalOpen && (
+            <aside
+              className={`print:hidden flex flex-col shrink-0 border-r border-border bg-surface transition-all duration-300 z-30 select-none ${
+                isSidebarCollapsed ? 'w-20' : 'w-64'
+              }`}
+            >
             {/* 1.1 Brand & School Header */}
             <div className="h-16 px-3.5 flex items-center justify-between border-b border-border/80 bg-surface-2/30">
               <div className="flex items-center gap-2.5 overflow-hidden">
@@ -823,6 +825,7 @@ export default function Home() {
               )}
             </div>
           </aside>
+          )}
 
           {/* ======================================================== */}
           {/* 2. MAIN WORKSPACE & TOP BAR                              */}
@@ -912,12 +915,29 @@ export default function Home() {
                   </button>
                 </div>
 
+                {/* Mode Kiosk Siswa / Layar Penuh Anak */}
+                {activeTab === 'OPAC' && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setAppMode('KIOSK_ANAK');
+                      libraryStore.saveAppMode('KIOSK_ANAK');
+                      soundFx.playScanBeep();
+                    }}
+                    className="h-8 px-2.5 rounded-lg border border-amber-500/40 bg-amber-500/10 hover:bg-amber-500/20 text-amber-500 text-xs font-bold flex items-center gap-1.5 transition cursor-pointer"
+                    title="Beralih ke Mode Layar Penuh Siswa (Kiosk Anak Tanpa Menu Pustakawan)"
+                  >
+                    <Monitor className="h-3.5 w-3.5" />
+                    <span className="hidden sm:inline">Mode Siswa (Kiosk)</span>
+                  </button>
+                )}
+
                 {/* Portal Siswa Quick View */}
                 <button
                   type="button"
                   onClick={() => setIsStudentPortalOpen(true)}
-                  className="h-8 px-2.5 rounded-lg border border-border bg-surface hover:bg-surface-2 text-text text-xs font-medium hidden lg:flex items-center gap-1.5 transition cursor-pointer"
-                  title="Pratinjau Portal Mandiri Siswa"
+                  className="h-8 px-2.5 rounded-lg border border-purple-500/30 bg-purple-500/10 hover:bg-purple-500/20 text-purple-600 dark:text-purple-300 text-xs font-semibold flex items-center gap-1.5 transition cursor-pointer"
+                  title="Buka Portal Mandiri Siswa & Orang Tua (Buku Impian, Pinjaman & Riwayat)"
                 >
                   <Sparkles className="h-3.5 w-3.5 text-purple-500" />
                   <span>Portal Siswa</span>
@@ -935,6 +955,11 @@ export default function Home() {
                   }}
                   onOpenScanIsbn={() => setIsScanIsbnOpen(true)}
                   onOpenStudentPortal={() => setIsStudentPortalOpen(true)}
+                  onSwitchToKioskMode={() => {
+                    setAppMode('KIOSK_ANAK');
+                    libraryStore.saveAppMode('KIOSK_ANAK');
+                    soundFx.playScanBeep();
+                  }}
                 />
               )}
 

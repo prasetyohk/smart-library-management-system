@@ -17,14 +17,14 @@ export const ShortcutHelpModal: React.FC<ShortcutHelpModalProps> = ({
   isOpen,
   onClose,
   shortcuts = {
-    newLoan: 'Control+q',
-    returnBook: 'Control+t',
-    renewLoan: 'Control+e',
-    overdueTab: 'Control+r',
-    booksTab: 'Control+b',
-    membersTab: 'Control+m',
-    opacTab: 'Control+k',
-    settingsModal: 'Control+p',
+    newLoan: 'Alt+1',
+    returnBook: 'Alt+2',
+    renewLoan: 'Alt+3',
+    overdueTab: 'Alt+4',
+    booksTab: 'Alt+5',
+    membersTab: 'Alt+6',
+    opacTab: 'Alt+7',
+    settingsModal: 'Alt+8',
     helpModal: 'F1',
   },
   onOpenSettings,
@@ -43,7 +43,7 @@ export const ShortcutHelpModal: React.FC<ShortcutHelpModalProps> = ({
     {
       title: 'Peminjaman Baru',
       desc: 'Buka Meja Sirkulasi tab Peminjaman Baru',
-      key: formatKey(shortcuts.newLoan || 'Control+q'),
+      key: formatKey(shortcuts.newLoan || 'Alt+1'),
       category: 'Sirkulasi',
       color: 'bg-amber-500/10 text-amber-500 border-amber-500/30',
       action: () => {
@@ -54,7 +54,7 @@ export const ShortcutHelpModal: React.FC<ShortcutHelpModalProps> = ({
     {
       title: 'Pengembalian Kilat',
       desc: 'Buka Meja Sirkulasi tab Pengembalian 4-Langkah (Klik untuk langsung buka)',
-      key: formatKey(shortcuts.returnBook || 'Control+t'),
+      key: formatKey(shortcuts.returnBook || 'Alt+2'),
       category: 'Sirkulasi',
       color: 'bg-emerald-500/10 text-emerald-500 border-emerald-500/30',
       action: () => {
@@ -65,7 +65,7 @@ export const ShortcutHelpModal: React.FC<ShortcutHelpModalProps> = ({
     {
       title: 'Perpanjangan Pinjam',
       desc: 'Buka Meja Sirkulasi tab Perpanjangan Buku Siswa/Guru',
-      key: formatKey(shortcuts.renewLoan || 'Control+e'),
+      key: formatKey(shortcuts.renewLoan || 'Alt+3'),
       category: 'Sirkulasi',
       color: 'bg-blue-500/10 text-blue-500 border-blue-500/30',
       action: () => {
@@ -76,7 +76,7 @@ export const ShortcutHelpModal: React.FC<ShortcutHelpModalProps> = ({
     {
       title: 'Tagihan & Terlambat',
       desc: 'Buka daftar buku jatuh tempo & salin rekap WA',
-      key: formatKey(shortcuts.overdueTab || 'Control+r'),
+      key: formatKey(shortcuts.overdueTab || 'Alt+4'),
       category: 'Sirkulasi',
       color: 'bg-rose-500/10 text-rose-500 border-rose-500/30',
       action: () => {
@@ -87,7 +87,7 @@ export const ShortcutHelpModal: React.FC<ShortcutHelpModalProps> = ({
     {
       title: 'Koleksi Buku & Eksemplar',
       desc: 'Buka Meja Katalog Buku, Eksemplar & Barcode SLiMS',
-      key: formatKey(shortcuts.booksTab || 'Control+b'),
+      key: formatKey(shortcuts.booksTab || 'Alt+5'),
       category: 'Katalog',
       color: 'bg-purple-500/10 text-purple-500 border-purple-500/30',
       action: () => {
@@ -98,7 +98,7 @@ export const ShortcutHelpModal: React.FC<ShortcutHelpModalProps> = ({
     {
       title: 'Data Anggota Siswa',
       desc: 'Buka Manajemen Anggota, Akun Siswa & Kartu',
-      key: formatKey(shortcuts.membersTab || 'Control+m'),
+      key: formatKey(shortcuts.membersTab || 'Alt+6'),
       category: 'Anggota',
       color: 'bg-teal-500/10 text-teal-500 border-teal-500/30',
       action: () => {
@@ -109,7 +109,7 @@ export const ShortcutHelpModal: React.FC<ShortcutHelpModalProps> = ({
     {
       title: 'Katalog Visual Anak (OPAC)',
       desc: 'Buka rak buku visual sentuh anak & siswa',
-      key: formatKey(shortcuts.opacTab || 'Control+k'),
+      key: formatKey(shortcuts.opacTab || 'Alt+7'),
       category: 'Navigasi',
       color: 'bg-yellow-500/10 text-yellow-500 border-yellow-500/30',
       action: () => {
@@ -120,7 +120,7 @@ export const ShortcutHelpModal: React.FC<ShortcutHelpModalProps> = ({
     {
       title: 'Pengaturan Sistem',
       desc: 'Buka konfigurasi SLiMS, aturan pinjam, & akun pustakawan',
-      key: formatKey(shortcuts.settingsModal || 'Control+p'),
+      key: formatKey(shortcuts.settingsModal || 'Alt+8'),
       category: 'Admin',
       color: 'bg-orange-500/10 text-orange-500 border-orange-500/30',
       action: () => {
@@ -202,7 +202,7 @@ export const ShortcutHelpModal: React.FC<ShortcutHelpModalProps> = ({
         {/* Footer */}
         <div className="pt-3 border-t border-border flex items-center justify-between text-xs shrink-0">
           <p className="text-[11px] text-text-muted">
-            💡 <em>Tombol pintas dapat dikustomisasi di menu Pengaturan Sistem ➔ Tab Shortcut.</em>
+            💡 <em>Pintasan menggunakan <strong>ALT + Angka (1-8)</strong> & <strong>F1</strong> agar bebas bentrok dengan Google Chrome (tidak menutup tab). Kustomisasi di Pengaturan Sistem ➔ Tab Shortcut.</em>
           </p>
           <div className="flex gap-2">
             {onOpenSettings && (

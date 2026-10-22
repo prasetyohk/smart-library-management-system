@@ -30,6 +30,7 @@ export interface Category {
   iconName: string;
   shelfLocation: string;
   description: string;
+  shelfCode?: string; // Kode Rak Punggung SBTH (Default "SR", atau "AG", "SN", dll.)
 }
 
 export interface Book {
@@ -178,7 +179,7 @@ export interface WishlistNotification {
   read: boolean;
 }
 
-export type PrintTemplateType = 'TJ_103' | 'THERMAL_33x15' | 'THERMAL_40x30';
+export type PrintTemplateType = 'TJ_103' | 'SPINE_SBTH' | 'SLIP_DALAM_SBTH' | 'THERMAL_33x15' | 'THERMAL_40x30';
 
 export type StaffRole = 'ADMIN' | 'LIBRARIAN';
 

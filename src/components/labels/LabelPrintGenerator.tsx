@@ -18,7 +18,7 @@ import {
   Zap,
 } from 'lucide-react';
 import { Book, BookItem, Category, PrintTemplateType } from '@/types';
-import { CATEGORIES } from '@/lib/constants';
+import { CATEGORIES, getSbthSpineCode, getSbthInsideSlipData } from '@/lib/constants';
 import { libraryStore } from '@/lib/storage';
 import { BarcodeSvg } from '@/components/common/BarcodeSvg';
 
@@ -33,7 +33,8 @@ export const LabelPrintGenerator: React.FC<LabelPrintGeneratorProps> = ({
   onClose,
   preSelectedBarcodes = [],
 }) => {
-  const [template, setTemplate] = useState<PrintTemplateType>('TJ_103');
+  const [template, setTemplate] = useState<PrintTemplateType>('SPINE_SBTH');
+  const [customShelfCode, setCustomShelfCode] = useState<string>('SR');
   const [startOffsetIndex, setStartOffsetIndex] = useState<number>(0); // 0 to 11 (position 1 to 12)
   const [selectedBarcodes, setSelectedBarcodes] = useState<string[]>(preSelectedBarcodes);
   const [statusFilter, setStatusFilter] = useState<'ALL' | 'UNPRINTED' | 'PRINTED'>('ALL');
@@ -201,7 +202,7 @@ export const LabelPrintGenerator: React.FC<LabelPrintGeneratorProps> = ({
                 Generator Cetak Label Presisi (CSS @media print)
               </h2>
               <p className="text-xs text-slate-500 dark:text-slate-400">
-                Stiker Punggung Buku SBTH TK • Tom & Jerry 103 (32x64mm) & Printer Thermal Roll
+                Mode Penamaan SBTH (Punggung 4-Baris & Slip Dalam 4-Digit) • Tom & Jerry 103 • Thermal Roll
               </p>
             </div>
           </div>
@@ -214,46 +215,74 @@ export const LabelPrintGenerator: React.FC<LabelPrintGeneratorProps> = ({
         </div>
 
         {/* Configuration Bar - Screen only */}
-        <div className="print:hidden p-4 bg-slate-50 dark:bg-slate-800/60 border-b border-slate-200 dark:border-slate-800 grid grid-cols-1 md:grid-cols-3 gap-4 text-xs">
+        <div className="print:hidden p-4 bg-slate-50 dark:bg-slate-800/60 border-b border-slate-200 dark:border-slate-800 grid grid-cols-1 lg:grid-cols-3 gap-4 text-xs">
           {/* 1. Template Chooser */}
           <div>
             <label className="font-bold text-slate-700 dark:text-slate-300 block mb-1.5 flex items-center gap-1.5">
               <Settings2 className="h-3.5 w-3.5 text-emerald-600" />
-              Format Ukuran Kertas Stiker:
+              Pilih Format / Model Stiker:
             </label>
-            <div className="flex gap-2">
+            <div className="grid grid-cols-2 gap-1.5">
               <button
                 type="button"
-                onClick={() => setTemplate('TJ_103')}
-                className={`flex-1 p-2 rounded-xl border text-center font-semibold transition ${
-                  template === 'TJ_103'
-                    ? 'border-emerald-600 bg-emerald-50 dark:bg-emerald-950/60 text-emerald-800 dark:text-emerald-300 shadow-xs'
+                onClick={() => setTemplate('SPINE_SBTH')}
+                className={`p-2 rounded-xl border text-center font-semibold transition cursor-pointer ${
+                  template === 'SPINE_SBTH'
+                    ? 'border-amber-500 bg-amber-50 dark:bg-amber-950/60 text-amber-800 dark:text-amber-300 shadow-xs ring-1 ring-amber-500/40'
                     : 'border-slate-200 dark:border-slate-700 hover:bg-white dark:hover:bg-slate-800 text-slate-600 dark:text-slate-400'
                 }`}
               >
-                T&J No. 103
-                <span className="block text-[10px] font-normal text-slate-400">
-                  A4 • 12 stiker (32x64mm)
+                📏 Punggung SBTH
+                <span className="block text-[9px] font-normal text-slate-400 mt-0.5">
+                  4 Baris (SR / DDC / Pengarang / Judul)
+                </span>
+              </button>
+              <button
+                type="button"
+                onClick={() => setTemplate('SLIP_DALAM_SBTH')}
+                className={`p-2 rounded-xl border text-center font-semibold transition cursor-pointer ${
+                  template === 'SLIP_DALAM_SBTH'
+                    ? 'border-blue-500 bg-blue-50 dark:bg-blue-950/60 text-blue-800 dark:text-blue-300 shadow-xs ring-1 ring-blue-500/40'
+                    : 'border-slate-200 dark:border-slate-700 hover:bg-white dark:hover:bg-slate-800 text-slate-600 dark:text-slate-400'
+                }`}
+              >
+                📑 Slip Dalam Buku
+                <span className="block text-[9px] font-normal text-slate-400 mt-0.5">
+                  No. 4 Digit & Tanggal
+                </span>
+              </button>
+              <button
+                type="button"
+                onClick={() => setTemplate('TJ_103')}
+                className={`p-2 rounded-xl border text-center font-semibold transition cursor-pointer ${
+                  template === 'TJ_103'
+                    ? 'border-emerald-600 bg-emerald-50 dark:bg-emerald-950/60 text-emerald-800 dark:text-emerald-300 shadow-xs ring-1 ring-emerald-500/40'
+                    : 'border-slate-200 dark:border-slate-700 hover:bg-white dark:hover:bg-slate-800 text-slate-600 dark:text-slate-400'
+                }`}
+              >
+                🏷️ T&J No. 103
+                <span className="block text-[9px] font-normal text-slate-400 mt-0.5">
+                  Sampul Depan (A4 12 Stiker)
                 </span>
               </button>
               <button
                 type="button"
                 onClick={() => setTemplate('THERMAL_40x30')}
-                className={`flex-1 p-2 rounded-xl border text-center font-semibold transition ${
+                className={`p-2 rounded-xl border text-center font-semibold transition cursor-pointer ${
                   template === 'THERMAL_40x30'
-                    ? 'border-emerald-600 bg-emerald-50 dark:bg-emerald-950/60 text-emerald-800 dark:text-emerald-300 shadow-xs'
+                    ? 'border-purple-600 bg-purple-50 dark:bg-purple-950/60 text-purple-800 dark:text-purple-300 shadow-xs ring-1 ring-purple-500/40'
                     : 'border-slate-200 dark:border-slate-700 hover:bg-white dark:hover:bg-slate-800 text-slate-600 dark:text-slate-400'
                 }`}
               >
-                Thermal Roll
-                <span className="block text-[10px] font-normal text-slate-400">
+                🖨️ Thermal Roll
+                <span className="block text-[9px] font-normal text-slate-400 mt-0.5">
                   Label 40 x 30 mm
                 </span>
               </button>
             </div>
           </div>
 
-          {/* 2. Interactive Start Position (Anti Kertas Terbuang!) */}
+          {/* 2. Interactive Start Position or SBTH Shelf Customization */}
           {template === 'TJ_103' ? (
             <div>
               <div className="flex items-center justify-between mb-1.5">
@@ -272,7 +301,7 @@ export const LabelPrintGenerator: React.FC<LabelPrintGeneratorProps> = ({
                     key={idx}
                     type="button"
                     onClick={() => setStartOffsetIndex(idx)}
-                    className={`h-6 rounded-md text-[10px] font-bold transition ${
+                    className={`h-6 rounded-md text-[10px] font-bold transition cursor-pointer ${
                       idx === startOffsetIndex
                         ? 'bg-amber-500 text-white shadow-xs'
                         : idx < startOffsetIndex
@@ -285,6 +314,33 @@ export const LabelPrintGenerator: React.FC<LabelPrintGeneratorProps> = ({
                   </button>
                 ))}
               </div>
+            </div>
+          ) : template === 'SPINE_SBTH' ? (
+            <div className="space-y-1.5 flex flex-col justify-center">
+              <label className="font-bold text-slate-700 dark:text-slate-300 flex items-center justify-between">
+                <span>Kode Rak Punggung (Baris 1):</span>
+                <span className="text-[10px] text-amber-600 font-semibold">Bawaan SBTH: &quot;SR&quot;</span>
+              </label>
+              <div className="flex items-center gap-2">
+                <input
+                  type="text"
+                  value={customShelfCode}
+                  onChange={(e) => setCustomShelfCode(e.target.value.toUpperCase())}
+                  placeholder="SR"
+                  maxLength={6}
+                  className="w-20 h-9 rounded-xl border border-amber-500/60 bg-white dark:bg-slate-900 px-3 text-center text-xs font-mono font-bold text-amber-500 outline-hidden focus:ring-1 focus:ring-amber-500"
+                />
+                <p className="text-[11px] text-slate-500 dark:text-slate-400 leading-tight">
+                  Format vertikal 4 baris: <strong>[Rak: {customShelfCode || 'SR'}]</strong> ➔ <strong>[DDC]</strong> ➔ <strong>[Pengarang]</strong> ➔ <strong>[Judul]</strong>
+                </p>
+              </div>
+            </div>
+          ) : template === 'SLIP_DALAM_SBTH' ? (
+            <div className="flex items-center p-3 text-xs text-blue-700 dark:text-blue-300 bg-blue-50 dark:bg-blue-950/40 rounded-xl border border-blue-200 dark:border-blue-800 gap-2.5">
+              <span className="text-xl">📑</span>
+              <p className="leading-tight">
+                <strong>Format Slip Dalam SBTH:</strong> Mencetak cap No. Daftar (4 digit angka, e.g. <code>0101</code>) dan Tanggal (<code>DD/MM/TTTT</code>) persis seperti fisik buku sekolah.
+              </p>
             </div>
           ) : (
             <div className="flex items-center justify-center p-3 text-xs text-slate-500 bg-white dark:bg-slate-900 rounded-xl border border-slate-200 dark:border-slate-700">
@@ -457,6 +513,142 @@ export const LabelPrintGenerator: React.FC<LabelPrintGeneratorProps> = ({
                     </div>
                   );
                 })}
+              </div>
+            )}
+
+            {/* TEMPLATE C: LABEL PUNGGUNG RAK SBTH (4 BARIS VERTIKAL) */}
+            {template === 'SPINE_SBTH' && (
+              <div className="sbth-spine-sheet bg-white text-black p-4 rounded-xl shadow-lg border border-slate-300 mx-auto">
+                <div className="print:hidden mb-4 p-3 bg-amber-50 dark:bg-amber-950/40 rounded-2xl border border-amber-200 dark:border-amber-800 text-xs text-amber-900 dark:text-amber-200 flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+                  <div className="flex items-center gap-2">
+                    <span className="text-lg">📏</span>
+                    <div>
+                      <strong>Standar Label Punggung Buku Fisik SBTH (4 Baris Vertikal):</strong>
+                      <p className="text-[11px] text-amber-800/80 dark:text-amber-300/80">
+                        Format stiker samping punggung buku pas dengan buku yang sudah ada di rak perpustakaan sekolah.
+                      </p>
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-2 font-mono text-xs shrink-0 bg-white dark:bg-slate-900 px-3 py-1.5 rounded-xl border border-amber-300">
+                    <span className="text-slate-600 dark:text-slate-400">Kode Rak:</span>
+                    <strong className="text-amber-600 dark:text-amber-400 text-sm">{customShelfCode || 'SR'}</strong>
+                  </div>
+                </div>
+
+                <div className="sbth-spine-grid grid grid-cols-2 sm:grid-cols-4 md:grid-cols-6 gap-3 print:gap-[4mm] justify-center">
+                  {itemsToPrint.map((ei) => {
+                    const book = ei.book;
+                    const cat = ei.category;
+                    const spine = getSbthSpineCode(
+                      book?.title || '',
+                      book?.author || '',
+                      book?.categoryId,
+                      customShelfCode || cat.shelfCode || 'SR',
+                      book?.classification
+                    );
+
+                    return (
+                      <div
+                        key={ei.item.id}
+                        className="sbth-spine-label border-2 border-slate-900 rounded-lg overflow-hidden bg-white text-black flex flex-col justify-between p-1 w-[120px] h-[180px] print:w-[28mm] print:h-[44mm] print:shadow-none shadow-xs mx-auto text-center"
+                      >
+                        {/* Header Mini Warna Rak */}
+                        <div
+                          className="h-3 rounded-xs text-[8px] font-bold text-white flex items-center justify-center uppercase tracking-wider shrink-0"
+                          style={{ backgroundColor: cat.colorHex }}
+                        >
+                          {cat.shortName}
+                        </div>
+
+                        {/* Kotak 4 Baris Fisik SBTH */}
+                        <div className="flex-1 flex flex-col justify-center divide-y divide-black/80 my-1 font-mono">
+                          {/* Baris 1: Kode Rak (e.g. SR) */}
+                          <div className="py-1 flex items-center justify-center font-extrabold text-sm sm:text-base tracking-widest text-slate-950">
+                            {spine.shelfCode}
+                          </div>
+
+                          {/* Baris 2: Nomor DDC (e.g. 813 / 220) */}
+                          <div className="py-1 flex items-center justify-center font-extrabold text-sm sm:text-base tracking-wider text-slate-950">
+                            {spine.ddc}
+                          </div>
+
+                          {/* Baris 3: 3 Huruf Pengarang (e.g. KID / JUL) */}
+                          <div className="py-1 flex items-center justify-center font-extrabold text-sm sm:text-base tracking-widest text-slate-950 uppercase">
+                            {spine.authorCode}
+                          </div>
+
+                          {/* Baris 4: 1 Huruf Kecil Judul (e.g. m / t) */}
+                          <div className="py-1 flex items-center justify-center font-bold text-sm sm:text-base text-slate-950 lowercase">
+                            {spine.titleCode}
+                          </div>
+                        </div>
+
+                        {/* Footer Eksemplar */}
+                        <div className="border-t border-slate-300 pt-0.5 text-[8px] text-slate-600 flex items-center justify-between px-0.5 shrink-0 font-sans">
+                          <span>SBTH</span>
+                          <span>#{ei.item.copyNumber}</span>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
+
+            {/* TEMPLATE D: SLIP CAP BAGIAN DALAM BUKU SBTH (NO. DAFTAR 4 DIGIT & TANGGAL) */}
+            {template === 'SLIP_DALAM_SBTH' && (
+              <div className="sbth-slip-sheet bg-white text-black p-4 rounded-xl shadow-lg border border-slate-300 mx-auto">
+                <div className="print:hidden mb-4 p-3 bg-blue-50 dark:bg-blue-950/40 rounded-2xl border border-blue-200 dark:border-blue-800 text-xs text-blue-900 dark:text-blue-200 flex items-center gap-2.5">
+                  <span className="text-xl">📑</span>
+                  <div>
+                    <strong>Slip Cap Bagian Dalam Buku Fisik SBTH:</strong>
+                    <p className="text-[11px] text-blue-800/80 dark:text-blue-300/80">
+                      Berisi No. Daftar 4 Digit (contoh: <code>0101</code>) dan Tanggal (<code>DD/MM/TTTT</code>) untuk ditempel pada halaman dalam buku sesuai buku fisik SBTH yang sudah ada.
+                    </p>
+                  </div>
+                </div>
+
+                <div className="sbth-slip-grid grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3 print:gap-[4mm] justify-center">
+                  {itemsToPrint.map((ei) => {
+                    const book = ei.book;
+                    const slip = getSbthInsideSlipData(ei.item.itemBarcode, ei.item.copyNumber, ei.item.acquisitionDate);
+
+                    return (
+                      <div
+                        key={ei.item.id}
+                        className="sbth-slip-label border border-slate-400 rounded-lg overflow-hidden bg-white text-black p-3 w-full sm:w-[240px] h-[140px] print:w-[64mm] print:h-[36mm] print:shadow-none shadow-xs mx-auto flex flex-col justify-between"
+                      >
+                        {/* Kop Cap Perpustakaan */}
+                        <div className="text-center border-b border-black pb-1">
+                          <span className="text-[10px] font-extrabold uppercase tracking-tight block leading-tight">
+                            PERPUSTAKAAN KB-TK SBTH
+                          </span>
+                          <span className="text-[8px] text-slate-600 block leading-none">
+                            Bhakti Tunas Harapan Magelang
+                          </span>
+                        </div>
+
+                        {/* Isi No Daftar 4 Digit & Tanggal */}
+                        <div className="my-1.5 space-y-1 font-mono text-xs">
+                          <div className="flex items-center justify-between border border-black/40 px-2 py-0.5 rounded bg-slate-50">
+                            <span className="font-semibold text-slate-700 text-[10px]">No. Daftar :</span>
+                            <span className="font-black text-sm text-slate-950 tracking-widest">{slip.accessionNumber}</span>
+                          </div>
+                          <div className="flex items-center justify-between border border-black/40 px-2 py-0.5 rounded bg-slate-50">
+                            <span className="font-semibold text-slate-700 text-[10px]">Tanggal    :</span>
+                            <span className="font-bold text-xs text-slate-950">{slip.dateStr}</span>
+                          </div>
+                        </div>
+
+                        {/* Info Judul & Eksemplar */}
+                        <div className="border-t border-slate-200 pt-0.5 flex items-center justify-between text-[8px] text-slate-500 font-sans">
+                          <span className="truncate max-w-[150px] font-medium text-slate-700">{book?.title}</span>
+                          <span>Copy #{ei.item.copyNumber}</span>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
               </div>
             )}
           </div>

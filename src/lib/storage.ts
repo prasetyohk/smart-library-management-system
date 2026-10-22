@@ -1683,9 +1683,14 @@ Periode: Minggu ke-2 Oktober 2026
     }
     try {
       const parsed = JSON.parse(raw);
-      if (parsed.returnBook === 'Control+w') {
-        parsed.returnBook = 'Control+t';
-        this.saveKeyboardShortcuts(parsed);
+      // Migrasi otomatis jika masih tersimpan shortcut Control legacy yang berbenturan dengan Chrome
+      if (
+        parsed.newLoan?.includes('Control') ||
+        parsed.returnBook?.includes('Control') ||
+        parsed.returnBook === 'Control+w'
+      ) {
+        this.saveKeyboardShortcuts(DEFAULT_KEYBOARD_SHORTCUTS);
+        return DEFAULT_KEYBOARD_SHORTCUTS;
       }
       return { ...DEFAULT_KEYBOARD_SHORTCUTS, ...parsed };
     } catch {

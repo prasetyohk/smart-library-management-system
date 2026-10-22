@@ -155,4 +155,68 @@ h1, h2, h3, .font-display {
     border: none !important;
     margin: 0 !important;
   }
+
+  /* Label Punggung Fisik SBTH (4 Baris Vertikal) */
+  .sbth-spine-sheet {
+    box-shadow: none !important;
+    border: none !important;
+    padding: 0 !important;
+    margin: 0 auto !important;
+    width: 100% !important;
+  }
+
+  .sbth-spine-grid {
+    display: grid !important;
+    grid-template-columns: repeat(6, 28mm) !important;
+    grid-auto-rows: 44mm !important;
+    column-gap: 4mm !important;
+    row-gap: 4mm !important;
+    justify-content: center !important;
+    align-content: start !important;
+  }
+
+  .sbth-spine-label {
+    width: 28mm !important;
+    height: 44mm !important;
+    max-height: 44mm !important;
+    box-sizing: border-box !important;
+    page-break-inside: avoid !important;
+    break-inside: avoid !important;
+    border: 1pt solid #000000 !important;
+    overflow: hidden !important;
+    margin: 0 !important;
+    padding: 0 !important;
+  }
+
+  /* Slip Cap Bagian Dalam Buku SBTH (No. Daftar 4 Digit & Tanggal) */
+  .sbth-slip-sheet {
+    box-shadow: none !important;
+    border: none !important;
+    padding: 0 !important;
+    margin: 0 auto !important;
+    width: 100% !important;
+  }
+
+  .sbth-slip-grid {
+    display: grid !important;
+    grid-template-columns: repeat(3, 64mm) !important;
+    grid-auto-rows: 36mm !important;
+    column-gap: 4mm !important;
+    row-gap: 3mm !important;
+    justify-content: center !important;
+    align-content: start !important;
+  }
+
+  .sbth-slip-label {
+    width: 64mm !important;
+    height: 36mm !important;
+    max-height: 36mm !important;
+    box-sizing: border-box !important;
+    page-break-inside: avoid !important;
+    break-inside: avoid !important;
+    border: 1pt solid #333333 !important;
+    overflow: hidden !important;
+    margin: 0 !important;
+    padding: 0 !important;
+  }
 }
