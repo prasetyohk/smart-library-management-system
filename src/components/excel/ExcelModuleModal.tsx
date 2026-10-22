@@ -51,6 +51,11 @@ export const ExcelModuleModal: React.FC<ExcelModuleModalProps> = ({
         'Tahun Terbit': '2024',
         'Kategori': 'DONGENG',
         'Posisi Rak': 'Rak Kuning B (Dongeng & Fabel) - Baris 1',
+        'Baris 1 - Kode Rak': 'SR',
+        'Baris 2 - Nomor DDC': '813',
+        'Baris 3 - Kode Pengarang': 'BAM',
+        'Baris 4 - Kode Judul': 'k',
+        'Status Dicap / Label': 'Belum',
         'Jumlah Eksemplar': 3,
         'Halaman Buku': 32,
         'Format Fisik': 'Cerita Bergambar',
@@ -67,6 +72,11 @@ export const ExcelModuleModal: React.FC<ExcelModuleModalProps> = ({
         'Tahun Terbit': '2023',
         'Kategori': 'ALAM',
         'Posisi Rak': 'Rak Hijau A (Sains & Alam) - Baris 1',
+        'Baris 1 - Kode Rak': 'SR',
+        'Baris 2 - Nomor DDC': '500',
+        'Baris 3 - Kode Pengarang': 'SAT',
+        'Baris 4 - Kode Judul': 'j',
+        'Status Dicap / Label': 'Sudah',
         'Jumlah Eksemplar': 2,
         'Halaman Buku': 28,
         'Format Fisik': 'Hardcover Bergambar',
@@ -83,6 +93,11 @@ export const ExcelModuleModal: React.FC<ExcelModuleModalProps> = ({
         'Tahun Terbit': '2020',
         'Kategori': 'DONGENG',
         'Posisi Rak': 'Rak Kuning B (Dongeng & Fabel) - Baris 2',
+        'Baris 1 - Kode Rak': 'SR',
+        'Baris 2 - Nomor DDC': '813',
+        'Baris 3 - Kode Pengarang': 'SIS',
+        'Baris 4 - Kode Judul': 'b',
+        'Status Dicap / Label': 'Sudah',
         'Jumlah Eksemplar': 3,
         'Halaman Buku': 24,
         'Format Fisik': 'Cerita Bergambar',
@@ -99,6 +114,11 @@ export const ExcelModuleModal: React.FC<ExcelModuleModalProps> = ({
         'Tahun Terbit': '2024',
         'Kategori': 'KARAKTER',
         'Posisi Rak': 'Rak Merah D (Karakter & Akhlak) - Baris 1',
+        'Baris 1 - Kode Rak': 'SR',
+        'Baris 2 - Nomor DDC': '170',
+        'Baris 3 - Kode Pengarang': 'HAN',
+        'Baris 4 - Kode Judul': 'm',
+        'Status Dicap / Label': 'Belum',
         'Jumlah Eksemplar': 4,
         'Halaman Buku': 24,
         'Format Fisik': 'Boardbook Balita',
@@ -120,6 +140,11 @@ export const ExcelModuleModal: React.FC<ExcelModuleModalProps> = ({
       { wch: 12 }, // Tahun
       { wch: 14 }, // Kategori
       { wch: 32 }, // Posisi Rak
+      { wch: 16 }, // Baris 1 Rak
+      { wch: 16 }, // Baris 2 DDC
+      { wch: 18 }, // Baris 3 Pengarang
+      { wch: 14 }, // Baris 4 Judul
+      { wch: 18 }, // Status Dicap
       { wch: 16 }, // Jumlah
       { wch: 14 }, // Halaman
       { wch: 20 }, // Format Fisik
@@ -172,6 +197,13 @@ export const ExcelModuleModal: React.FC<ExcelModuleModalProps> = ({
         let year = String(row['Tahun Terbit'] || row['Tahun'] || '2024').trim();
         let catCode = String(row['Kategori'] || 'DONGENG').toUpperCase().trim();
         let shelfLocation = String(row['Posisi Rak'] || row['Lokasi Rak'] || row['Rak'] || '').trim();
+        let shelfCode = String(row['Baris 1 - Kode Rak'] || row['Kode Rak'] || row['Shelf Code'] || '').trim();
+        let classification = String(row['Baris 2 - Nomor DDC'] || row['Nomor DDC'] || row['DDC'] || row['Klasifikasi'] || '').trim();
+        let authorCode = String(row['Baris 3 - Kode Pengarang'] || row['Kode Pengarang'] || row['Author Code'] || '').trim();
+        let titleCode = String(row['Baris 4 - Kode Judul'] || row['Kode Judul'] || row['Title Code'] || '').trim();
+        let rawLabelStatus = String(row['Status Dicap / Label'] || row['Status Dicap'] || row['Status Label'] || row['Status Cetak'] || '').toLowerCase().trim();
+        const isStampedOrPrinted = rawLabelStatus.includes('sudah') || rawLabelStatus.includes('cap') || rawLabelStatus.includes('cetak') || rawLabelStatus === 'ya' || rawLabelStatus === 'true' || rawLabelStatus === '1';
+
         let count = parseInt(row['Jumlah Eksemplar'] || row['Jumlah Buku'] || row['Jumlah'] || '1', 10) || 1;
         let rawSource = String(row['Sumber Perolehan'] || row['Sumber'] || 'BELI').toUpperCase().trim();
         let pageCount = parseInt(row['Halaman Buku'] || row['Halaman'] || '0', 10) || undefined;
@@ -229,6 +261,10 @@ export const ExcelModuleModal: React.FC<ExcelModuleModalProps> = ({
             categoryId,
             ageGroup: 'TK_A',
             shelfLocation: shelfLocation || undefined,
+            shelfCode: shelfCode || undefined,
+            classification: classification || undefined,
+            authorCode: authorCode || undefined,
+            titleCode: titleCode || undefined,
             pageCount,
             physicalFormat,
             bookLanguage,
@@ -240,6 +276,14 @@ export const ExcelModuleModal: React.FC<ExcelModuleModalProps> = ({
           undefined,
           priceValue
         );
+
+        if (isStampedOrPrinted && newItems.length > 0) {
+          libraryStore.markLabelsPrinted(
+            newItems.map((it) => it.itemBarcode),
+            true,
+            'MANUAL_STAMP'
+          );
+        }
 
         newItems.forEach((it) => allNewBarcodes.push(it.itemBarcode));
       }

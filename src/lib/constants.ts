@@ -1419,7 +1419,9 @@ export function getSbthSpineCode(
   author: string,
   categoryId?: string,
   customShelfCode?: string,
-  customClassification?: string
+  customClassification?: string,
+  customAuthorCode?: string,
+  customTitleCode?: string
 ): SbthSpineParts {
   // Baris 1: Kode Rak (Default: "SR")
   const shelfCode = (customShelfCode && customShelfCode.trim()) ? customShelfCode.trim().toUpperCase() : 'SR';
@@ -1433,18 +1435,24 @@ export function getSbthSpineCode(
     else if (categoryId === 'cat-ensiklopedia') ddc = '030';
     else if (categoryId === 'cat-bahasa') ddc = '495.1';
     else if (categoryId === 'cat-dongeng') ddc = '398.2';
-    else ddc = '813'; // Default Fiksi Anak SBTH
+    else ddc = '813'; // Default Fiksi/Cerpen Anak SBTH
   }
 
-  // Baris 3: 3 Huruf Kapital Pengarang
-  const cleanAuthor = author.replace(/^(Tim|Kak|Dr\.|Dra\.|Mr\.|Ms\.|Miss)\s+/i, '').trim();
-  const authorWords = cleanAuthor.split(/\s+/).filter(Boolean);
-  const mainAuthor = authorWords[authorWords.length - 1] || authorWords[0] || 'SBTH';
-  const authorCode = mainAuthor.substring(0, 3).toUpperCase().padEnd(3, 'X');
+  // Baris 3: 3 Huruf Kapital Pengarang (Cutter)
+  let authorCode = (customAuthorCode && customAuthorCode.trim()) ? customAuthorCode.trim().toUpperCase() : '';
+  if (!authorCode) {
+    const cleanAuthor = author.replace(/^(Tim|Kak|Dr\.|Dra\.|Mr\.|Ms\.|Miss)\s+/i, '').trim();
+    const authorWords = cleanAuthor.split(/\s+/).filter(Boolean);
+    const mainAuthor = authorWords[authorWords.length - 1] || authorWords[0] || 'SBTH';
+    authorCode = mainAuthor.substring(0, 3).toUpperCase().padEnd(3, 'X');
+  }
 
-  // Baris 4: 1 Huruf Kecil Judul Buku
-  const cleanTitle = title.replace(/^(Seri|Kumpulan|Buku|Cerita|Si|Sang|The|A|An)\s+/i, '').trim();
-  const titleCode = (cleanTitle[0] || 'b').toLowerCase();
+  // Baris 4: 1 Huruf Judul Buku
+  let titleCode = (customTitleCode && customTitleCode.trim()) ? customTitleCode.trim() : '';
+  if (!titleCode) {
+    const cleanTitle = title.replace(/^(Seri|Kumpulan|Buku|Cerita|Si|Sang|The|A|An)\s+/i, '').trim();
+    titleCode = (cleanTitle[0] || 't').toLowerCase();
+  }
 
   return {
     shelfCode,

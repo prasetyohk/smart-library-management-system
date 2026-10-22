@@ -984,6 +984,7 @@ export default function Home() {
                     setIsScanIsbnOpen(true);
                   }}
                   onOpenLabelPrinter={handleOpenLabelPrinterWithBarcodes}
+                  onRefresh={() => handleRefreshData()}
                 />
               )}
 

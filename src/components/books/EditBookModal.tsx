@@ -60,6 +60,10 @@ export const EditBookModal: React.FC<EditBookModalProps> = ({
   const [ageGroup, setAgeGroup] = useState<AgeGroup>(book.ageGroup || 'TK_A');
   const [synopsis, setSynopsis] = useState(book.synopsis || '');
   const [shelfLocation, setShelfLocation] = useState(book.shelfLocation || '');
+  const [shelfCode, setShelfCode] = useState(book.shelfCode || '');
+  const [classification, setClassification] = useState(book.classification || '');
+  const [authorCode, setAuthorCode] = useState(book.authorCode || '');
+  const [titleCode, setTitleCode] = useState(book.titleCode || '');
   const [acquisitionSource, setAcquisitionSource] = useState<AcquisitionSource>(
     book.acquisitionSource || 'BELI_SEKOLAH'
   );
@@ -184,6 +188,10 @@ export const EditBookModal: React.FC<EditBookModalProps> = ({
       physicalFormat,
       synopsis: synopsis.trim(),
       shelfLocation: shelfLocation.trim(),
+      shelfCode: shelfCode.trim() || undefined,
+      classification: classification.trim() || undefined,
+      authorCode: authorCode.trim() || undefined,
+      titleCode: titleCode.trim() || undefined,
       coverImage: coverImage.trim(),
       acquisitionSource,
       priceValue: Number(priceValue) || 0,
@@ -503,6 +511,83 @@ export const EditBookModal: React.FC<EditBookModalProps> = ({
                   <span className="text-[10px] text-text-muted mt-0.5 block">
                     Disimpan di database. Jika buku berpindah rak, tidak perlu cetak ulang label!
                   </span>
+                </div>
+              </div>
+
+              {/* Standar Punggung Buku Fisik SBTH (4 Baris Vertikal) */}
+              <div className="rounded-2xl p-4 bg-amber-500/10 border border-amber-500/30 space-y-3">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <span className="text-base">📏</span>
+                    <div>
+                      <span className="font-bold text-text text-xs uppercase tracking-wider block">
+                        Standar Label Punggung Buku SBTH (4 Baris Vertikal)
+                      </span>
+                      <p className="text-[10px] text-text-muted">
+                        Kustomisasi 4 baris stiker samping buku agar cocok 100% dengan buku lama di rak perpustakaan
+                      </p>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5">
+                  <div>
+                    <label className="text-[10px] font-bold text-text block mb-1">
+                      Baris 1: Kode Rak / Kategori
+                    </label>
+                    <input
+                      type="text"
+                      value={shelfCode}
+                      onChange={(e) => setShelfCode(e.target.value.toUpperCase())}
+                      placeholder="e.g. SR / AG / CR"
+                      className="w-full rounded-xl border border-border bg-surface px-3 py-1.5 text-xs font-mono font-bold text-text text-center focus:border-amber-500 outline-hidden uppercase"
+                    />
+                    <span className="text-[9px] text-text-muted mt-0.5 block text-center">Bawaan: SR</span>
+                  </div>
+
+                  <div>
+                    <label className="text-[10px] font-bold text-text block mb-1">
+                      Baris 2: Nomor DDC
+                    </label>
+                    <input
+                      type="text"
+                      value={classification}
+                      onChange={(e) => setClassification(e.target.value)}
+                      placeholder="e.g. 813 / 220"
+                      className="w-full rounded-xl border border-border bg-surface px-3 py-1.5 text-xs font-mono font-bold text-text text-center focus:border-amber-500 outline-hidden"
+                    />
+                    <span className="text-[9px] text-text-muted mt-0.5 block text-center">e.g. 813, 220, 398.2</span>
+                  </div>
+
+                  <div>
+                    <label className="text-[10px] font-bold text-text block mb-1">
+                      Baris 3: 3 Huruf Pengarang
+                    </label>
+                    <input
+                      type="text"
+                      maxLength={3}
+                      value={authorCode}
+                      onChange={(e) => setAuthorCode(e.target.value.toUpperCase())}
+                      placeholder="e.g. JUL / KID"
+                      className="w-full rounded-xl border border-border bg-surface px-3 py-1.5 text-xs font-mono font-bold text-text text-center focus:border-amber-500 outline-hidden uppercase"
+                    />
+                    <span className="text-[9px] text-text-muted mt-0.5 block text-center">3 Huruf Besar</span>
+                  </div>
+
+                  <div>
+                    <label className="text-[10px] font-bold text-text block mb-1">
+                      Baris 4: 1 Huruf Judul
+                    </label>
+                    <input
+                      type="text"
+                      maxLength={2}
+                      value={titleCode}
+                      onChange={(e) => setTitleCode(e.target.value)}
+                      placeholder="e.g. T / m"
+                      className="w-full rounded-xl border border-border bg-surface px-3 py-1.5 text-xs font-mono font-bold text-text text-center focus:border-amber-500 outline-hidden"
+                    />
+                    <span className="text-[9px] text-text-muted mt-0.5 block text-center">1 Huruf Judul</span>
+                  </div>
                 </div>
               </div>
 

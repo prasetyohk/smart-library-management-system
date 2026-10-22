@@ -46,7 +46,10 @@ export interface Book {
   coverImage: string;
   shelfLocation?: string; // e.g. "Rak A (Dongeng) - Baris 2"
   callNumber?: string;    // Nomor Panggil SLiMS (e.g. "398.2 PUS d")
-  classification?: string; // Klasifikasi DDC (e.g. "398.2")
+  classification?: string; // Klasifikasi DDC Baris 2 (e.g. "813", "220", "398.2")
+  shelfCode?: string;      // Kode Rak Punggung Baris 1 (e.g. "SR", "AG", "CR", "SN")
+  authorCode?: string;     // Kode 3 Huruf Pengarang Baris 3 (e.g. "JUL", "KID")
+  titleCode?: string;      // Kode 1 Huruf Depan Judul Baris 4 (e.g. "T", "m")
   priceValue?: number;     // Estimasi nilai buku (Rp)
   assetValue?: number;     // Estimasi nilai buku / nilai aset (Rp)
   acquisitionSource?: AcquisitionSource;
@@ -303,9 +306,9 @@ export interface LibraryNewsArticle {
 }
 
 export interface SlimsPatternConfig {
-  patternMode: 'SBTH' | 'SLIMS_STANDARD' | 'CATEGORY_BASED' | 'CUSTOM';
-  prefix: string; // e.g. "SBTH-B-" or "B" or "DNG-"
-  serialLength: number; // e.g. 5
+  patternMode: 'SBTH' | 'SBTH_4DIGIT' | 'SLIMS_STANDARD' | 'CATEGORY_BASED' | 'CUSTOM';
+  prefix: string; // e.g. "SBTH-B-" or "" or "B" or "DNG-"
+  serialLength: number; // e.g. 4 or 5
   suffix: string; // e.g. "" or "/P/2026"
   nextNumber: number; // e.g. 143
 }

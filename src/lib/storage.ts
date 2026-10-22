@@ -52,6 +52,8 @@ import {
   DEFAULT_LIBRARY_NEWS,
   DEFAULT_KEYBOARD_SHORTCUTS,
   generateSlimsCallNumber,
+  getSbthSpineCode,
+  getSbthInsideSlipData,
 } from './constants';
 import * as XLSX from 'xlsx';
 
@@ -557,18 +559,49 @@ export class LibraryStore {
     };
   }
 
-  // Mark stickers / labels as printed
-  public markLabelsPrinted(barcodes: string[], printed: boolean = true): void {
+  // Mark stickers / labels as printed or manually stamped with audit logging
+  public markLabelsPrinted(
+    barcodes: string[],
+    printed: boolean = true,
+    method: 'PRINT' | 'MANUAL_STAMP' = 'PRINT'
+  ): void {
     const items = this.getBookItems();
+    const books = this.getBooks();
     let modified = false;
+    const modifiedTitles: string[] = [];
+
     items.forEach((it) => {
       if (barcodes.includes(it.itemBarcode)) {
         it.labelPrinted = printed;
         modified = true;
+        const b = books.find((x) => x.id === it.bookId);
+        if (b && !modifiedTitles.includes(b.title)) {
+          modifiedTitles.push(b.title);
+        }
       }
     });
+
     if (modified) {
       this.saveBookItems(items);
+      const actionName = printed
+        ? method === 'MANUAL_STAMP'
+          ? 'TANDAI_CAP_MANUAL'
+          : 'CETAK_LABEL_BARCODE'
+        : 'BATAL_TANDAI_LABEL';
+      const detailMsg = printed
+        ? method === 'MANUAL_STAMP'
+          ? `Menandai ${barcodes.length} eksemplar fisik buku sudah dicap manual/ditulis nomor daftar (${barcodes.slice(0, 3).join(', ')}${barcodes.length > 3 ? '...' : ''}).`
+          : `Mencetak / menandai ${barcodes.length} label barcode fisik (${barcodes.slice(0, 3).join(', ')}${barcodes.length > 3 ? '...' : ''}).`
+        : `Membatalkan tanda label pada ${barcodes.length} eksemplar fisik (${barcodes.slice(0, 3).join(', ')}${barcodes.length > 3 ? '...' : ''}).`;
+
+      this.addActivityLog({
+        category: 'CATALOG',
+        action: actionName as any,
+        actor: 'Pustakawan',
+        targetTitle: modifiedTitles.length > 0 ? modifiedTitles.slice(0, 2).join(', ') : 'Label Eksemplar',
+        targetBarcode: barcodes[0],
+        details: detailMsg,
+      });
     }
   }
 
@@ -1207,6 +1240,15 @@ export class LibraryStore {
       const borrowed = bookItems.filter((i) => i.status === 'BORROWED').length;
       const broken = bookItems.filter((i) => i.status === 'DAMAGED' || i.status === 'LOST').length;
       const cat = CATEGORIES.find((c) => c.id === book.categoryId);
+      const spine = getSbthSpineCode(
+        book.title,
+        book.author,
+        book.categoryId,
+        book.shelfCode || cat?.shelfCode || 'SR',
+        book.classification,
+        book.authorCode,
+        book.titleCode
+      );
 
       return {
         'ID_Katalog': book.id,
@@ -1215,7 +1257,11 @@ export class LibraryStore {
         'Pengarang': book.author,
         'Penerbit': book.publisher,
         'Kategori_Warna': cat?.shortName || book.categoryId,
-        'Lokasi_Rak': cat?.shelfLocation || '',
+        'Lokasi_Rak': book.shelfLocation || cat?.shelfLocation || '',
+        'Punggung_Baris1_Rak': spine.shelfCode,
+        'Punggung_Baris2_DDC': spine.ddc,
+        'Punggung_Baris3_Pengarang': spine.authorCode,
+        'Punggung_Baris4_Judul': spine.titleCode,
         'Total_Stok': bookItems.length,
         'Stok_Tersedia': available,
         'Stok_Dipinjam': borrowed,
@@ -1226,14 +1272,18 @@ export class LibraryStore {
     // 3. Inventaris_Fisik_SBTH
     const sheet3Data = items.map((item) => {
       const book = books.find((b) => b.id === item.bookId);
+      const slip = getSbthInsideSlipData(item.itemBarcode, item.copyNumber, item.acquisitionDate);
       return {
         'Barcode_SBTH': item.itemBarcode,
+        'No_Daftar_4Digit': slip.accessionNumber,
+        'Tanggal_DD_MM_YYYY': slip.dateStr,
         'Judul': book?.title || 'Unknown',
         'Tgl_Masuk': item.acquisitionDate,
         'Sumber': item.acquisitionSource || item.source,
         'Nama_Penyumbang': item.donorName || '-',
         'Harga_Nilai_Rp': item.priceValue || 45000,
         'Status_Saat_Ini': item.status,
+        'Status_Label_Fisik': item.labelPrinted ? 'SUDAH_DICAP_DICETAK' : 'BELUM',
         'Catatan_Kondisi': item.conditionNote,
       };
     });
@@ -2926,14 +2976,16 @@ Periode: Minggu ke-2 Oktober 2026
     const pattern = this.getSlimsPattern();
     let prefix = pattern.prefix || 'SBTH-B-';
 
-    if (pattern.patternMode === 'SLIMS_STANDARD') {
+    if (pattern.patternMode === 'SBTH_4DIGIT') {
+      prefix = pattern.prefix !== undefined ? pattern.prefix : '';
+    } else if (pattern.patternMode === 'SLIMS_STANDARD') {
       prefix = 'B';
     } else if (pattern.patternMode === 'CATEGORY_BASED' && categoryId) {
       const catCode = categoryId.replace('cat-', '').substring(0, 3).toUpperCase();
       prefix = `${catCode}-`;
     }
 
-    const numStr = String(pattern.nextNumber).padStart(pattern.serialLength || 5, '0');
+    const numStr = String(pattern.nextNumber).padStart(pattern.serialLength || (pattern.patternMode === 'SBTH_4DIGIT' ? 4 : 5), '0');
     const currentYear = new Date().getFullYear();
     const rawSuffix = pattern.suffix || '';
     const suffix = rawSuffix
@@ -2966,7 +3018,9 @@ Periode: Minggu ke-2 Oktober 2026
 
     const updatedItems = items.map((item) => {
       let prefix = pattern.prefix || 'B';
-      if (pattern.patternMode === 'SLIMS_STANDARD') {
+      if (pattern.patternMode === 'SBTH_4DIGIT') {
+        prefix = pattern.prefix !== undefined ? pattern.prefix : '';
+      } else if (pattern.patternMode === 'SLIMS_STANDARD') {
         prefix = 'B';
       } else if (pattern.patternMode === 'CATEGORY_BASED') {
         const book = books.find((b) => b.id === item.bookId);
@@ -2976,7 +3030,7 @@ Periode: Minggu ke-2 Oktober 2026
         prefix = 'SBTH-B-';
       }
 
-      const numStr = String(currentNumber).padStart(pattern.serialLength || 5, '0');
+      const numStr = String(currentNumber).padStart(pattern.serialLength || (pattern.patternMode === 'SBTH_4DIGIT' ? 4 : 5), '0');
       const suffix = pattern.suffix || '';
       const newBarcode = `${prefix}${numStr}${suffix}`;
       currentNumber++;

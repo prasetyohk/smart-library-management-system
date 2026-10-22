@@ -214,14 +214,27 @@ export const KidsVisualOpac: React.FC<KidsVisualOpacProps> = ({
   // Scroll listener for Floating Back to Top Button
   useEffect(() => {
     const handleScroll = () => {
-      const scrollPos = window.scrollY || document.documentElement.scrollTop || 0;
+      const scrollPos = window.scrollY || document.documentElement.scrollTop || document.body.scrollTop || 0;
       const mainContainer = document.querySelector('main')?.parentElement;
+      const scrollableDiv = document.querySelector('.overflow-y-auto');
       const parentPos = mainContainer ? mainContainer.scrollTop : 0;
-      setShowBackToTop(scrollPos > 240 || parentPos > 240);
+      const divPos = scrollableDiv ? scrollableDiv.scrollTop : 0;
+      const currentScroll = Math.max(scrollPos, parentPos, divPos);
+      setShowBackToTop(currentScroll > 80);
     };
 
-    window.addEventListener('scroll', handleScroll, true);
-    return () => window.removeEventListener('scroll', handleScroll, true);
+    window.addEventListener('scroll', handleScroll, { capture: true, passive: true });
+    const scrollableDiv = document.querySelector('.overflow-y-auto');
+    if (scrollableDiv) {
+      scrollableDiv.addEventListener('scroll', handleScroll, { passive: true });
+    }
+
+    return () => {
+      window.removeEventListener('scroll', handleScroll, true);
+      if (scrollableDiv) {
+        scrollableDiv.removeEventListener('scroll', handleScroll);
+      }
+    };
   }, []);
 
   const scrollToTop = () => {
@@ -230,7 +243,14 @@ export const KidsVisualOpac: React.FC<KidsVisualOpacProps> = ({
     if (mainContainer) {
       mainContainer.scrollTo({ top: 0, behavior: 'smooth' });
     }
+    const scrollableDiv = document.querySelector('.overflow-y-auto');
+    if (scrollableDiv) {
+      scrollableDiv.scrollTo({ top: 0, behavior: 'smooth' });
+    }
     document.documentElement.scrollTo({ top: 0, behavior: 'smooth' });
+    if (document.body) {
+      document.body.scrollTo({ top: 0, behavior: 'smooth' });
+    }
     soundFx.playScanBeep();
   };
 
@@ -1701,6 +1721,23 @@ export const KidsVisualOpac: React.FC<KidsVisualOpacProps> = ({
             })}
           </div>
         )}
+
+        {/* Bottom Catalog Action Bar: Total Books info & Kembali ke Puncak button */}
+        {filteredBooks.length > 0 && (
+          <div className="pt-6 pb-2 flex flex-col sm:flex-row items-center justify-between gap-3 border-t border-border/80 text-xs text-text-muted">
+            <span className="font-medium">
+              Menampilkan <span className="font-bold text-text">{filteredBooks.length}</span> judul buku dari total <span className="font-bold text-text">{books.length}</span> koleksi perpustakaan SBTH.
+            </span>
+            <button
+              type="button"
+              onClick={scrollToTop}
+              className="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-surface-2 hover:bg-surface border border-border hover:border-amber-500/50 text-text font-bold text-xs transition cursor-pointer active:scale-95 shadow-2xs"
+            >
+              <ArrowUp className="h-4 w-4 text-amber-500" />
+              <span>Kembali ke Puncak Katalog ⬆️</span>
+            </button>
+          </div>
+        )}
       </div>
 
       {/* =========================================================================
@@ -2131,7 +2168,7 @@ export const KidsVisualOpac: React.FC<KidsVisualOpacProps> = ({
         <button
           type="button"
           onClick={scrollToTop}
-          className="fixed bottom-6 right-6 z-40 flex items-center gap-2.5 px-4 py-2.5 rounded-full bg-linear-to-r from-amber-500 to-orange-500 hover:from-amber-600 hover:to-orange-600 active:scale-95 text-slate-950 font-extrabold text-xs shadow-xl shadow-amber-500/35 border border-amber-300 transition-all cursor-pointer animate-in fade-in slide-in-from-bottom-4 group select-none"
+          className="fixed bottom-6 right-6 z-60 flex items-center gap-2.5 px-4 py-2.5 rounded-full bg-linear-to-r from-amber-500 to-orange-500 hover:from-amber-600 hover:to-orange-600 active:scale-95 text-slate-950 font-extrabold text-xs shadow-2xl shadow-amber-500/50 border-2 border-amber-300 transition-all cursor-pointer animate-in fade-in slide-in-from-bottom-4 group select-none"
           title="Kembali ke Atas Halaman"
         >
           <div className="flex h-5 w-5 items-center justify-center rounded-full bg-slate-950/20 group-hover:-translate-y-0.5 transition-transform">

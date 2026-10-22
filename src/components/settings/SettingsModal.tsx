@@ -305,7 +305,11 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
     let prefix = slimsPattern.prefix;
     let serialLength = slimsPattern.serialLength || 5;
     let suffix = slimsPattern.suffix || '';
-    if (mode === 'SBTH') {
+    if (mode === 'SBTH_4DIGIT') {
+      prefix = '';
+      serialLength = 4;
+      suffix = '';
+    } else if (mode === 'SBTH') {
       prefix = 'SBTH-B-';
       serialLength = 5;
       suffix = '';
@@ -1320,9 +1324,10 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                           Di bagian <strong>&quot;Pilih Preset Pola Penamaan&quot;</strong>, klik salah satu dari 4 kotak yang paling cocok:
                         </p>
                         <ul className="text-[11px] text-text-muted space-y-1 list-disc list-inside">
-                          <li><strong>Paling Standar (Rekomendasi):</strong> Kotak ke-2 (<em>SLiMS 9 Bulian</em>) → kode simpel: <code>B00001</code>, <code>B00002</code>, dst.</li>
-                          <li><strong>Ada Nama Sekolah:</strong> Kotak ke-1 (<em>Standar SBTH TK</em>) → <code>SBTH-B-00001</code>, dst.</li>
-                          <li><strong>Posisi Rak Langsung:</strong> Kotak ke-3 (<em>Kode Kategori Rak</em>) → <code>DNG-00001</code> (Dongeng) atau <code>SAI-00001</code> (Sains).</li>
+                          <li><strong>Standar Fisik SBTH (Cap 4-Digit):</strong> Kotak ke-1 (<em>Standar SBTH 4-Digit</em>) → kode nomor murni 4 digit tanpa awalan: <code>0101</code>, <code>0143</code>, dst. (sesuai cap fisik sekolah).</li>
+                          <li><strong>Paling Standar SLiMS (Rekomendasi Nasional):</strong> Kotak ke-3 (<em>SLiMS 9 Bulian</em>) → kode simpel: <code>B00001</code>, <code>B00002</code>, dst.</li>
+                          <li><strong>Ada Nama Sekolah:</strong> Kotak ke-2 (<em>Standar SBTH TK</em>) → <code>SBTH-B-00001</code>, dst.</li>
+                          <li><strong>Posisi Rak Langsung:</strong> Kotak ke-4 (<em>Kode Kategori Rak</em>) → <code>DNG-00001</code> (Dongeng) atau <code>SAI-00001</code> (Sains).</li>
                         </ul>
                         <p className="text-[10px] text-emerald-500 font-semibold">
                           *(Catatan: Setelah mengklik salah satu kotak di atas, kolom-kolom di bagian tengah otomatis terisi sendiri).*
@@ -1390,8 +1395,14 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                   <label className="text-xs font-bold text-text block">
                     Pilih Preset Pola Penamaan:
                   </label>
-                  <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-2.5">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-2.5">
                     {[
+                      {
+                        id: 'SBTH_4DIGIT',
+                        title: 'Standar SBTH 4-Digit (Fisik)',
+                        sample: '0143',
+                        desc: 'Prefix kosong, 4 digit nomor seri (sesuai slip cap dalam & buku lama)',
+                      },
                       {
                         id: 'SBTH',
                         title: 'Standar SBTH TK',
@@ -1400,7 +1411,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                       },
                       {
                         id: 'SLIMS_STANDARD',
-                        title: 'SLiMS 9 Bulian (Rekomendasi)',
+                        title: 'SLiMS 9 Bulian',
                         sample: 'B00143',
                         desc: 'Awalan "B" standar bawaan sistem SLiMS',
                       },
@@ -1413,7 +1424,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                       {
                         id: 'CUSTOM',
                         title: 'Kustom Bebas',
-                        sample: slimsPattern.prefix + '00143' + (slimsPattern.suffix || ''),
+                        sample: (slimsPattern.prefix || '') + '0143' + (slimsPattern.suffix || ''),
                         desc: 'Tentukan awalan dan akhiran manual',
                       },
                     ].map((preset) => (

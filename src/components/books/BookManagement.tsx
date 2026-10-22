@@ -51,12 +51,14 @@ interface BookManagementProps {
   onOpenScanIsbn: () => void;
   onOpenLabelPrinter: (barcodes: string[]) => void;
   language?: Language;
+  onRefresh?: () => void;
 }
 
 export const BookManagement: React.FC<BookManagementProps> = ({
   onOpenScanIsbn,
   onOpenLabelPrinter,
   language = 'id',
+  onRefresh,
 }) => {
   const t = DICTIONARY[language] || DICTIONARY.id;
 
@@ -198,6 +200,30 @@ export const BookManagement: React.FC<BookManagementProps> = ({
     alert(`✓ Berhasil memindahkan ${updated} eksemplar fisik ke ${bulkShelfTarget}!`);
     setSelectedItemIds([]);
     setRefreshTick((r) => r + 1);
+  };
+
+  const handleBulkMarkPrinted = (printed: boolean) => {
+    const selectedBarcodes = allItems
+      .filter((i) => selectedItemIds.includes(i.id))
+      .map((i) => i.itemBarcode);
+    if (selectedBarcodes.length === 0) {
+      alert('Tidak ada eksemplar yang dipilih.');
+      return;
+    }
+    libraryStore.markLabelsPrinted(
+      selectedBarcodes,
+      printed,
+      printed ? 'MANUAL_STAMP' : undefined
+    );
+    soundFx.playSuccessChime();
+    alert(
+      printed
+        ? `✓ Berhasil menandai ${selectedBarcodes.length} eksemplar sebagai SUDAH DICAP / DICETAK LABEL.`
+        : `✓ Berhasil mengubah ${selectedBarcodes.length} eksemplar menjadi BELUM DICAP / BELUM CETAK LABEL.`
+    );
+    setSelectedItemIds([]);
+    setRefreshTick((r) => r + 1);
+    onRefresh?.();
   };
 
   const filteredBooks = books
@@ -824,7 +850,7 @@ export const BookManagement: React.FC<BookManagementProps> = ({
         </div>
 
         {selectedItemIds.length > 0 && (
-          <div className="flex items-center gap-2">
+          <div className="flex flex-wrap items-center gap-2">
             <span className="text-xs font-semibold text-text whitespace-nowrap">Pindah ke:</span>
             <select
               value={bulkShelfTarget}
@@ -847,10 +873,36 @@ export const BookManagement: React.FC<BookManagementProps> = ({
               type="button"
               disabled={!bulkShelfTarget}
               onClick={handleApplyBulkShelf}
-              className="px-3.5 py-1.5 rounded-xl bg-amber-500 hover:bg-amber-600 disabled:opacity-50 text-slate-950 font-bold text-xs flex items-center gap-1.5 transition cursor-pointer shrink-0"
+              className="px-3 py-1.5 rounded-xl bg-amber-500 hover:bg-amber-600 disabled:opacity-50 text-slate-950 font-bold text-xs flex items-center gap-1.5 transition cursor-pointer shrink-0"
+              title="Terapkan lokasi rak ke semua eksemplar terpilih"
             >
               <Check className="h-4 w-4" />
-              <span>Terapkan ({selectedItemIds.length})</span>
+              <span>Pindah ({selectedItemIds.length})</span>
+            </button>
+
+            <button
+              type="button"
+              onClick={() => handleBulkMarkPrinted(true)}
+              className="px-3 py-1.5 rounded-xl bg-emerald-500/15 hover:bg-emerald-500/25 text-emerald-500 border border-emerald-500/30 text-xs font-bold flex items-center gap-1.5 transition cursor-pointer"
+              title="Tandai terpilih sudah dicap stempel / ditulis nomor daftar manual (tanpa printer)"
+            >
+              <CheckSquare className="h-3.5 w-3.5" />
+              <span>Tandai Dicap ({selectedItemIds.length})</span>
+            </button>
+
+            <button
+              type="button"
+              onClick={() => {
+                const barcodes = allItems
+                  .filter((i) => selectedItemIds.includes(i.id))
+                  .map((i) => i.itemBarcode);
+                onOpenLabelPrinter(barcodes);
+              }}
+              className="px-3 py-1.5 rounded-xl bg-sky-500 hover:bg-sky-600 text-white text-xs font-bold flex items-center gap-1.5 transition cursor-pointer shadow-xs"
+              title="Cetak stiker barcode untuk eksemplar terpilih (bisa cetak kapan saja)"
+            >
+              <Printer className="h-3.5 w-3.5" />
+              <span>Cetak Barcode ({selectedItemIds.length})</span>
             </button>
           </div>
         )}
@@ -947,7 +999,18 @@ export const BookManagement: React.FC<BookManagementProps> = ({
                       </td>
                       <td className="py-3 px-3 whitespace-nowrap font-mono text-[11px] text-text-muted">
                         <div>{book.isbn}</div>
-                        <div className="text-[10px] text-amber-500 font-sans font-semibold">{items.length} Eksemplar</div>
+                        <div className="flex items-center gap-1.5 mt-0.5">
+                          <span className="text-[10px] text-amber-500 font-sans font-semibold">{items.length} Eks</span>
+                          {items.some(i => !i.labelPrinted) ? (
+                            <span className="text-[9px] px-1 py-0.2 rounded bg-amber-500/15 text-amber-500 font-bold" title="Ada eksemplar belum dicap/dicetak">
+                              {items.filter(i => !i.labelPrinted).length} Belum
+                            </span>
+                          ) : (
+                            <span className="text-[9px] px-1 py-0.2 rounded bg-emerald-500/15 text-emerald-500 font-bold" title="Semua eksemplar sudah dicap/dicetak">
+                              ✓ Dicap
+                            </span>
+                          )}
+                        </div>
                       </td>
                       <td className="py-3 px-3 whitespace-nowrap">
                         {/* Inline quick shelf changer dropdown without popup */}
@@ -1024,11 +1087,27 @@ export const BookManagement: React.FC<BookManagementProps> = ({
                           >
                             <Plus className="h-3.5 w-3.5" />
                           </button>
+                          {items.some((i) => !i.labelPrinted) && (
+                            <button
+                              type="button"
+                              onClick={() => {
+                                const unprinted = items.filter((i) => !i.labelPrinted).map((i) => i.itemBarcode);
+                                libraryStore.markLabelsPrinted(unprinted, true, 'MANUAL_STAMP');
+                                soundFx.playSuccessChime();
+                                setRefreshTick((r) => r + 1);
+                                onRefresh?.();
+                              }}
+                              className="p-1.5 rounded-lg border border-emerald-500/30 bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-500 transition cursor-pointer"
+                              title="Tandai semua eksemplar buku ini sudah dicap manual / ditulis ballpoint"
+                            >
+                              <CheckSquare className="h-3.5 w-3.5" />
+                            </button>
+                          )}
                           <button
                             type="button"
                             onClick={() => onOpenLabelPrinter(items.map((i) => i.itemBarcode))}
                             className="p-1.5 rounded-lg border border-border hover:bg-surface-2 text-text-muted hover:text-text transition cursor-pointer"
-                            title="Cetak Label Barcode"
+                            title="Cetak Label Barcode (tetap bisa dicetak kapan saja)"
                           >
                             <Printer className="h-3.5 w-3.5" />
                           </button>
@@ -1212,6 +1291,24 @@ export const BookManagement: React.FC<BookManagementProps> = ({
                         <span>Eksemplar</span>
                       </button>
 
+                      {unprintedInBook > 0 && (
+                        <button
+                          type="button"
+                          onClick={() => {
+                            const unprintedBarcodes = items.filter((i) => !i.labelPrinted).map((i) => i.itemBarcode);
+                            libraryStore.markLabelsPrinted(unprintedBarcodes, true, 'MANUAL_STAMP');
+                            soundFx.playSuccessChime();
+                            setRefreshTick((r) => r + 1);
+                            onRefresh?.();
+                          }}
+                          className="px-2.5 py-1.5 rounded-lg border border-emerald-500/40 bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-500 text-xs font-semibold flex items-center gap-1 transition cursor-pointer"
+                          title="Tandai semua eksemplar belum cetak di buku ini sudah dicap / ditulis ballpoint"
+                        >
+                          <CheckSquare className="h-3.5 w-3.5" />
+                          <span>Tandai Dicap ({unprintedInBook})</span>
+                        </button>
+                      )}
+
                       {unprintedInBook > 0 && unprintedInBook < items.length && (
                         <button
                           type="button"
@@ -1228,7 +1325,7 @@ export const BookManagement: React.FC<BookManagementProps> = ({
                         type="button"
                         onClick={() => onOpenLabelPrinter(items.map((i) => i.itemBarcode))}
                         className="px-3 py-1.5 rounded-lg border border-border bg-surface hover:bg-surface-2 text-text text-xs font-medium flex items-center gap-1 transition cursor-pointer"
-                        title="Cetak label untuk semua eksemplar judul buku ini"
+                        title="Cetak label untuk semua eksemplar judul buku ini (bisa dicetak kapan saja)"
                       >
                         <Printer className="h-3.5 w-3.5 text-text-muted" />
                         <span>Cetak Semua ({items.length})</span>
@@ -1343,9 +1440,33 @@ export const BookManagement: React.FC<BookManagementProps> = ({
                             {/* Shelf & Label Status indicator */}
                             <div className="mt-1 pt-1 border-t border-border/40 flex items-center justify-between text-[9px] text-text-muted">
                               <span className="truncate">📍 {item.shelfLocation || book.shelfLocation || 'Rak'}</span>
-                              <span className={item.labelPrinted ? 'text-emerald-500' : 'text-amber-500'}>
-                                {item.labelPrinted ? '🏷️ Ditempel' : '⚠️ Belum'}
-                              </span>
+                              <button
+                                type="button"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  const newPrinted = !item.labelPrinted;
+                                  libraryStore.markLabelsPrinted(
+                                    [item.itemBarcode],
+                                    newPrinted,
+                                    newPrinted ? 'MANUAL_STAMP' : undefined
+                                  );
+                                  soundFx.playScanBeep();
+                                  setRefreshTick((r) => r + 1);
+                                  onRefresh?.();
+                                }}
+                                className={`px-1.5 py-0.5 rounded text-[9px] font-bold border transition cursor-pointer ${
+                                  item.labelPrinted
+                                    ? 'bg-emerald-500/10 text-emerald-500 border-emerald-500/20 hover:bg-emerald-500/20'
+                                    : 'bg-amber-500/10 text-amber-500 border-amber-500/20 hover:bg-amber-500/20'
+                                }`}
+                                title={
+                                  item.labelPrinted
+                                    ? 'Status: Sudah Dicap / Cetak Label. Klik untuk ubah jadi Belum.'
+                                    : 'Status: Belum. Klik untuk langsung tandai Sudah Dicap / Ditulis manual (tanpa printer).'
+                                }
+                              >
+                                {item.labelPrinted ? '🏷️ Dicap/Cetak' : '⚠️ Belum'}
+                              </button>
                             </div>
 
                             {item.conditionNote && (

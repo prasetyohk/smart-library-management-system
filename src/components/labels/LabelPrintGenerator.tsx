@@ -150,17 +150,17 @@ export const LabelPrintGenerator: React.FC<LabelPrintGeneratorProps> = ({
     setSelectedBarcodes([]);
   };
 
-  // Edit / Toggle label printed status manually without printing
-  const handleMarkPrintedStatus = (printed: boolean) => {
+  // Edit / Toggle label printed status manually without printing (e.g. jika dicap manual)
+  const handleMarkPrintedStatus = (printed: boolean, method: 'PRINT' | 'MANUAL_STAMP' = 'MANUAL_STAMP') => {
     if (selectedBarcodes.length === 0) return;
-    libraryStore.markLabelsPrinted(selectedBarcodes, printed);
+    libraryStore.markLabelsPrinted(selectedBarcodes, printed, method);
     setRefreshKey((k) => k + 1);
   };
 
   // Trigger browser print dialog & update label tracking
   const handlePrint = () => {
     if (selectedBarcodes.length > 0) {
-      libraryStore.markLabelsPrinted(selectedBarcodes, true);
+      libraryStore.markLabelsPrinted(selectedBarcodes, true, 'PRINT');
       setRefreshKey((k) => k + 1);
     }
     window.print();
@@ -543,8 +543,10 @@ export const LabelPrintGenerator: React.FC<LabelPrintGeneratorProps> = ({
                       book?.title || '',
                       book?.author || '',
                       book?.categoryId,
-                      customShelfCode || cat.shelfCode || 'SR',
-                      book?.classification
+                      customShelfCode || book?.shelfCode || cat.shelfCode || 'SR',
+                      book?.classification,
+                      book?.authorCode,
+                      book?.titleCode
                     );
 
                     return (
@@ -752,26 +754,26 @@ export const LabelPrintGenerator: React.FC<LabelPrintGeneratorProps> = ({
             {selectedBarcodes.length > 0 && (
               <div className="p-2.5 rounded-xl bg-slate-50 dark:bg-slate-800/50 border border-slate-200 dark:border-slate-700/60 flex flex-wrap items-center justify-between gap-2 text-xs">
                 <span className="text-slate-600 dark:text-slate-400 text-[11px]">
-                  Edit Status Langsung ({selectedBarcodes.length} barcode dipilih):
+                  Tandai Status Fisik ({selectedBarcodes.length} eksemplar dipilih):
                 </span>
                 <div className="flex items-center gap-2">
                   <button
                     type="button"
-                    onClick={() => handleMarkPrintedStatus(true)}
-                    className="px-2.5 py-1 rounded-lg bg-emerald-600/15 hover:bg-emerald-600/25 text-emerald-600 dark:text-emerald-400 border border-emerald-600/30 font-semibold text-[11px] flex items-center gap-1 transition"
-                    title="Ubah tanda eksemplar terpilih menjadi 'Sudah Dicetak / Ditempel'"
+                    onClick={() => handleMarkPrintedStatus(true, 'MANUAL_STAMP')}
+                    className="px-2.5 py-1 rounded-lg bg-emerald-600/15 hover:bg-emerald-600/25 text-emerald-600 dark:text-emerald-400 border border-emerald-600/30 font-semibold text-[11px] flex items-center gap-1 transition cursor-pointer"
+                    title="Tandai buku sudah selesai dicap manual / ditempel label fisik tanpa harus cetak printer sekarang"
                   >
                     <Check className="h-3 w-3" />
-                    Tandai Sudah Dicetak
+                    Tandai Sudah Dicap / Dicetak
                   </button>
                   <button
                     type="button"
                     onClick={() => handleMarkPrintedStatus(false)}
-                    className="px-2.5 py-1 rounded-lg bg-amber-500/15 hover:bg-amber-500/25 text-amber-600 dark:text-amber-400 border border-amber-500/30 font-semibold text-[11px] flex items-center gap-1 transition"
-                    title="Ubah tanda eksemplar terpilih menjadi 'Belum Dicetak'"
+                    className="px-2.5 py-1 rounded-lg bg-amber-500/15 hover:bg-amber-500/25 text-amber-600 dark:text-amber-400 border border-amber-500/30 font-semibold text-[11px] flex items-center gap-1 transition cursor-pointer"
+                    title="Ubah tanda kembali menjadi 'Belum Dicetak / Belum Dicap'"
                   >
                     <AlertCircle className="h-3 w-3" />
-                    Tandai Belum Dicetak
+                    Tandai Belum
                   </button>
                 </div>
               </div>
