@@ -1185,7 +1185,7 @@ export const DEFAULT_SCHOOL_PROFILE: import('@/types').SchoolProfile = {
   headmasterNip: '-',
   librarianName: 'Pustakawan SBTH',           // Editable oleh pustakawan
   librarianNip: 'Perpustakaan SBTH Magelang',
-  enableFinanceModule: true,
+  enableFinanceModule: false, // Default OFF sesuai permintaan sekolah (denda bebas dinonaktifkan)
   lastStockOpnameDate: '2026-10-15',
   lastStockOpnameSummary: '18 Eksemplar Fisik Terverifikasi (100% Sesuai)',
 };
@@ -1347,7 +1347,10 @@ export const DEFAULT_LOAN_RULES: import('@/types').LoanRules = {
   qrisMerchantName: 'PERPUSTAKAAN KB-TK BHAKTI TUNAS HARAPAN',
   qrisNmid: 'ID1020039482910',
   qrisImageUrl: 'https://api.qrserver.com/v1/create-qr-code/?size=250x250&data=00020101021126610016ID.CO.QRIS.WWW01189360099900000000000215ID10200394829100303UMI51440014ID.GOV.PERPUS5204581253033605802ID5944PERPUSTAKAAN%20KB-TK%20BHAKTI%20TUNAS%20HARAPAN6008MAGELANG6105561236304',
-  enableFinanceModule: true,
+  enableFinanceModule: false, // Default OFF sesuai instruksi: semua yang berkaitan dengan denda disembunyikan
+  bankName: 'BCA (Bank Central Asia)',
+  bankAccountNumber: '012-345-6789',
+  bankAccountHolder: 'Perpustakaan KB-TK Bhakti Tunas Harapan',
   maxReservationsTotal: 2, // Maksimal kuota reservasi buku saat tidak sedang meminjam
   maxReservationsWhenBorrowing: 1, // Maksimal kuota reservasi buku jika sedang ada pinjaman aktif
 };
@@ -1366,13 +1369,14 @@ export const DEFAULT_KEYBOARD_SHORTCUTS: import('@/types').KeyboardShortcutConfi
   helpModal: 'F1',        // F1: Buka Bantuan Panduan Shortcut
 };
 
-// SLiMS 9 Bulian Pattern Generator Preset
+// Preset Standar SBTH 4-Digit (Fisik) Sesuai Permintaan Resmi Sekolah SBTH:
+// Prefix kosong "", 4 digit nomor seri (0101, 0143, 0177), suffix kosong "", dan slip bertanggal DD/MM/YYYY.
 export const DEFAULT_SLIMS_PATTERN: import('@/types').SlimsPatternConfig = {
-  patternMode: 'SBTH',
-  prefix: 'SBTH-B-',
-  serialLength: 5,
+  patternMode: 'SBTH_4DIGIT',
+  prefix: '',
+  serialLength: 4,
   suffix: '',
-  nextNumber: 143,
+  nextNumber: 177,
 };
 
 // Helper standar klasifikasi DDC & Nomor Panggil SLiMS (3 Baris: DDC + 3 Huruf Pengarang + 1 Huruf Judul)
@@ -1409,9 +1413,91 @@ export function generateSlimsCallNumber(title: string, author: string, categoryI
 
 export interface SbthSpineParts {
   shelfCode: string;   // Baris 1: e.g. "SR"
-  ddc: string;         // Baris 2: e.g. "813" / "220"
-  authorCode: string;  // Baris 3: e.g. "KID" / "JUL"
-  titleCode: string;   // Baris 4: e.g. "m" / "t"
+  ddc: string;         // Baris 2: e.g. "813" / "220" / "398.2" / "500"
+  authorCode: string;  // Baris 3: 3 Huruf Kapital Pengarang (e.g. "BAM", "JUL")
+  titleCode: string;   // Baris 4: 1 Huruf Depan Judul (e.g. "k", "t")
+}
+
+// 1. Baris 1: Kode Rak SBTH (Bawaan "SR", atau kode rak kategori seperti "SN", "AG", "CR")
+export function deriveShelfCode(categoryId?: string, customShelfCode?: string): string {
+  if (customShelfCode && customShelfCode.trim()) {
+    return customShelfCode.trim().toUpperCase();
+  }
+  const cat = CATEGORIES.find((c) => c.id === categoryId);
+  return cat?.shelfCode ? cat.shelfCode.toUpperCase() : 'SR';
+}
+
+// 2. Baris 2: Nomor Klasifikasi DDC berdasarkan Kategori Buku
+export function deriveCategoryDdc(categoryId?: string, title?: string, customClassification?: string): string {
+  if (customClassification && customClassification.trim()) {
+    return customClassification.trim();
+  }
+  const cleanTitle = (title || '').toLowerCase();
+  if (categoryId === 'cat-alam') return '500';
+  if (categoryId === 'cat-aktivitas') return '372.2';
+  if (categoryId === 'cat-karakter') {
+    if (cleanTitle.includes('doa') || cleanTitle.includes('islam') || cleanTitle.includes('sholat') || cleanTitle.includes('tuhan') || cleanTitle.includes('nabi')) {
+      return '200';
+    }
+    return '170';
+  }
+  if (categoryId === 'cat-ensiklopedia') return '030';
+  if (categoryId === 'cat-bahasa') {
+    if (cleanTitle.includes('english') || cleanTitle.includes('inggris')) return '420';
+    return '495.1';
+  }
+  if (categoryId === 'cat-dongeng') {
+    if (cleanTitle.includes('fabel') || cleanTitle.includes('dongeng') || cleanTitle.includes('kancil')) return '398.2';
+    return '813';
+  }
+  return '813'; // Default Fiksi/Cerpen Anak SBTH
+}
+
+// 3. Baris 3: 3 Huruf Kapital Pengarang (Cutter Number Standar Perpustakaan)
+export function deriveAuthorCode(author: string, customAuthorCode?: string): string {
+  if (customAuthorCode && customAuthorCode.trim()) {
+    return customAuthorCode.trim().toUpperCase().substring(0, 3).padEnd(3, 'X');
+  }
+  if (!author || !author.trim()) return 'SBT';
+
+  // Hapus gelar, sebutan kehormatan, dan kata pengantar umum
+  const clean = author
+    .replace(/^(Tim|Kak|dr\.|Dr\.|dra\.|Dra\.|Ir\.|ir\.|Prof\.|prof\.|Bunda|bunda|Ayah|ayah|Ustadz|ustadz|Ustadzah|ustadzah|Mr\.|mr\.|Mrs\.|mrs\.|Ms\.|ms\.|Miss|miss)\s+/i, '')
+    .trim();
+
+  // Bersihkan karakter non-huruf di awal kata
+  const words = clean.split(/\s+/).filter(Boolean);
+  if (words.length === 0) return 'SBT';
+
+  // Standar perpustakaan: ambil kata utama atau nama belakang jika ada
+  let chosenWord = words[words.length - 1]; // e.g. Siswati -> SIS, Bambang -> BAM
+  // Jika kata terakhir berupa singkatan atau "& Tim", ambil kata pertama
+  if (chosenWord.length < 2 || chosenWord.toLowerCase() === 'tim' || chosenWord === '&') {
+    chosenWord = words[0];
+  }
+
+  const alphaOnly = chosenWord.replace(/[^a-zA-Z]/g, '');
+  if (alphaOnly.length >= 3) {
+    return alphaOnly.substring(0, 3).toUpperCase();
+  }
+  return alphaOnly.toUpperCase().padEnd(3, 'X');
+}
+
+// 4. Baris 4: 1 Huruf Depan Judul Buku (Mengabaikan Stopwords Awal)
+export function deriveTitleCode(title: string, customTitleCode?: string): string {
+  if (customTitleCode && customTitleCode.trim()) {
+    return customTitleCode.trim().substring(0, 1).toLowerCase();
+  }
+  if (!title || !title.trim()) return 't';
+
+  // Hapus awalan stopwords umum judul buku anak
+  const clean = title
+    .replace(/^(Seri|Kumpulan|Buku|Cerita|Kisah|Mengenal|Belajar|Si|Sang|The|A|An)\s+/i, '')
+    .trim();
+
+  const alpha = clean.replace(/^[^a-zA-Z0-9]+/, '');
+  const char = alpha.charAt(0);
+  return char ? char.toLowerCase() : 't';
 }
 
 export function getSbthSpineCode(
@@ -1423,36 +1509,10 @@ export function getSbthSpineCode(
   customAuthorCode?: string,
   customTitleCode?: string
 ): SbthSpineParts {
-  // Baris 1: Kode Rak (Default: "SR")
-  const shelfCode = (customShelfCode && customShelfCode.trim()) ? customShelfCode.trim().toUpperCase() : 'SR';
-
-  // Baris 2: Nomor DDC
-  let ddc = (customClassification && customClassification.trim()) ? customClassification.trim() : '';
-  if (!ddc) {
-    if (categoryId === 'cat-alam') ddc = '500';
-    else if (categoryId === 'cat-aktivitas') ddc = '372.2';
-    else if (categoryId === 'cat-karakter') ddc = '170';
-    else if (categoryId === 'cat-ensiklopedia') ddc = '030';
-    else if (categoryId === 'cat-bahasa') ddc = '495.1';
-    else if (categoryId === 'cat-dongeng') ddc = '398.2';
-    else ddc = '813'; // Default Fiksi/Cerpen Anak SBTH
-  }
-
-  // Baris 3: 3 Huruf Kapital Pengarang (Cutter)
-  let authorCode = (customAuthorCode && customAuthorCode.trim()) ? customAuthorCode.trim().toUpperCase() : '';
-  if (!authorCode) {
-    const cleanAuthor = author.replace(/^(Tim|Kak|Dr\.|Dra\.|Mr\.|Ms\.|Miss)\s+/i, '').trim();
-    const authorWords = cleanAuthor.split(/\s+/).filter(Boolean);
-    const mainAuthor = authorWords[authorWords.length - 1] || authorWords[0] || 'SBTH';
-    authorCode = mainAuthor.substring(0, 3).toUpperCase().padEnd(3, 'X');
-  }
-
-  // Baris 4: 1 Huruf Judul Buku
-  let titleCode = (customTitleCode && customTitleCode.trim()) ? customTitleCode.trim() : '';
-  if (!titleCode) {
-    const cleanTitle = title.replace(/^(Seri|Kumpulan|Buku|Cerita|Si|Sang|The|A|An)\s+/i, '').trim();
-    titleCode = (cleanTitle[0] || 't').toLowerCase();
-  }
+  const shelfCode = deriveShelfCode(categoryId, customShelfCode);
+  const ddc = deriveCategoryDdc(categoryId, title, customClassification);
+  const authorCode = deriveAuthorCode(author, customAuthorCode);
+  const titleCode = deriveTitleCode(title, customTitleCode);
 
   return {
     shelfCode,
@@ -1462,9 +1522,117 @@ export function getSbthSpineCode(
   };
 }
 
+// Helper format tanggal & waktu standar Indonesia DD/MM/YYYY dan HH:mm
+export function formatDateDDMMYYYY(isoOrDateStr?: string): string {
+  if (!isoOrDateStr) {
+    const now = new Date();
+    const d = String(now.getDate()).padStart(2, '0');
+    const m = String(now.getMonth() + 1).padStart(2, '0');
+    const y = now.getFullYear();
+    return `${d}/${m}/${y}`;
+  }
+  try {
+    const dObj = new Date(isoOrDateStr);
+    if (!isNaN(dObj.getTime())) {
+      const d = String(dObj.getDate()).padStart(2, '0');
+      const m = String(dObj.getMonth() + 1).padStart(2, '0');
+      const y = dObj.getFullYear();
+      return `${d}/${m}/${y}`;
+    }
+    const clean = isoOrDateStr.split('T')[0];
+    const parts = clean.split('-');
+    if (parts.length === 3) {
+      return `${parts[2].padStart(2, '0')}/${parts[1].padStart(2, '0')}/${parts[0]}`;
+    }
+    return isoOrDateStr;
+  } catch {
+    return isoOrDateStr;
+  }
+}
+
+export function formatDateTimeIndo(isoOrDateStr?: string): string {
+  if (!isoOrDateStr) return '-';
+  try {
+    const dObj = new Date(isoOrDateStr);
+    if (isNaN(dObj.getTime())) {
+      return formatDateDDMMYYYY(isoOrDateStr);
+    }
+    const d = String(dObj.getDate()).padStart(2, '0');
+    const m = String(dObj.getMonth() + 1).padStart(2, '0');
+    const y = dObj.getFullYear();
+    const hh = String(dObj.getHours()).padStart(2, '0');
+    const mm = String(dObj.getMinutes()).padStart(2, '0');
+    return `${d}/${m}/${y}, ${hh}:${mm} WIB`;
+  } catch {
+    return isoOrDateStr;
+  }
+}
+
+// Helper Posisi Rak & Baris (Row/Sap)
+export interface ParsedShelfLocation {
+  shelfName: string;
+  rowName: string;
+  hasRow: boolean;
+  fullLocation: string;
+}
+
+export const DEFAULT_SHELF_ROWS = [
+  'Baris 1',
+  'Baris 2',
+  'Baris 3',
+  'Baris 4',
+  'Baris 5',
+  'Baris 6',
+];
+
+export function parseShelfLocation(location?: string): ParsedShelfLocation {
+  if (!location || !location.trim()) {
+    return { shelfName: '', rowName: '', hasRow: false, fullLocation: '' };
+  }
+  const trimmed = location.trim();
+  const regex = /^(.*?)\s*-\s*(Baris\s+\d+|Sap\s+\d+|Tingkat\s+\d+|Row\s+\d+.*)$/i;
+  const match = trimmed.match(regex);
+  if (match) {
+    return {
+      shelfName: match[1].trim(),
+      rowName: match[2].trim(),
+      hasRow: true,
+      fullLocation: trimmed,
+    };
+  }
+  if (trimmed.includes(' - ')) {
+    const parts = trimmed.split(' - ');
+    const lastPart = parts[parts.length - 1].trim();
+    if (/baris|sap|tingkat|row/i.test(lastPart)) {
+      return {
+        shelfName: parts.slice(0, -1).join(' - ').trim(),
+        rowName: lastPart,
+        hasRow: true,
+        fullLocation: trimmed,
+      };
+    }
+  }
+  return {
+    shelfName: trimmed,
+    rowName: '',
+    hasRow: false,
+    fullLocation: trimmed,
+  };
+}
+
+export function combineShelfLocation(shelfName: string, rowName: string, includeRow: boolean): string {
+  const cleanShelf = (shelfName || '').trim();
+  const cleanRow = (rowName || '').trim();
+  if (!cleanShelf) return '';
+  if (!includeRow || !cleanRow || cleanRow === '-' || cleanRow === 'Tanpa Baris') {
+    return cleanShelf;
+  }
+  return `${cleanShelf} - ${cleanRow}`;
+}
+
 // Format Bagian Dalam Buku Fisik SBTH (Cap/Slip Buku):
-// No. Daftar: 4 digit angka (e.g. "0101")
-// Tanggal: DD/MM/TTTT (e.g. "22/10/2026")
+// No. Daftar: 4 digit angka (e.g. "0101", "0143", "0176")
+// Tanggal: DD/MM/YYYY (e.g. "22/10/2026")
 export function getSbthInsideSlipData(barcode: string, copyNum: number, acquisitionDate?: string) {
   const digits = barcode.replace(/\D/g, '');
   let accessionNumber = '0001';
@@ -1476,21 +1644,7 @@ export function getSbthInsideSlipData(barcode: string, copyNum: number, acquisit
     accessionNumber = String(copyNum).padStart(4, '0');
   }
 
-  let dateStr = '';
-  if (acquisitionDate && acquisitionDate.includes('-')) {
-    const parts = acquisitionDate.split('-');
-    if (parts.length === 3) {
-      dateStr = `${parts[2].padStart(2, '0')}/${parts[1].padStart(2, '0')}/${parts[0]}`;
-    }
-  }
-  
-  if (!dateStr) {
-    const now = new Date();
-    const d = String(now.getDate()).padStart(2, '0');
-    const m = String(now.getMonth() + 1).padStart(2, '0');
-    const y = now.getFullYear();
-    dateStr = `${d}/${m}/${y}`;
-  }
+  const dateStr = formatDateDDMMYYYY(acquisitionDate);
 
   return {
     accessionNumber,

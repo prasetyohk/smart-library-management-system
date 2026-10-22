@@ -332,14 +332,32 @@ export const KidsVisualOpac: React.FC<KidsVisualOpacProps> = ({
       if (!wishlist.includes(book.id)) return false;
     }
 
-    // 5. Text Search Query
+    // 5. Text Search Query - Sinkronisasi Penuh: Judul, Pengarang, Kategori, Rak, Barcode / No Aksesi, Kode Punggung / DDC
     if (searchQuery.trim()) {
       const q = searchQuery.toLowerCase();
+      const cat = categories.find((c) => c.id === book.categoryId);
+      const copies = allItems.filter((i) => i.bookId === book.id);
       const matchTitle = book.title.toLowerCase().includes(q);
-      const matchAuthor = book.author.toLowerCase().includes(q);
+      const matchAuthor = book.author.toLowerCase().includes(q) || Boolean(book.authorCode && book.authorCode.toLowerCase().includes(q));
       const matchPublisher = book.publisher.toLowerCase().includes(q);
       const matchIsbn = book.isbn.includes(q);
-      if (!matchTitle && !matchAuthor && !matchPublisher && !matchIsbn) return false;
+      const matchShelf = Boolean((book.shelfLocation && book.shelfLocation.toLowerCase().includes(q)) || (book.shelfCode && book.shelfCode.toLowerCase().includes(q)));
+      const matchCategory = Boolean(cat && (cat.name.toLowerCase().includes(q) || cat.shortName.toLowerCase().includes(q)));
+      const matchCallNo = Boolean((book.callNumber && book.callNumber.toLowerCase().includes(q)) || (book.classification && book.classification.toLowerCase().includes(q)));
+      const matchBarcode = copies.some((i) => i.itemBarcode.toLowerCase().includes(q) || i.itemBarcode.replace(/\D/g, '').includes(q));
+
+      if (
+        !matchTitle &&
+        !matchAuthor &&
+        !matchPublisher &&
+        !matchIsbn &&
+        !matchShelf &&
+        !matchCategory &&
+        !matchCallNo &&
+        !matchBarcode
+      ) {
+        return false;
+      }
     }
 
     return true;

@@ -28,6 +28,9 @@ import {
   Trash2,
   AlertTriangle,
   RotateCcw,
+  Copy,
+  Check,
+  Building2,
 } from 'lucide-react';
 import { Member, Book, Loan, LoanRules, Reservation, Language } from '@/types';
 import { libraryStore } from '@/lib/storage';
@@ -277,8 +280,33 @@ export const StudentPortalModal: React.FC<StudentPortalModalProps> = ({
 
   // Portal tabs
   const [activeTab, setActiveTab] = useState<'WISHLIST' | 'ACTIVE_LOANS' | 'RESERVATIONS' | 'HISTORY' | 'FINES' | 'CATALOG'>('WISHLIST');
+  const [isFinanceEnabled, setIsFinanceEnabled] = useState<boolean>(() => libraryStore.getFinanceModuleEnabled());
   const [catalogSearch, setCatalogSearch] = useState<string>('');
   const [catalogCategory, setCatalogCategory] = useState<string>('ALL');
+  const [copiedRekening, setCopiedRekening] = useState<boolean>(false);
+
+  useEffect(() => {
+    if (isOpen) {
+      setIsFinanceEnabled(libraryStore.getFinanceModuleEnabled());
+    }
+    const handleSettingsUpdated = () => {
+      setIsFinanceEnabled(libraryStore.getFinanceModuleEnabled());
+    };
+    window.addEventListener('sbth_settings_updated', handleSettingsUpdated);
+    window.addEventListener('storage', handleSettingsUpdated);
+    return () => {
+      window.removeEventListener('sbth_settings_updated', handleSettingsUpdated);
+      window.removeEventListener('storage', handleSettingsUpdated);
+    };
+  }, [isOpen]);
+
+  const handleCopyRekening = (noRek: string) => {
+    if (!noRek) return;
+    navigator.clipboard.writeText(noRek);
+    setCopiedRekening(true);
+    soundFx.playSuccessChime();
+    setTimeout(() => setCopiedRekening(false), 2500);
+  };
 
   // Direct Reservation Dialog state
   const [isResModalOpen, setIsResModalOpen] = useState<boolean>(false);
@@ -335,8 +363,11 @@ export const StudentPortalModal: React.FC<StudentPortalModalProps> = ({
       setChangePasswordMsg('');
       setCloseAccountError('');
       setPortalLang(language || libraryStore.getLanguage());
+      if (!libraryStore.getFinanceModuleEnabled() && activeTab === 'FINES') {
+        setActiveTab('WISHLIST');
+      }
     }
-  }, [isOpen, language, refreshTrigger]);
+  }, [isOpen, language, refreshTrigger, activeTab]);
 
   // Live 1-second interval for 24h countdown ticker
   useEffect(() => {
@@ -867,7 +898,7 @@ export const StudentPortalModal: React.FC<StudentPortalModalProps> = ({
                 <CheckCircle className="h-4 w-4 text-emerald-500" />
                 📜 {tPortal.tabHistory} ({loanHistory.length})
               </button>
-              {libraryStore.getFinanceModuleEnabled() && (
+              {isFinanceEnabled && (
                 <button
                   type="button"
                   onClick={() => setActiveTab('FINES')}
@@ -1236,13 +1267,13 @@ export const StudentPortalModal: React.FC<StudentPortalModalProps> = ({
                 </div>
               )}
 
-              {/* TAB 4: KAS DENDA & BAYAR QRIS */}
-              {activeTab === 'FINES' && libraryStore.getFinanceModuleEnabled() && (
-                <div className="space-y-5">
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6 items-center">
+              {/* TAB 4: KAS DENDA & BAYAR QRIS / REKENING BANK */}
+              {activeTab === 'FINES' && isFinanceEnabled && (
+                <div className="space-y-5 animate-in fade-in">
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6 items-start">
                     <div className="space-y-4">
                       {fineAmount === 0 ? (
-                        <div className="p-5 rounded-3xl bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-200 dark:border-emerald-800 text-emerald-900 dark:text-emerald-200 space-y-2">
+                        <div className="p-5 rounded-3xl bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-200 dark:border-emerald-800 text-emerald-900 dark:text-emerald-200 space-y-2 shadow-xs">
                           <CheckCircle2 className="h-8 w-8 text-emerald-600" />
                           <h4 className="text-base font-extrabold">Tidak Ada Tunggakan Kas Denda!</h4>
                           <p className="text-xs leading-relaxed text-slate-600 dark:text-slate-300">
@@ -1250,7 +1281,7 @@ export const StudentPortalModal: React.FC<StudentPortalModalProps> = ({
                           </p>
                         </div>
                       ) : (
-                        <div className="p-5 rounded-3xl bg-amber-50 dark:bg-amber-950/40 border border-amber-200 dark:border-amber-800 text-amber-900 dark:text-amber-200 space-y-3">
+                        <div className="p-5 rounded-3xl bg-amber-50 dark:bg-amber-950/40 border border-amber-200 dark:border-amber-800 text-amber-900 dark:text-amber-200 space-y-3 shadow-xs">
                           <AlertCircle className="h-8 w-8 text-amber-600" />
                           <div>
                             <span className="text-xs uppercase font-bold text-amber-700">Tunggakan Kas Keterlambatan:</span>
@@ -1262,26 +1293,90 @@ export const StudentPortalModal: React.FC<StudentPortalModalProps> = ({
                         </div>
                       )}
 
-                      <div className="p-4 rounded-2xl bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700 text-xs space-y-1">
-                        <span className="font-bold text-slate-700 dark:text-slate-200 block">Cara Pembayaran QRIS:</span>
-                        <p className="text-slate-500">1. Buka Mobile Banking / Dompet Digital di HP Papa/Mama.</p>
-                        <p className="text-slate-500">2. Scan gambar QRIS resmi di sebelah kanan.</p>
-                        <p className="text-slate-500">3. Masukkan nominal dan tunjukkan bukti ke Pustakawan.</p>
+                      <div className="p-4 rounded-2xl bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700 text-xs space-y-2">
+                        <span className="font-bold text-slate-700 dark:text-slate-200 block text-xs">
+                          Panduan Pembayaran Non-Tunai Wali Murid:
+                        </span>
+                        <div className="space-y-1 text-slate-600 dark:text-slate-300 text-[11px]">
+                          <p>1. Buka Mobile Banking atau Dompet Digital di HP Ayah/Bunda.</p>
+                          <p>2. Pilih <strong>Scan QRIS</strong> atau <strong>Transfer Rekening Bank</strong> di sebelah kanan.</p>
+                          <p>3. Masukkan nominal sesuai tunggakan dan kirim bukti transaksi ke Pustakawan.</p>
+                        </div>
                       </div>
                     </div>
 
-                    {/* QRIS Card */}
-                    <div className="bg-gradient-to-b from-rose-600 via-rose-700 to-slate-900 p-5 rounded-3xl text-white text-center shadow-lg space-y-3">
-                      <div className="border-b border-rose-400/30 pb-2">
-                        <span className="text-[9px] uppercase tracking-wider opacity-80">QRIS PERPUSTAKAAN RESMI</span>
-                        <h5 className="text-xs font-black">{rules.qrisMerchantName}</h5>
-                      </div>
-                      <div className="bg-white p-2.5 rounded-2xl mx-auto w-40 h-40 shadow-inner flex items-center justify-center">
-                        <img src={rules.qrisImageUrl} alt="QRIS SBTH" className="w-full h-full object-contain" />
-                      </div>
-                      <p className="text-[10px] text-rose-100">
-                        BCA • Mandiri • BRI • BNI • GoPay • OVO • Bank Jateng
-                      </p>
+                    {/* Kolom Kanan: Kartu QRIS & Rekening Bank */}
+                    <div className="space-y-4">
+                      {/* Kartu QRIS */}
+                      {rules.qrisImageUrl && (
+                        <div className="bg-gradient-to-b from-rose-600 via-rose-700 to-slate-900 p-5 rounded-3xl text-white text-center shadow-lg space-y-3">
+                          <div className="border-b border-rose-400/30 pb-2">
+                            <span className="text-[9px] uppercase tracking-wider opacity-80">QRIS PERPUSTAKAAN RESMI</span>
+                            <h5 className="text-xs font-black">{rules.qrisMerchantName || 'PERPUSTAKAAN KB-TK SBTH'}</h5>
+                            {rules.qrisNmid && (
+                              <span className="text-[9px] font-mono opacity-80 block mt-0.5">NMID: {rules.qrisNmid}</span>
+                            )}
+                          </div>
+                          <div className="bg-white p-2.5 rounded-2xl mx-auto w-44 h-44 shadow-inner flex items-center justify-center">
+                            <img src={rules.qrisImageUrl} alt="QRIS SBTH" className="w-full h-full object-contain" />
+                          </div>
+                          <p className="text-[10px] text-rose-100">
+                            BCA • Mandiri • BRI • BNI • GoPay • OVO • Dana • ShopeePay • Bank Jateng
+                          </p>
+                        </div>
+                      )}
+
+                      {/* Kartu Rekening Bank */}
+                      {rules.bankAccountNumber && (
+                        <div className="p-4 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-sm space-y-2.5">
+                          <div className="flex items-center justify-between border-b border-slate-100 dark:border-slate-800 pb-2">
+                            <span className="text-xs font-bold text-slate-800 dark:text-slate-100 flex items-center gap-2">
+                              <Building2 className="h-4 w-4 text-blue-500" />
+                              <span>Transfer Bank Sekolah</span>
+                            </span>
+                            <span className="text-[10px] font-bold px-2 py-0.5 rounded-md bg-blue-500/10 text-blue-600 dark:text-blue-400">
+                              {rules.bankName || 'BCA'}
+                            </span>
+                          </div>
+
+                          <div className="bg-slate-50 dark:bg-slate-800/60 p-3 rounded-xl border border-slate-200 dark:border-slate-700 flex items-center justify-between gap-2">
+                            <div>
+                              <span className="text-[10px] text-slate-400 block">Nomor Rekening:</span>
+                              <span className="text-sm font-mono font-black text-slate-800 dark:text-slate-100 tracking-wide">
+                                {rules.bankAccountNumber}
+                              </span>
+                            </div>
+                            <button
+                              type="button"
+                              onClick={() => handleCopyRekening(rules.bankAccountNumber || '')}
+                              className={`px-3 py-1.5 rounded-lg text-xs font-bold flex items-center gap-1.5 transition ${
+                                copiedRekening
+                                  ? 'bg-emerald-500 text-white shadow-xs'
+                                  : 'bg-blue-600 hover:bg-blue-700 text-white shadow-xs'
+                              }`}
+                            >
+                              {copiedRekening ? (
+                                <>
+                                  <Check className="h-3.5 w-3.5" />
+                                  <span>Tersalin!</span>
+                                </>
+                              ) : (
+                                <>
+                                  <Copy className="h-3.5 w-3.5" />
+                                  <span>Salin Rekening</span>
+                                </>
+                              )}
+                            </button>
+                          </div>
+
+                          <div className="text-[11px] text-slate-500 flex justify-between items-center">
+                            <span>Atas Nama (Pemilik):</span>
+                            <strong className="text-slate-700 dark:text-slate-200">
+                              {rules.bankAccountHolder || 'Perpustakaan KB-TK Bhakti Tunas Harapan'}
+                            </strong>
+                          </div>
+                        </div>
+                      )}
                     </div>
                   </div>
                 </div>

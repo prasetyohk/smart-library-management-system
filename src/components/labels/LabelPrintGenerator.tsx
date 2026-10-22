@@ -18,7 +18,7 @@ import {
   Zap,
 } from 'lucide-react';
 import { Book, BookItem, Category, PrintTemplateType } from '@/types';
-import { CATEGORIES, getSbthSpineCode, getSbthInsideSlipData } from '@/lib/constants';
+import { CATEGORIES, getSbthSpineCode, getSbthInsideSlipData, formatDateDDMMYYYY } from '@/lib/constants';
 import { libraryStore } from '@/lib/storage';
 import { BarcodeSvg } from '@/components/common/BarcodeSvg';
 
@@ -164,6 +164,27 @@ export const LabelPrintGenerator: React.FC<LabelPrintGeneratorProps> = ({
       setRefreshKey((k) => k + 1);
     }
     window.print();
+  };
+
+  // Bersihkan awalan huruf lama (misal: SBTH-B-0176 -> 0176) langsung dari modal cetak
+  const handleCleanPrefixesInPrinter = () => {
+    const res = libraryStore.convertOldPrefixBarcodesTo4Digit();
+    if (res.count > 0) {
+      alert(
+        `✅ Berhasil Membersihkan ${res.count} Kode Barcode!\n\n` +
+        res.convertedList.map(c => `• ${c.old} ➔ ${c.new}`).join('\n') +
+        `\n\nStiker label sekarang siap dicetak dengan nomor 4-digit bersih sesuai standar SBTH.`
+      );
+      setSelectedBarcodes((prev) =>
+        prev.map((oldB) => {
+          const match = res.convertedList.find((c) => c.old === oldB);
+          return match ? match.new : oldB;
+        })
+      );
+      setRefreshKey((r) => r + 1);
+    } else {
+      alert('Informasi: Seluruh kode barcode eksemplar sudah berformat 4-digit bersih (tidak ada awalan huruf lama).');
+    }
   };
 
   if (!isOpen) return null;
@@ -461,13 +482,16 @@ export const LabelPrintGenerator: React.FC<LabelPrintGeneratorProps> = ({
                             />
                           </div>
 
-                          {/* Judul Buku & Rak */}
+                          {/* Judul Buku & Rak & ISBN + Tanggal Input */}
                           <div className="w-full mt-0.5">
                             <p className="text-[9px] font-bold text-slate-900 leading-tight line-clamp-1">
                               {book?.title || 'Buku Cerita SBTH'}
                             </p>
                             <p className="text-[8px] text-slate-500 leading-none mt-0.5 truncate">
                               {book?.author || 'SBTH TK'} • {book?.publisher || ''}
+                            </p>
+                            <p className="text-[7.5px] font-mono text-slate-600 leading-tight mt-0.5">
+                              ISBN: {book?.isbn || '-'} • Input: {formatDateDDMMYYYY(book?.createdAt || ei.item.acquisitionDate)}
                             </p>
                           </div>
                         </div>
@@ -507,9 +531,14 @@ export const LabelPrintGenerator: React.FC<LabelPrintGeneratorProps> = ({
                         />
                       </div>
 
-                      <p className="text-[8px] font-bold text-slate-900 leading-none truncate">
-                        {book?.title}
-                      </p>
+                      <div className="w-full">
+                        <p className="text-[8px] font-bold text-slate-900 leading-none truncate">
+                          {book?.title}
+                        </p>
+                        <p className="text-[7px] font-mono text-slate-600 leading-none mt-0.5 truncate">
+                          ISBN: {book?.isbn || '-'} • Input: {formatDateDDMMYYYY(book?.createdAt || ei.item.acquisitionDate)}
+                        </p>
+                      </div>
                     </div>
                   );
                 })}
@@ -613,7 +642,7 @@ export const LabelPrintGenerator: React.FC<LabelPrintGeneratorProps> = ({
                 <div className="sbth-slip-grid grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3 print:gap-[4mm] justify-center">
                   {itemsToPrint.map((ei) => {
                     const book = ei.book;
-                    const slip = getSbthInsideSlipData(ei.item.itemBarcode, ei.item.copyNumber, ei.item.acquisitionDate);
+                    const slip = getSbthInsideSlipData(ei.item.itemBarcode, ei.item.copyNumber, book?.createdAt || ei.item.acquisitionDate);
 
                     return (
                       <div
@@ -630,7 +659,7 @@ export const LabelPrintGenerator: React.FC<LabelPrintGeneratorProps> = ({
                           </span>
                         </div>
 
-                        {/* Isi No Daftar 4 Digit & Tanggal */}
+                        {/* Isi No Daftar 4 Digit & Tanggal DD/MM/YYYY */}
                         <div className="my-1.5 space-y-1 font-mono text-xs">
                           <div className="flex items-center justify-between border border-black/40 px-2 py-0.5 rounded bg-slate-50">
                             <span className="font-semibold text-slate-700 text-[10px]">No. Daftar :</span>
@@ -642,9 +671,10 @@ export const LabelPrintGenerator: React.FC<LabelPrintGeneratorProps> = ({
                           </div>
                         </div>
 
-                        {/* Info Judul & Eksemplar */}
+                        {/* Info Judul & Eksemplar & ISBN */}
                         <div className="border-t border-slate-200 pt-0.5 flex items-center justify-between text-[8px] text-slate-500 font-sans">
-                          <span className="truncate max-w-[150px] font-medium text-slate-700">{book?.title}</span>
+                          <span className="truncate max-w-[130px] font-medium text-slate-700">{book?.title}</span>
+                          <span className="font-mono text-[7.5px] text-slate-600">ISBN: {book?.isbn || '-'}</span>
                           <span>Copy #{ei.item.copyNumber}</span>
                         </div>
                       </div>
@@ -735,15 +765,24 @@ export const LabelPrintGenerator: React.FC<LabelPrintGeneratorProps> = ({
                 )}
                 <button
                   type="button"
+                  onClick={handleCleanPrefixesInPrinter}
+                  className="px-2.5 py-1 rounded-lg bg-emerald-500/15 hover:bg-emerald-500/25 text-emerald-600 dark:text-emerald-400 border border-emerald-500/30 font-bold text-[11px] flex items-center gap-1 transition cursor-pointer"
+                  title="Bersihkan awalan huruf seperti SBTH-B-0176 menjadi 0176 dan B0175 menjadi 0175 sesuai format 4-digit fisik SBTH"
+                >
+                  <Sparkles className="h-3 w-3" />
+                  <span>⚡ Ubah ke 4-Digit (0176)</span>
+                </button>
+                <button
+                  type="button"
                   onClick={selectAll}
-                  className="px-2.5 py-1 rounded-lg bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 text-[11px] font-medium hover:bg-slate-200"
+                  className="px-2.5 py-1 rounded-lg bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 text-[11px] font-medium hover:bg-slate-200 cursor-pointer"
                 >
                   Pilih Semua Sesuai Filter ({filteredItems.length})
                 </button>
                 <button
                   type="button"
                   onClick={deselectAll}
-                  className="px-2.5 py-1 rounded-lg text-slate-500 text-[11px] hover:underline"
+                  className="px-2.5 py-1 rounded-lg text-slate-500 text-[11px] hover:underline cursor-pointer"
                 >
                   Batal Pilih
                 </button>

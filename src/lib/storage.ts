@@ -32,6 +32,7 @@ import {
   SlimsPatternConfig,
   KeyboardShortcutConfig,
   KeyboardShortcutItem,
+  DraftBook,
 } from '@/types';
 import {
   INITIAL_BOOKS,
@@ -54,12 +55,17 @@ import {
   generateSlimsCallNumber,
   getSbthSpineCode,
   getSbthInsideSlipData,
+  deriveShelfCode,
+  deriveCategoryDdc,
+  deriveAuthorCode,
+  deriveTitleCode,
 } from './constants';
 import * as XLSX from 'xlsx';
 
 const STORAGE_KEYS = {
   BOOKS: 'sbth_library_books_v1',
   ITEMS: 'sbth_library_items_v1',
+  DRAFT_BOOKS: 'sbth_draft_books_v1',
   MEMBERS: 'sbth_library_members_v1',
   LOANS: 'sbth_library_loans_v1',
   FINES: 'sbth_library_fines_v1',
@@ -89,6 +95,7 @@ const STORAGE_KEYS = {
   SLIMS_PATTERN: 'sbth_library_slims_pattern_v1',
   KEYBOARD_SHORTCUTS: 'sbth_library_keyboard_shortcuts_v1',
   FONT_SIZE: 'sbth_library_font_size_v1',
+  SHELF_ROW_ENABLED: 'sbth_library_shelf_row_enabled_v1',
 };
 
 export class LibraryStore {
@@ -218,14 +225,33 @@ export class LibraryStore {
     const categories = this.getCategories();
     const cat = categories.find((c) => c.id === bookData.categoryId);
     const resolvedShelf = bookData.shelfLocation || cat?.shelfLocation || (cat ? `Rak ${cat.shortName}` : 'Rak Utama');
-    const callNo = bookData.callNumber || generateSlimsCallNumber(bookData.title, bookData.author, bookData.categoryId);
+    
+    // Auto-generate 4 baris kode punggung buku SBTH jika belum disediakan
+    const spine = getSbthSpineCode(
+      bookData.title,
+      bookData.author,
+      bookData.categoryId,
+      bookData.shelfCode,
+      bookData.classification,
+      bookData.authorCode,
+      bookData.titleCode
+    );
+
+    const shelfCode = (bookData.shelfCode && bookData.shelfCode.trim()) ? bookData.shelfCode.trim().toUpperCase() : spine.shelfCode;
+    const classification = (bookData.classification && bookData.classification.trim()) ? bookData.classification.trim() : spine.ddc;
+    const authorCode = (bookData.authorCode && bookData.authorCode.trim()) ? bookData.authorCode.trim().toUpperCase() : spine.authorCode;
+    const titleCode = (bookData.titleCode && bookData.titleCode.trim()) ? bookData.titleCode.trim() : spine.titleCode;
+    const callNo = bookData.callNumber || `${classification} ${authorCode} ${titleCode}`;
 
     const newBook: Book = {
       ...bookData,
       id: bookId,
       shelfLocation: resolvedShelf,
+      shelfCode,
+      classification,
+      authorCode,
+      titleCode,
       callNumber: callNo,
-      classification: bookData.classification || callNo.split(' ')[0],
       createdAt: new Date().toISOString(),
     };
 
@@ -317,19 +343,75 @@ export class LibraryStore {
     return newItems;
   }
 
-  // Update Book Title & Metadata
+  // Update Book Title & Metadata + Auto Sync Category, Rak, and Kode Punggung
   public updateBook(bookId: string, updates: Partial<Book>, librarianName?: string): Book | null {
     const books = this.getBooks();
     const idx = books.findIndex((b) => b.id === bookId);
     if (idx === -1) return null;
 
     const prev = books[idx];
+    const categoryId = updates.categoryId || prev.categoryId;
+    const cat = this.getCategories().find((c) => c.id === categoryId);
+
+    // Jika kategori berubah dan lokasi rak tidak diatur eksplisit, sesuaikan ke rak bawaan kategori
+    let resolvedShelf = updates.shelfLocation;
+    if (!resolvedShelf) {
+      if (updates.categoryId && updates.categoryId !== prev.categoryId) {
+        resolvedShelf = cat?.shelfLocation || `Rak ${cat?.shortName || 'Utama'}`;
+      } else {
+        resolvedShelf = prev.shelfLocation;
+      }
+    }
+
+    // Auto-sync spine codes jika ada yang kosong atau kategori/judul/pengarang berubah
+    const spine = getSbthSpineCode(
+      updates.title || prev.title,
+      updates.author || prev.author,
+      categoryId,
+      updates.shelfCode || prev.shelfCode,
+      updates.classification || prev.classification,
+      updates.authorCode || prev.authorCode,
+      updates.titleCode || prev.titleCode
+    );
+
+    const shelfCode = updates.shelfCode || prev.shelfCode || spine.shelfCode;
+    const classification = updates.classification || prev.classification || spine.ddc;
+    const authorCode = updates.authorCode || prev.authorCode || spine.authorCode;
+    const titleCode = updates.titleCode || prev.titleCode || spine.titleCode;
+    const callNumber = updates.callNumber || `${classification} ${authorCode} ${titleCode}`;
+
     const updated: Book = {
       ...prev,
       ...updates,
+      shelfLocation: resolvedShelf,
+      shelfCode,
+      classification,
+      authorCode,
+      titleCode,
+      callNumber,
     };
     books[idx] = updated;
     this.saveBooks(books);
+
+    // SINKRONISASI FISIK: Jika lokasi rak buku berubah, otomatis update lokasi rak seluruh eksemplar fisik buku ini
+    if (resolvedShelf && resolvedShelf !== prev.shelfLocation) {
+      const items = this.getBookItems();
+      let hasItemChanges = false;
+      const updatedItems = items.map((it) => {
+        if (it.bookId === bookId && it.shelfLocation !== resolvedShelf) {
+          hasItemChanges = true;
+          return {
+            ...it,
+            shelfLocation: resolvedShelf,
+            statusUpdatedAt: new Date().toISOString().split('T')[0],
+          };
+        }
+        return it;
+      });
+      if (hasItemChanges) {
+        this.saveBookItems(updatedItems);
+      }
+    }
 
     const actor = librarianName || this.getCurrentLibrarian()?.name || 'Pustakawan SBTH';
     this.addActivityLog({
@@ -337,7 +419,7 @@ export class LibraryStore {
       action: 'EDIT_BUKU',
       actor,
       targetTitle: updated.title,
-      details: `Mengubah data katalog buku "${updated.title}" (ISBN: ${updated.isbn}). Pengarang: ${updated.author}, Format: ${updated.physicalFormat || '-'}.`,
+      details: `Mengubah data katalog buku "${updated.title}" (ISBN: ${updated.isbn}). Kategori: ${cat?.name || categoryId}, Rak: ${resolvedShelf}. Kode Punggung: [${shelfCode} / ${classification} / ${authorCode} / ${titleCode}].`,
     });
 
     return updated;
@@ -1417,6 +1499,150 @@ export class LibraryStore {
     return { added, updated };
   }
 
+  // --- DRAFT BOOKS MANAGEMENT (Penampungan Data Impor Kurang Lengkap) ---
+  public getDraftBooks(): DraftBook[] {
+    if (!this.isClient()) return [];
+    try {
+      const saved = localStorage.getItem(STORAGE_KEYS.DRAFT_BOOKS);
+      return saved ? JSON.parse(saved) : [];
+    } catch {
+      return [];
+    }
+  }
+
+  public saveDraftBooks(drafts: DraftBook[]): void {
+    if (!this.isClient()) return;
+    localStorage.setItem(STORAGE_KEYS.DRAFT_BOOKS, JSON.stringify(drafts));
+  }
+
+  public addDraftBook(draftData: Omit<DraftBook, 'id' | 'createdAt'>): DraftBook {
+    const drafts = this.getDraftBooks();
+    const newDraft: DraftBook = {
+      ...draftData,
+      id: `draft-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 6)}`,
+      createdAt: new Date().toISOString(),
+    };
+    this.saveDraftBooks([newDraft, ...drafts]);
+    return newDraft;
+  }
+
+  public removeDraftBook(draftId: string): void {
+    const drafts = this.getDraftBooks().filter((d) => d.id !== draftId);
+    this.saveDraftBooks(drafts);
+  }
+
+  public publishDraftBook(draftId: string): { book: Book; newItems: BookItem[] } | null {
+    const drafts = this.getDraftBooks();
+    const draft = drafts.find((d) => d.id === draftId);
+    if (!draft || !draft.title.trim()) return null;
+
+    const res = this.addBook(
+      {
+        isbn: draft.isbn || `DRAFT-${Date.now().toString().slice(-6)}`,
+        title: draft.title,
+        author: draft.author || 'Tim Guru SBTH',
+        publisher: draft.publisher || 'Penerbit SBTH',
+        publicationYear: draft.publicationYear || '2024',
+        categoryId: draft.categoryId || 'cat-dongeng',
+        ageGroup: 'TK_A',
+        shelfLocation: draft.shelfLocation,
+        shelfCode: draft.shelfCode,
+        classification: draft.classification,
+        authorCode: draft.authorCode,
+        titleCode: draft.titleCode,
+        pageCount: draft.pageCount,
+        physicalFormat: draft.physicalFormat || 'Cerita Bergambar',
+        bookLanguage: draft.bookLanguage || 'id',
+        synopsis: draft.synopsis || 'Buku bacaan anak TK Sekolah Bina Tunas Harapan.',
+        coverImage: 'https://images.unsplash.com/photo-1544716278-ca5e3f4abd8c?w=400&q=80',
+      },
+      draft.copiesCount || 1,
+      draft.source || 'BELI_SEKOLAH',
+      undefined,
+      draft.priceValue || 45000
+    );
+
+    if (draft.statusDicap && res.newItems.length > 0) {
+      this.markLabelsPrinted(
+        res.newItems.map((it) => it.itemBarcode),
+        true,
+        'MANUAL_STAMP'
+      );
+    }
+
+    this.removeDraftBook(draftId);
+    return res;
+  }
+
+  // --- EXCEL MIGRATION & BULK EDIT KATEGORI / RAK WORKBOOK GENERATOR ---
+  public generateMigrationExcelWorkbook(): XLSX.WorkBook {
+    const books = this.getBooks();
+    const categories = this.getCategories();
+    const items = this.getBookItems();
+
+    const rows = books.map((b) => {
+      const cat = categories.find((c) => c.id === b.categoryId);
+      const bItems = items.filter((it) => it.bookId === b.id);
+      const spine = getSbthSpineCode(
+        b.title,
+        b.author,
+        b.categoryId,
+        b.shelfCode || cat?.shelfCode || 'SR',
+        b.classification,
+        b.authorCode,
+        b.titleCode
+      );
+
+      return {
+        'ISBN (Opsional)': b.isbn || '',
+        'Judul Buku': b.title,
+        'Pengarang': b.author,
+        'Penerbit': b.publisher || '',
+        'Tahun Terbit': b.publicationYear || '2024',
+        'Kategori': cat?.shortName || 'DONGENG',
+        'Posisi Rak': b.shelfLocation || cat?.shelfLocation || '',
+        'Baris 1 - Kode Rak': spine.shelfCode,
+        'Baris 2 - Nomor DDC': spine.ddc,
+        'Baris 3 - Kode Pengarang': spine.authorCode,
+        'Baris 4 - Kode Judul': spine.titleCode,
+        'Status Dicap / Label': bItems.some((it) => it.labelPrinted) ? 'Sudah' : 'Belum',
+        'Jumlah Eksemplar': Math.max(1, bItems.length),
+        'Halaman Buku': b.pageCount || 24,
+        'Format Fisik': b.physicalFormat || 'Cerita Bergambar',
+        'Sinopsis Singkat': b.synopsis || '',
+        'Bahasa Buku': b.bookLanguage === 'zh' ? 'Mandarin' : b.bookLanguage === 'en' ? 'English' : 'Indonesia',
+        'Sumber Perolehan': b.acquisitionSource || 'BELI',
+        'Nilai Buku (Rp)': b.priceValue || 45000,
+      };
+    });
+
+    const ws = XLSX.utils.json_to_sheet(rows);
+    ws['!cols'] = [
+      { wch: 18 }, { wch: 45 }, { wch: 22 }, { wch: 22 }, { wch: 12 },
+      { wch: 16 }, { wch: 34 }, { wch: 16 }, { wch: 16 }, { wch: 18 },
+      { wch: 14 }, { wch: 16 }, { wch: 16 }, { wch: 14 }, { wch: 20 },
+      { wch: 45 }, { wch: 14 }, { wch: 16 }, { wch: 15 },
+    ];
+
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, 'Pindah_Rak_Kategori_SBTH');
+
+    const panduanData = [
+      { 'Panduan Pengisian': 'PANDUAN TRANSIZI & PINDAH KATEGORI / RAK BUKU PERPUSTAKAAN SBTH' },
+      { 'Panduan Pengisian': '--------------------------------------------------------------------------------' },
+      { 'Panduan Pengisian': '1. KATEGORI: Ubah kolom Kategori (DONGENG, ALAM, AKTIVITAS, KARAKTER, ENSIKLOPEDIA, MANDARIN & BHS).' },
+      { 'Panduan Pengisian': '2. POSISI RAK: Ubah kolom Posisi Rak jika buku dipindahkan ke rak lain (misal: "Rak Kuning B - Baris 2").' },
+      { 'Panduan Pengisian': '3. SINKRONISASI OTOMATIS: Kolom Baris 1-4 boleh dikosongkan jika ingin sistem men-generate otomatis dari kategori, judul & pengarang.' },
+      { 'Panduan Pengisian': '4. SINOPSIS & PENGARANG KOSONG: Tetap bisa di-import! Baris yang belum lengkap bisa masuk Draf atau dipaksa upload dengan nilai default.' },
+      { 'Panduan Pengisian': '5. Simpan file ini dan upload kembali di Modul Impor Excel SBTH untuk menyelesaikan perpindahan data!' },
+    ];
+    const wsPanduan = XLSX.utils.json_to_sheet(panduanData);
+    wsPanduan['!cols'] = [{ wch: 110 }];
+    XLSX.utils.book_append_sheet(wb, wsPanduan, 'Panduan_Pengisian');
+
+    return wb;
+  }
+
   // --- TELEGRAM MESSAGE FORMATTERS ---
   public generateWeeklyReportText(): string {
     const items = this.getBookItems();
@@ -1538,6 +1764,16 @@ Periode: Minggu ke-2 Oktober 2026
     const updated: SchoolProfile = { ...base, ...profile };
     try {
       localStorage.setItem(STORAGE_KEYS.SCHOOL_PROFILE, JSON.stringify(updated));
+      if (updated.enableFinanceModule !== undefined) {
+        this.setFinanceModuleEnabled(updated.enableFinanceModule);
+        const rules = this.getLoanRules();
+        if (rules.enableFinanceModule !== updated.enableFinanceModule) {
+          rules.enableFinanceModule = updated.enableFinanceModule;
+          try {
+            localStorage.setItem(STORAGE_KEYS.LOAN_RULES, JSON.stringify(rules));
+          } catch {}
+        }
+      }
     } catch (e) {
       console.error('Failed to save school profile', e);
     }
@@ -1733,16 +1969,23 @@ Periode: Minggu ke-2 Oktober 2026
     }
     try {
       const parsed = JSON.parse(raw);
-      // Migrasi otomatis jika masih tersimpan shortcut Control legacy yang berbenturan dengan Chrome
-      if (
-        parsed.newLoan?.includes('Control') ||
-        parsed.returnBook?.includes('Control') ||
-        parsed.returnBook === 'Control+w'
-      ) {
+      // Migrasi otomatis jika masih tersimpan shortcut Control/Ctrl legacy yang bertabrakan dengan Chrome
+      const values = Object.values(parsed || {});
+      const hasControl = values.some(
+        (v) => typeof v === 'string' && (v.toLowerCase().includes('control') || v.toLowerCase().includes('ctrl'))
+      );
+      if (hasControl) {
         this.saveKeyboardShortcuts(DEFAULT_KEYBOARD_SHORTCUTS);
-        return DEFAULT_KEYBOARD_SHORTCUTS;
+        return { ...DEFAULT_KEYBOARD_SHORTCUTS };
       }
-      return { ...DEFAULT_KEYBOARD_SHORTCUTS, ...parsed };
+      const cleaned = { ...DEFAULT_KEYBOARD_SHORTCUTS };
+      (Object.keys(DEFAULT_KEYBOARD_SHORTCUTS) as (keyof KeyboardShortcutConfig)[]).forEach((k) => {
+        const val = parsed[k];
+        if (typeof val === 'string' && val.trim() !== '' && !val.toLowerCase().includes('control') && !val.toLowerCase().includes('ctrl')) {
+          cleaned[k] = val;
+        }
+      });
+      return cleaned;
     } catch {
       return DEFAULT_KEYBOARD_SHORTCUTS;
     }
@@ -2146,7 +2389,13 @@ Periode: Minggu ke-2 Oktober 2026
       return DEFAULT_LOAN_RULES;
     }
     try {
-      return { ...DEFAULT_LOAN_RULES, ...JSON.parse(raw) };
+      const parsed = JSON.parse(raw);
+      const isFin = this.getFinanceModuleEnabled();
+      return {
+        ...DEFAULT_LOAN_RULES,
+        ...parsed,
+        enableFinanceModule: parsed.enableFinanceModule !== undefined ? parsed.enableFinanceModule : isFin,
+      };
     } catch {
       return DEFAULT_LOAN_RULES;
     }
@@ -2155,6 +2404,17 @@ Periode: Minggu ke-2 Oktober 2026
   public saveLoanRules(rules: LoanRules): void {
     if (!this.isClient()) return;
     localStorage.setItem(STORAGE_KEYS.LOAN_RULES, JSON.stringify(rules));
+    if (rules.enableFinanceModule !== undefined) {
+      this.setFinanceModuleEnabled(rules.enableFinanceModule);
+      // Sinkronkan ke SchoolProfile juga agar konsisten
+      const prof = this.getSchoolProfile();
+      if (prof.enableFinanceModule !== rules.enableFinanceModule) {
+        prof.enableFinanceModule = rules.enableFinanceModule;
+        try {
+          localStorage.setItem(STORAGE_KEYS.SCHOOL_PROFILE, JSON.stringify(prof));
+        } catch {}
+      }
+    }
   }
 
   // --- TELEGRAM COMMAND TEMPLATES (Pustakawan Editable & Aman) ---
@@ -2402,11 +2662,11 @@ Periode: Minggu ke-2 Oktober 2026
     return Math.max(staticTotal, dynamicOverdueFines);
   }
 
-  // --- FINANCE MODULE TOGGLE (Bebas di ON / OFF oleh Sekolah) ---
+  // --- FINANCE MODULE TOGGLE (Bebas di ON / OFF oleh Sekolah - Default OFF) ---
   public getFinanceModuleEnabled(): boolean {
-    if (!this.isClient()) return true;
+    if (!this.isClient()) return false;
     const raw = localStorage.getItem(STORAGE_KEYS.FINANCE_ENABLED);
-    if (raw === null) return true;
+    if (raw === null) return false; // DEFAULT: OFF sesuai instruksi resmi sekolah
     return raw === 'true';
   }
 
@@ -2535,6 +2795,23 @@ Periode: Minggu ke-2 Oktober 2026
     if (list.length === 0) return false;
     this.saveShelves(list);
     return true;
+  }
+
+  // Toggle Fitur Baris Rak (Row/Sap) ON / OFF
+  public isShelfRowFeatureEnabled(): boolean {
+    if (!this.isClient()) return true;
+    const raw = localStorage.getItem(STORAGE_KEYS.SHELF_ROW_ENABLED);
+    if (raw === null) return true; // Default ON
+    try {
+      return JSON.parse(raw) === true;
+    } catch {
+      return true;
+    }
+  }
+
+  public setShelfRowFeatureEnabled(enabled: boolean): void {
+    if (!this.isClient()) return;
+    localStorage.setItem(STORAGE_KEYS.SHELF_ROW_ENABLED, JSON.stringify(enabled));
   }
 
   // Quick Inline Shelf Location Updaters
@@ -2961,7 +3238,15 @@ Periode: Minggu ke-2 Oktober 2026
       return DEFAULT_SLIMS_PATTERN;
     }
     try {
-      return { ...DEFAULT_SLIMS_PATTERN, ...JSON.parse(raw) };
+      const parsed = JSON.parse(raw);
+      return {
+        ...DEFAULT_SLIMS_PATTERN,
+        ...parsed,
+        prefix: parsed.prefix !== undefined ? parsed.prefix : DEFAULT_SLIMS_PATTERN.prefix,
+        serialLength: parsed.serialLength || DEFAULT_SLIMS_PATTERN.serialLength,
+        suffix: parsed.suffix !== undefined ? parsed.suffix : DEFAULT_SLIMS_PATTERN.suffix,
+        nextNumber: typeof parsed.nextNumber === 'number' ? parsed.nextNumber : DEFAULT_SLIMS_PATTERN.nextNumber,
+      };
     } catch {
       return DEFAULT_SLIMS_PATTERN;
     }
@@ -2974,20 +3259,25 @@ Periode: Minggu ke-2 Oktober 2026
 
   public generateNextItemBarcode(categoryId?: string): string {
     const pattern = this.getSlimsPattern();
-    let prefix = pattern.prefix || 'SBTH-B-';
+    let prefix = pattern.prefix !== undefined ? pattern.prefix : '';
 
     if (pattern.patternMode === 'SBTH_4DIGIT') {
       prefix = pattern.prefix !== undefined ? pattern.prefix : '';
+    } else if (pattern.patternMode === 'SBTH') {
+      prefix = pattern.prefix !== undefined && pattern.prefix !== '' ? pattern.prefix : 'SBTH-B-';
     } else if (pattern.patternMode === 'SLIMS_STANDARD') {
-      prefix = 'B';
+      prefix = pattern.prefix !== undefined && pattern.prefix !== '' ? pattern.prefix : 'B';
     } else if (pattern.patternMode === 'CATEGORY_BASED' && categoryId) {
       const catCode = categoryId.replace('cat-', '').substring(0, 3).toUpperCase();
       prefix = `${catCode}-`;
+    } else if (pattern.patternMode === 'CUSTOM') {
+      prefix = pattern.prefix !== undefined ? pattern.prefix : '';
     }
 
-    const numStr = String(pattern.nextNumber).padStart(pattern.serialLength || (pattern.patternMode === 'SBTH_4DIGIT' ? 4 : 5), '0');
+    const serialLength = pattern.serialLength || (pattern.patternMode === 'SBTH_4DIGIT' ? 4 : 5);
+    const numStr = String(pattern.nextNumber).padStart(serialLength, '0');
     const currentYear = new Date().getFullYear();
-    const rawSuffix = pattern.suffix || '';
+    const rawSuffix = pattern.suffix !== undefined ? pattern.suffix : '';
     const suffix = rawSuffix
       .replace(/{YEAR}|{year}|{TAHUN}|{tahun}/gi, String(currentYear))
       .replace(/\/20\d\d/g, `/${currentYear}`);
@@ -2998,6 +3288,66 @@ Periode: Minggu ke-2 Oktober 2026
     pattern.nextNumber += 1;
     this.saveSlimsPattern(pattern);
     return barcode;
+  }
+
+  // --- BERSIHKAN AWALAN LAMA MENJADI KODE 4-DIGIT BERSIH (MISAL: SBTH-B-0176 -> 0176, B0175 -> 0175) ---
+  public convertOldPrefixBarcodesTo4Digit(): { count: number; convertedList: { old: string; new: string }[] } {
+    if (!this.isClient()) return { count: 0, convertedList: [] };
+    const items = this.getBookItems();
+    const loans = this.getLoans();
+    const convertedList: { old: string; new: string }[] = [];
+
+    const updatedItems = items.map((item) => {
+      const oldBarcode = item.itemBarcode;
+      // Jika memiliki awalan huruf seperti SBTH-B-, B, DNG-, dll
+      if (/[a-zA-Z]/.test(oldBarcode)) {
+        const digits = oldBarcode.replace(/\D/g, '');
+        if (digits.length >= 4) {
+          const newBarcode = digits.slice(-4);
+          convertedList.push({ old: oldBarcode, new: newBarcode });
+          return { ...item, itemBarcode: newBarcode };
+        } else if (digits.length > 0) {
+          const newBarcode = digits.padStart(4, '0');
+          convertedList.push({ old: oldBarcode, new: newBarcode });
+          return { ...item, itemBarcode: newBarcode };
+        }
+      }
+      return item;
+    });
+
+    if (convertedList.length > 0) {
+      const updatedLoans = loans.map((loan) => {
+        let loanModified = false;
+        const newLoanItems = loan.items.map((li) => {
+          const matched = convertedList.find((c) => c.old === li.itemBarcode);
+          if (matched) {
+            loanModified = true;
+            return { ...li, itemBarcode: matched.new };
+          }
+          return li;
+        });
+        return loanModified ? { ...loan, items: newLoanItems } : loan;
+      });
+
+      this.saveBookItems(updatedItems);
+      this.saveLoans(updatedLoans);
+
+      // Sinkronkan nomor urut berikutnya agar minimal lebih besar dari angka tertinggi
+      const pattern = this.getSlimsPattern();
+      const highestNum = Math.max(
+        ...updatedItems.map((i) => {
+          const d = parseInt(i.itemBarcode.replace(/\D/g, ''), 10);
+          return isNaN(d) ? 0 : d;
+        }),
+        pattern.nextNumber - 1
+      );
+      if (highestNum >= pattern.nextNumber) {
+        pattern.nextNumber = highestNum + 1;
+        this.saveSlimsPattern(pattern);
+      }
+    }
+
+    return { count: convertedList.length, convertedList };
   }
 
   // --- REGENERASI MASSAL BARCODE SLIMS SESUAI PRESET (DENGAN BACKUP & RESTORE) ---
@@ -3017,20 +3367,23 @@ Periode: Minggu ke-2 Oktober 2026
     const barcodeMap: Record<string, string> = {};
 
     const updatedItems = items.map((item) => {
-      let prefix = pattern.prefix || 'B';
+      let prefix = pattern.prefix !== undefined ? pattern.prefix : '';
       if (pattern.patternMode === 'SBTH_4DIGIT') {
         prefix = pattern.prefix !== undefined ? pattern.prefix : '';
       } else if (pattern.patternMode === 'SLIMS_STANDARD') {
-        prefix = 'B';
+        prefix = pattern.prefix !== undefined && pattern.prefix !== '' ? pattern.prefix : 'B';
       } else if (pattern.patternMode === 'CATEGORY_BASED') {
         const book = books.find((b) => b.id === item.bookId);
         const catCode = book?.categoryId ? book.categoryId.replace('cat-', '').substring(0, 3).toUpperCase() : 'B';
         prefix = `${catCode}-`;
       } else if (pattern.patternMode === 'SBTH') {
-        prefix = 'SBTH-B-';
+        prefix = pattern.prefix !== undefined && pattern.prefix !== '' ? pattern.prefix : 'SBTH-B-';
+      } else if (pattern.patternMode === 'CUSTOM') {
+        prefix = pattern.prefix !== undefined ? pattern.prefix : '';
       }
 
-      const numStr = String(currentNumber).padStart(pattern.serialLength || (pattern.patternMode === 'SBTH_4DIGIT' ? 4 : 5), '0');
+      const serialLength = pattern.serialLength || (pattern.patternMode === 'SBTH_4DIGIT' ? 4 : 5);
+      const numStr = String(currentNumber).padStart(serialLength, '0');
       const suffix = pattern.suffix || '';
       const newBarcode = `${prefix}${numStr}${suffix}`;
       currentNumber++;
@@ -3268,6 +3621,92 @@ Periode: Minggu ke-2 Oktober 2026
     });
 
     return updatedCount;
+  }
+
+  // --- BULK SYNC / UPDATE SPINE CODES (SINKRONISASI MASSAL PUNGGUNG BUKU SBTH) ---
+  public bulkSyncSpineCodes(
+    bookIds: string[],
+    options?: {
+      customShelfCode?: string;      // Baris 1: e.g. "SR", "AG", etc. (or keep/derive if empty)
+      customClassification?: string; // Baris 2: e.g. "813", "398.2" (or keep/derive if empty)
+      customAuthorCode?: string;     // Baris 3: e.g. 3 letters (or derive if empty)
+      customTitleCode?: string;      // Baris 4: e.g. 1 letter (or derive if empty)
+      forceRecalculate?: boolean;    // recalculate all 4 lines automatically using getSbthSpineCode
+    }
+  ): { updatedCount: number; updatedTitles: string[] } {
+    if (!this.isClient()) return { updatedCount: 0, updatedTitles: [] };
+    const books = this.getBooks();
+    const updatedTitles: string[] = [];
+
+    const isAll = !bookIds || bookIds.length === 0;
+    const targetSet = new Set(bookIds || []);
+
+    const updatedBooks = books.map((b) => {
+      if (isAll || targetSet.has(b.id)) {
+        const spine = getSbthSpineCode(
+          b.title,
+          b.author,
+          b.categoryId,
+          options?.customShelfCode,
+          options?.customClassification,
+          options?.customAuthorCode,
+          options?.customTitleCode
+        );
+
+        const shelfCode = options?.customShelfCode?.trim()
+          ? options.customShelfCode.trim().toUpperCase()
+          : options?.forceRecalculate
+          ? spine.shelfCode
+          : b.shelfCode || spine.shelfCode;
+
+        const classification = options?.customClassification?.trim()
+          ? options.customClassification.trim()
+          : options?.forceRecalculate
+          ? spine.ddc
+          : b.classification || spine.ddc;
+
+        const authorCode = options?.customAuthorCode?.trim()
+          ? options.customAuthorCode.trim().toUpperCase()
+          : options?.forceRecalculate
+          ? spine.authorCode
+          : b.authorCode || spine.authorCode;
+
+        const titleCode = options?.customTitleCode?.trim()
+          ? options.customTitleCode.trim().toLowerCase()
+          : options?.forceRecalculate
+          ? spine.titleCode
+          : b.titleCode || spine.titleCode;
+
+        const callNumber = `${classification} ${authorCode} ${titleCode}`;
+
+        updatedTitles.push(b.title);
+        return {
+          ...b,
+          shelfCode,
+          classification,
+          authorCode,
+          titleCode,
+          callNumber,
+        };
+      }
+      return b;
+    });
+
+    this.saveBooks(updatedBooks);
+
+    this.addActivityLog({
+      category: 'CATALOG',
+      action: 'UPDATE',
+      actor: 'Pustakawan',
+      details: `Sinkronisasi massal label punggung buku SBTH (4-baris vertikal) untuk ${updatedTitles.length} judul buku.`,
+    });
+
+    if (typeof window !== 'undefined') {
+      window.dispatchEvent(new Event('sbth_books_updated'));
+      window.dispatchEvent(new Event('storage'));
+    }
+
+    return { updatedCount: updatedTitles.length, updatedTitles };
   }
 
   // --- DRAFT STOCK OPNAME BERTAHAP (PER BATCH / PER RAK) ---

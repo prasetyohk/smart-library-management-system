@@ -32,6 +32,7 @@ export const ShelfManagementModal: React.FC<ShelfManagementModalProps> = ({
 }) => {
   const [shelves, setShelves] = useState<ShelfLocationItem[]>([]);
   const [editingShelfId, setEditingShelfId] = useState<string | null>(null);
+  const [isRowFeatureEnabled, setIsRowFeatureEnabled] = useState<boolean>(true);
 
   // Form states for adding or editing
   const [code, setCode] = useState('');
@@ -54,6 +55,7 @@ export const ShelfManagementModal: React.FC<ShelfManagementModalProps> = ({
   useEffect(() => {
     if (isOpen) {
       setShelves(libraryStore.getShelves());
+      setIsRowFeatureEnabled(libraryStore.isShelfRowFeatureEnabled());
       setEditingShelfId(null);
       resetForm();
     }
@@ -233,6 +235,60 @@ export const ShelfManagementModal: React.FC<ShelfManagementModalProps> = ({
             )}
           </div>
 
+          {/* Toggle Switch Fitur Baris Rak (ON / OFF) */}
+          <div className="p-3.5 rounded-2xl bg-surface-2 border border-border flex flex-col sm:flex-row sm:items-center justify-between gap-3 shadow-2xs">
+            <div className="flex items-center gap-3">
+              <div
+                className={`p-2.5 rounded-xl transition ${
+                  isRowFeatureEnabled
+                    ? 'bg-amber-500/15 text-amber-500 border border-amber-500/30'
+                    : 'bg-surface-3 text-text-muted border border-border'
+                }`}
+              >
+                <Layers className="h-5 w-5" />
+              </div>
+              <div>
+                <div className="font-bold text-text text-xs flex items-center gap-2">
+                  <span>Fitur Pembagian Baris Rak (Row/Sap)</span>
+                  <span
+                    className={`text-[10px] px-2 py-0.5 rounded-full font-extrabold ${
+                      isRowFeatureEnabled
+                        ? 'bg-amber-500 text-slate-950 shadow-2xs'
+                        : 'bg-surface-3 text-text-muted border border-border'
+                    }`}
+                  >
+                    {isRowFeatureEnabled ? 'AKTIF (ON)' : 'NONAKTIF (OFF)'}
+                  </span>
+                </div>
+                <p className="text-[11px] text-text-muted mt-0.5">
+                  {isRowFeatureEnabled
+                    ? 'Mode Baris Aktif: Formulir input rak & tabel koleksi buku menampilkan kolom Baris.'
+                    : 'Mode Tanpa Baris: Fitur baris disembunyikan waktu input rak & kolom baris di koleksi buku hilang.'}
+                </p>
+              </div>
+            </div>
+
+            <button
+              type="button"
+              onClick={() => {
+                const next = !isRowFeatureEnabled;
+                setIsRowFeatureEnabled(next);
+                libraryStore.setShelfRowFeatureEnabled(next);
+                soundFx.playScanBeep();
+                if (onShelvesUpdated) onShelvesUpdated();
+              }}
+              className={`px-4 py-2 rounded-xl font-bold text-xs transition cursor-pointer flex items-center justify-center gap-2 shadow-xs shrink-0 ${
+                isRowFeatureEnabled
+                  ? 'bg-amber-500 hover:bg-amber-600 text-slate-950'
+                  : 'bg-surface hover:bg-surface-3 text-text border border-border'
+              }`}
+              title="Klik untuk ON / OFF fitur pembagian baris rak"
+            >
+              <Layers className="h-4 w-4" />
+              <span>{isRowFeatureEnabled ? 'Matikan Baris (OFF)' : 'Aktifkan Baris (ON)'}</span>
+            </button>
+          </div>
+
           {/* Form: Tambah / Edit Rak */}
           <form
             onSubmit={handleSaveShelf}
@@ -254,7 +310,7 @@ export const ShelfManagementModal: React.FC<ShelfManagementModalProps> = ({
               )}
             </div>
 
-            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-3">
+            <div className={`grid grid-cols-1 sm:grid-cols-2 ${isRowFeatureEnabled ? 'md:grid-cols-4' : 'md:grid-cols-3'} gap-3`}>
               <div>
                 <label className="text-[11px] font-semibold text-text-muted block mb-1">
                   Kode Rak <span className="text-rose-500">*</span>:
@@ -312,19 +368,21 @@ export const ShelfManagementModal: React.FC<ShelfManagementModalProps> = ({
                 </div>
               </div>
 
-              <div>
-                <label className="text-[11px] font-semibold text-text-muted block mb-1">
-                  Struktur Baris (Row):
-                </label>
-                <input
-                  type="text"
-                  required
-                  value={rowStructure}
-                  onChange={(e) => setRowStructure(e.target.value)}
-                  placeholder="Contoh: Baris 1 s/d Baris 4"
-                  className="w-full rounded-xl border border-border bg-surface px-3 py-2 text-xs text-text outline-hidden focus:border-amber-500"
-                />
-              </div>
+              {isRowFeatureEnabled && (
+                <div>
+                  <label className="text-[11px] font-semibold text-text-muted block mb-1">
+                    Struktur Baris (Row):
+                  </label>
+                  <input
+                    type="text"
+                    required={isRowFeatureEnabled}
+                    value={rowStructure}
+                    onChange={(e) => setRowStructure(e.target.value)}
+                    placeholder="Contoh: Baris 1 s/d Baris 4"
+                    className="w-full rounded-xl border border-border bg-surface px-3 py-2 text-xs text-text outline-hidden focus:border-amber-500"
+                  />
+                </div>
+              )}
             </div>
 
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pt-1">
@@ -359,7 +417,7 @@ export const ShelfManagementModal: React.FC<ShelfManagementModalProps> = ({
                     <th className="py-2.5 px-3">Kode Rak</th>
                     <th className="py-2.5 px-3">Kategori Buku</th>
                     <th className="py-2.5 px-3">Warna Stiker</th>
-                    <th className="py-2.5 px-3">Struktur Baris (Row)</th>
+                    {isRowFeatureEnabled && <th className="py-2.5 px-3">Struktur Baris (Row)</th>}
                     <th className="py-2.5 px-3">Keterangan</th>
                     <th className="py-2.5 px-3 text-right">Aksi</th>
                   </tr>
@@ -388,7 +446,9 @@ export const ShelfManagementModal: React.FC<ShelfManagementModalProps> = ({
                           {shelf.colorName || 'Pilihan'}
                         </span>
                       </td>
-                      <td className="py-2.5 px-3 text-text-muted">{shelf.rowStructure}</td>
+                      {isRowFeatureEnabled && (
+                        <td className="py-2.5 px-3 text-text-muted">{shelf.rowStructure}</td>
+                      )}
                       <td className="py-2.5 px-3 text-text-muted truncate max-w-[200px]">
                         {shelf.description || '-'}
                       </td>

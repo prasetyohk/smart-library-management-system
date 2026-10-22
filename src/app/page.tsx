@@ -125,6 +125,33 @@ export default function Home() {
   // Initialize storage & date
   const [currentDateStr, setCurrentDateStr] = useState<string>('');
   const [dataVersion, setDataVersion] = useState<number>(0);
+  const [isFinanceEnabled, setIsFinanceEnabled] = useState<boolean>(() => libraryStore.getFinanceModuleEnabled());
+
+  useEffect(() => {
+    const handleSettingsUpdated = (e?: any) => {
+      // Hanya tangani perubahan jika event relevan dengan profil sekolah, modul keuangan, atau settings modal
+      if (e && 'key' in e && e.key) {
+        const relevantKeys = [
+          'sbth_library_school_profile_v1',
+          'sbth_library_finance_enabled_v1',
+          'sbth_settings_updated',
+        ];
+        if (!relevantKeys.includes(e.key)) {
+          return;
+        }
+      }
+      const enabled = libraryStore.getFinanceModuleEnabled();
+      setIsFinanceEnabled(enabled);
+      setSchoolProfile(libraryStore.getSchoolProfile());
+      setDataVersion((v) => v + 1);
+    };
+    window.addEventListener('sbth_settings_updated', handleSettingsUpdated);
+    window.addEventListener('storage', handleSettingsUpdated);
+    return () => {
+      window.removeEventListener('sbth_settings_updated', handleSettingsUpdated);
+      window.removeEventListener('storage', handleSettingsUpdated);
+    };
+  }, []);
 
   useEffect(() => {
     const d = new Date();
@@ -139,6 +166,7 @@ export default function Home() {
     setAppMode(libraryStore.getAppMode());
     setSchoolProfile(libraryStore.getSchoolProfile());
     setLanguage(libraryStore.getLanguage());
+    setIsFinanceEnabled(libraryStore.getFinanceModuleEnabled());
     
     // Theme init: sync HTML class and data-theme attribute
     const currentTheme = libraryStore.getTheme();
@@ -169,7 +197,11 @@ export default function Home() {
     }
     const savedCircSub = localStorage.getItem('sbth_circulation_subtab') as any;
     if (savedCircSub && ['BORROW', 'RETURN', 'RENEW', 'OVERDUE', 'INSPECT'].includes(savedCircSub)) {
-      setCirculationSubTab(savedCircSub);
+      if (savedCircSub === 'OVERDUE' && !libraryStore.getFinanceModuleEnabled()) {
+        setCirculationSubTab('BORROW');
+      } else {
+        setCirculationSubTab(savedCircSub);
+      }
     }
     const savedSound = localStorage.getItem('sbth_sound_fx');
     if (savedSound !== null) {
@@ -270,9 +302,11 @@ export default function Home() {
       }
       if (matchShortcut(sc.overdueTab || 'Alt+4') || (e.altKey && (e.key === '4' || e.key.toLowerCase() === 'r'))) {
         e.preventDefault();
-        setActiveTab('CIRCULATION');
-        setCirculationSubTab('OVERDUE');
-        soundFx.playScanBeep();
+        if (isFinanceEnabled) {
+          setActiveTab('CIRCULATION');
+          setCirculationSubTab('OVERDUE');
+          soundFx.playScanBeep();
+        }
         return;
       }
       if (matchShortcut(sc.booksTab || 'Alt+5') || (e.altKey && (e.key === '5' || e.key.toLowerCase() === 'b'))) {
@@ -309,7 +343,7 @@ export default function Home() {
 
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [appMode, isShortcutHelpOpen, isAdminAuthOpen]);
+  }, [appMode, isShortcutHelpOpen, isAdminAuthOpen, isFinanceEnabled]);
 
   const toggleTheme = () => {
     const nextTheme = theme === 'dark' ? 'light' : 'dark';
@@ -626,7 +660,7 @@ export default function Home() {
                     {!isSidebarCollapsed && <span>WhatsApp Center</span>}
                   </button>
 
-                  {libraryStore.getFinanceModuleEnabled() && (
+                  {isFinanceEnabled && (
                     <button
                       type="button"
                       onClick={() => setIsFinanceOpen(true)}
@@ -977,7 +1011,6 @@ export default function Home() {
 
               {activeTab === 'BOOKS' && (
                 <BookManagement
-                  key={dataVersion}
                   language={language}
                   onOpenScanIsbn={() => {
                     setScannedIsbnToLookup('');
@@ -990,7 +1023,6 @@ export default function Home() {
 
               {activeTab === 'MEMBERS' && (
                 <MemberManagement
-                  key={dataVersion}
                   onRefresh={() => handleRefreshData()}
                 />
               )}
@@ -1098,6 +1130,43 @@ export default function Home() {
                     title="Font Ekstra Besar"
                   >
                     A+
+                  </button>
+                </div>
+
+                {/* Pilihan Bahasa Kiosk OPAC Anak (ID | EN | 中文) */}
+                <div className="flex items-center h-9 p-0.5 rounded-lg bg-surface-2 border border-border text-xs font-semibold">
+                  <button
+                    type="button"
+                    onClick={() => handleLanguageChange('id')}
+                    className={`px-2.5 py-1 rounded-md transition text-xs font-bold flex items-center gap-1 cursor-pointer ${
+                      language === 'id' ? 'bg-surface text-amber-500 shadow-xs' : 'text-text-muted hover:text-text'
+                    }`}
+                    title="Bahasa Indonesia"
+                  >
+                    <span className="text-sm">🇮🇩</span>
+                    <span className="hidden sm:inline">ID</span>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => handleLanguageChange('en')}
+                    className={`px-2.5 py-1 rounded-md transition text-xs font-bold flex items-center gap-1 cursor-pointer ${
+                      language === 'en' ? 'bg-surface text-amber-500 shadow-xs' : 'text-text-muted hover:text-text'
+                    }`}
+                    title="English"
+                  >
+                    <span className="text-sm">🇬🇧</span>
+                    <span className="hidden sm:inline">EN</span>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => handleLanguageChange('zh')}
+                    className={`px-2.5 py-1 rounded-md transition text-xs font-bold flex items-center gap-1 cursor-pointer ${
+                      language === 'zh' ? 'bg-surface text-amber-500 shadow-xs' : 'text-text-muted hover:text-text'
+                    }`}
+                    title="中文 (Mandarin)"
+                  >
+                    <span className="text-sm">🇨🇳</span>
+                    <span className="hidden sm:inline">中文</span>
                   </button>
                 </div>
 

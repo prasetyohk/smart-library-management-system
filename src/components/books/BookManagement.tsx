@@ -35,13 +35,23 @@ import {
   BookOpen,
 } from 'lucide-react';
 import { Book, BookItem, BookStatus, CategoryId, Language, ShelfLocationItem, Category } from '@/types';
-import { CATEGORIES } from '@/lib/constants';
+import {
+  CATEGORIES,
+  formatDateTimeIndo,
+  formatDateDDMMYYYY,
+  parseShelfLocation,
+  combineShelfLocation,
+  DEFAULT_SHELF_ROWS,
+  deriveAuthorCode,
+  deriveTitleCode,
+} from '@/lib/constants';
 import { libraryStore } from '@/lib/storage';
 import { soundFx } from '@/lib/sound';
 import { DICTIONARY } from '@/lib/i18n';
 import { PageHeader } from '@/components/common/PageHeader';
 import { SmartBookCover } from '@/components/common/SmartBookCover';
 import { EditBookModal } from './EditBookModal';
+import { BulkSpineSyncModal } from './BulkSpineSyncModal';
 import { ShelfManagementModal } from '@/components/shelves/ShelfManagementModal';
 import { CategoryManagementModal } from '@/components/categories/CategoryManagementModal';
 import { StockOpnameModal } from '@/components/stockopname/StockOpnameModal';
@@ -64,40 +74,63 @@ export const BookManagement: React.FC<BookManagementProps> = ({
 
   const [search, setSearch] = useState<string>('');
   const [selectedCategory, setSelectedCategory] = useState<CategoryId | 'ALL'>('ALL');
-  const [mainTab, setMainTab] = useState<'CATALOG' | 'UNPRINTED' | 'DISPOSED'>('CATALOG');
-  const [isBastModalOpen, setIsBastModalOpen] = useState<boolean>(false);
-  const [labelFilter, setLabelFilter] = useState<'ALL' | 'UNPRINTED' | 'PRINTED'>('ALL');
-  const [shelfFilter, setShelfFilter] = useState<string>('ALL');
-  const [selectedItemIds, setSelectedItemIds] = useState<string[]>([]);
-  const [bulkShelfTarget, setBulkShelfTarget] = useState<string>('');
-  const [statusFilter, setStatusFilter] = useState<'ALL' | 'AVAILABLE' | 'BORROWED' | 'DAMAGED' | 'LOST' | 'DISPOSED'>('ALL');
-  const [sortBy, setSortBy] = useState<'TITLE' | 'NEWEST' | 'COPIES'>('NEWEST');
-  const [viewMode, setViewMode] = useState<'CARDS' | 'TABLE' | 'GRID'>('CARDS');
-  const [selectedBookForCopies, setSelectedBookForCopies] = useState<Book | null>(null);
-  const [newCopiesCount, setNewCopiesCount] = useState<number>(1);
-  const [expandedBookIds, setExpandedBookIds] = useState<Record<string, boolean>>({});
-
-  // Restore saved tab & view mode
-  React.useEffect(() => {
+  
+  // Lazy initialize tab dari localStorage agar tidak pernah flash / reset ke CATALOG
+  const [mainTab, setMainTab] = useState<'CATALOG' | 'UNPRINTED' | 'DISPOSED'>(() => {
     if (typeof window !== 'undefined') {
       const savedTab = localStorage.getItem('sbth_books_maintab') as any;
       if (savedTab && ['CATALOG', 'UNPRINTED', 'DISPOSED'].includes(savedTab)) {
-        setMainTab(savedTab);
-      }
-      const savedView = localStorage.getItem('sbth_books_viewmode') as any;
-      if (savedView && ['CARDS', 'TABLE', 'GRID'].includes(savedView)) {
-        setViewMode(savedView);
+        return savedTab;
       }
     }
+    return 'CATALOG';
+  });
+
+  const [isBastModalOpen, setIsBastModalOpen] = useState<boolean>(false);
+  const [isDisposeNewModalOpen, setIsDisposeNewModalOpen] = useState<boolean>(false);
+  const [disposeBarcodeSearch, setDisposeBarcodeSearch] = useState<string>('');
+  const [disposeSelectedItemId, setDisposeSelectedItemId] = useState<string>('');
+  const [disposeReasonType, setDisposeReasonType] = useState<string>('RUSAK_BERAT');
+  const [disposeCustomReason, setDisposeCustomReason] = useState<string>('');
+  const [disposeConditionNote, setDisposeConditionNote] = useState<string>('');
+  const [labelFilter, setLabelFilter] = useState<'ALL' | 'UNPRINTED' | 'PRINTED'>('ALL');
+  const [shelfFilter, setShelfFilter] = useState<string>('ALL');
+  const [selectedItemIds, setSelectedItemIds] = useState<string[]>([]);
+  const [selectedBookIds, setSelectedBookIds] = useState<string[]>([]);
+  const [isBulkSpineModalOpen, setIsBulkSpineModalOpen] = useState<boolean>(false);
+  const [bulkShelfTarget, setBulkShelfTarget] = useState<string>('');
+  const [statusFilter, setStatusFilter] = useState<'ALL' | 'AVAILABLE' | 'BORROWED' | 'DAMAGED' | 'LOST' | 'DISPOSED'>('ALL');
+  const [sortBy, setSortBy] = useState<'TITLE' | 'NEWEST' | 'COPIES'>('NEWEST');
+  
+  // Lazy initialize viewMode dari localStorage
+  const [viewMode, setViewMode] = useState<'CARDS' | 'TABLE' | 'GRID'>(() => {
+    if (typeof window !== 'undefined') {
+      const savedView = localStorage.getItem('sbth_books_viewmode') as any;
+      if (savedView && ['CARDS', 'TABLE', 'GRID'].includes(savedView)) {
+        return savedView;
+      }
+    }
+    return 'CARDS';
+  });
+
+  const [selectedBookForCopies, setSelectedBookForCopies] = useState<Book | null>(null);
+  const [newCopiesCount, setNewCopiesCount] = useState<number>(1);
+  const [expandedBookIds, setExpandedBookIds] = useState<Record<string, boolean>>({});
+  const [isShelfRowEnabled, setIsShelfRowEnabled] = useState<boolean>(true);
+
+  // Sinkronisasi status fitur baris rak
+  React.useEffect(() => {
+    setIsShelfRowEnabled(libraryStore.isShelfRowFeatureEnabled());
   }, []);
 
-  // Persist tab & view mode
+  // Simpan pilihan tab saat berubah
   React.useEffect(() => {
     if (typeof window !== 'undefined') {
       localStorage.setItem('sbth_books_maintab', mainTab);
     }
   }, [mainTab]);
 
+  // Simpan pilihan view mode saat berubah
   React.useEffect(() => {
     if (typeof window !== 'undefined') {
       localStorage.setItem('sbth_books_viewmode', viewMode);
@@ -164,23 +197,67 @@ export const BookManagement: React.FC<BookManagementProps> = ({
     return Array.from(set).filter(Boolean).sort();
   }, [shelves, categories, allItems, books, refreshTick]);
 
-  const toggleSelectItem = (idOrBarcode: string) => {
-    setSelectedItemIds((prev) =>
-      prev.includes(idOrBarcode) ? prev.filter((x) => x !== idOrBarcode) : [...prev, idOrBarcode]
-    );
+  const toggleSelectBook = (bookId: string) => {
+    const bookCopies = allItems.filter((i) => i.bookId === bookId);
+    const copyIds = bookCopies.map((i) => i.id);
+
+    setSelectedBookIds((prevBooks) => {
+      const isSelected = prevBooks.includes(bookId);
+      if (isSelected) {
+        setSelectedItemIds((prevItems) => prevItems.filter((id) => !copyIds.includes(id)));
+        return prevBooks.filter((id) => id !== bookId);
+      } else {
+        setSelectedItemIds((prevItems) => Array.from(new Set([...prevItems, ...copyIds])));
+        return [...prevBooks, bookId];
+      }
+    });
+    soundFx.playScanBeep();
+  };
+
+  const toggleSelectItem = (copyId: string) => {
+    const item = allItems.find((i) => i.id === copyId || i.itemBarcode === copyId);
+    setSelectedItemIds((prev) => {
+      const isSelected = prev.includes(copyId);
+      const next = isSelected ? prev.filter((x) => x !== copyId) : [...prev, copyId];
+      if (item) {
+        const bookCopies = allItems.filter((i) => i.bookId === item.bookId);
+        const anyCopySelected = bookCopies.some((c) => next.includes(c.id));
+        setSelectedBookIds((prevBooks) => {
+          if (anyCopySelected && !prevBooks.includes(item.bookId)) {
+            return [...prevBooks, item.bookId];
+          } else if (!anyCopySelected && prevBooks.includes(item.bookId)) {
+            return prevBooks.filter((id) => id !== item.bookId);
+          }
+          return prevBooks;
+        });
+      }
+      return next;
+    });
+    soundFx.playScanBeep();
   };
 
   const handleSelectAllVisible = () => {
-    const allIds = filteredBooks.flatMap((b) => allItems.filter((i) => i.bookId === b.id).map((i) => i.id));
-    if (selectedItemIds.length === allIds.length && allIds.length > 0) {
+    const allVisibleBookIds = filteredBooks.map((b) => b.id);
+    const allVisibleCopyIds = filteredBooks.flatMap((b) =>
+      allItems.filter((i) => i.bookId === b.id).map((i) => i.id)
+    );
+
+    const isAllSelected =
+      allVisibleBookIds.length > 0 &&
+      allVisibleBookIds.every((id) => selectedBookIds.includes(id));
+
+    if (isAllSelected) {
+      setSelectedBookIds([]);
       setSelectedItemIds([]);
     } else {
-      setSelectedItemIds(allIds);
+      setSelectedBookIds(allVisibleBookIds);
+      setSelectedItemIds(allVisibleCopyIds);
     }
     soundFx.playScanBeep();
   };
 
   const handleResetSelection = () => {
+    setSelectedBookIds([]);
     setSelectedItemIds([]);
     soundFx.playScanBeep();
   };
@@ -199,6 +276,7 @@ export const BookManagement: React.FC<BookManagementProps> = ({
     soundFx.playSuccessChime();
     alert(`✓ Berhasil memindahkan ${updated} eksemplar fisik ke ${bulkShelfTarget}!`);
     setSelectedItemIds([]);
+    setSelectedBookIds([]);
     setRefreshTick((r) => r + 1);
   };
 
@@ -222,6 +300,7 @@ export const BookManagement: React.FC<BookManagementProps> = ({
         : `✓ Berhasil mengubah ${selectedBarcodes.length} eksemplar menjadi BELUM DICAP / BELUM CETAK LABEL.`
     );
     setSelectedItemIds([]);
+    setSelectedBookIds([]);
     setRefreshTick((r) => r + 1);
     onRefresh?.();
   };
@@ -263,11 +342,23 @@ export const BookManagement: React.FC<BookManagementProps> = ({
 
       if (search.trim()) {
         const q = search.toLowerCase();
+        const cat = categories.find((c) => c.id === b.categoryId);
+        const copies = allItems.filter((i) => i.bookId === b.id);
+        const matchTitle = b.title.toLowerCase().includes(q);
+        const matchAuthor = b.author.toLowerCase().includes(q) || (b.authorCode && b.authorCode.toLowerCase().includes(q));
+        const matchIsbn = b.isbn.toLowerCase().includes(q);
+        const matchShelf = (b.shelfLocation && b.shelfLocation.toLowerCase().includes(q)) || (b.shelfCode && b.shelfCode.toLowerCase().includes(q));
+        const matchCategory = Boolean(cat && (cat.name.toLowerCase().includes(q) || cat.shortName.toLowerCase().includes(q)));
+        const matchCallNo = Boolean((b.callNumber && b.callNumber.toLowerCase().includes(q)) || (b.classification && b.classification.toLowerCase().includes(q)));
+        const matchBarcode = copies.some((i) => i.itemBarcode.toLowerCase().includes(q) || i.itemBarcode.replace(/\D/g, '').includes(q));
         return (
-          b.title.toLowerCase().includes(q) ||
-          b.author.toLowerCase().includes(q) ||
-          b.isbn.includes(q) ||
-          (b.shelfLocation && b.shelfLocation.toLowerCase().includes(q))
+          matchTitle ||
+          matchAuthor ||
+          matchIsbn ||
+          matchShelf ||
+          matchCategory ||
+          matchCallNo ||
+          matchBarcode
         );
       }
       return true;
@@ -284,6 +375,12 @@ export const BookManagement: React.FC<BookManagementProps> = ({
     });
 
   const allFilteredItemIds = filteredBooks.flatMap((b) => allItems.filter((i) => i.bookId === b.id).map((i) => i.id));
+  const isAllVisibleSelected =
+    filteredBooks.length > 0 &&
+    filteredBooks.every((b) => selectedBookIds.includes(b.id));
+  const isSomeVisibleSelected =
+    !isAllVisibleSelected &&
+    (selectedBookIds.length > 0 || selectedItemIds.length > 0);
 
   const handleAddCopies = () => {
     if (!selectedBookForCopies) return;
@@ -336,6 +433,41 @@ export const BookManagement: React.FC<BookManagementProps> = ({
     libraryStore.restoreItemFromDisposed(item.id, currentLib?.name);
     soundFx.playSuccessChime();
     setRefreshTick((r) => r + 1);
+  };
+
+  const handleConfirmDisposal = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!disposeSelectedItemId) {
+      alert('Pilih eksemplar buku yang akan diafkir/dimusnahkan.');
+      return;
+    }
+    const finalReason =
+      disposeReasonType === 'RUSAK_BERAT'
+        ? 'Rusak Berat / Robek Dimakan Usia / Serangga'
+        : disposeReasonType === 'HILANG'
+        ? 'Hilang Permanen oleh Peminjam / Tidak Kembali'
+        : disposeReasonType === 'KADALUARSA'
+        ? 'Kadaluarsa Kurikulum / Informasi Tidak Lagi Relevan'
+        : disposeCustomReason.trim() || 'Pemusnahan Koleksi';
+
+    const currentLib = libraryStore.getCurrentLibrarian();
+    libraryStore.updateItemStatus(
+      disposeSelectedItemId,
+      'DISPOSED',
+      disposeConditionNote.trim() || undefined,
+      finalReason,
+      currentLib?.name
+    );
+
+    soundFx.playSuccessChime();
+    alert('✓ Eksemplar buku berhasil dipindahkan ke Daftar Pemusnahan & Afkir (Weeding)!');
+    setIsDisposeNewModalOpen(false);
+    setDisposeBarcodeSearch('');
+    setDisposeSelectedItemId('');
+    setDisposeConditionNote('');
+    setDisposeCustomReason('');
+    setRefreshTick((r) => r + 1);
+    onRefresh?.();
   };
 
   return (
@@ -525,12 +657,22 @@ export const BookManagement: React.FC<BookManagementProps> = ({
               </div>
             </div>
 
-            <div className="flex items-center gap-2 self-stretch md:self-auto">
+            <div className="flex flex-wrap items-center gap-2 self-stretch md:self-auto">
+              <button
+                type="button"
+                onClick={() => setIsDisposeNewModalOpen(true)}
+                className="flex-1 md:flex-initial px-4 py-2.5 rounded-xl bg-rose-600 hover:bg-rose-700 text-white font-bold text-xs flex items-center justify-center gap-2 shadow-sm shadow-rose-600/30 transition cursor-pointer"
+                title="Pilih dan afkir eksemplar buku yang rusak berat atau hilang"
+              >
+                <Trash2 className="h-4 w-4" />
+                <span>+ Afkir Eksemplar</span>
+              </button>
+
               <button
                 type="button"
                 disabled={disposedCount === 0}
                 onClick={() => setIsBastModalOpen(true)}
-                className="w-full md:w-auto px-4 py-2.5 rounded-xl bg-rose-600 hover:bg-rose-700 disabled:opacity-50 text-white font-bold text-xs flex items-center justify-center gap-2 shadow-sm shadow-rose-600/30 transition cursor-pointer"
+                className="flex-1 md:flex-initial px-4 py-2.5 rounded-xl bg-surface hover:bg-surface-2 border border-rose-500/40 text-rose-500 disabled:opacity-50 font-bold text-xs flex items-center justify-center gap-2 transition cursor-pointer"
                 title="Cetak Berita Acara Pemusnahan Koleksi Pustaka Resmi"
               >
                 <Printer className="h-4 w-4" />
@@ -547,8 +689,29 @@ export const BookManagement: React.FC<BookManagementProps> = ({
               </div>
               <h4 className="text-sm font-bold text-text">Belum Ada Buku yang Dimusnahkan</h4>
               <p className="text-xs text-text-muted max-w-md mx-auto">
-                Seluruh eksemplar koleksi fisik perpustakaan dalam kondisi baik atau masih dalam sirkulasi aktif. Jika ada buku yang rusak parah atau hilang permanen, ubah status eksemplar menjadi &quot;Dimusnahkan&quot; di menu katalog buku.
+                Seluruh eksemplar koleksi fisik perpustakaan dalam kondisi baik atau masih dalam sirkulasi aktif. Jika ada buku yang rusak parah atau hilang permanen, klik tombol &quot;+ Afkir Eksemplar&quot; di atas untuk mencatatnya ke buku afkir resmi.
               </p>
+              <div className="pt-2 flex flex-wrap items-center justify-center gap-2">
+                <button
+                  type="button"
+                  onClick={() => setIsDisposeNewModalOpen(true)}
+                  className="px-4 py-2 rounded-xl bg-rose-600 hover:bg-rose-700 text-white font-bold text-xs inline-flex items-center gap-2 shadow-xs transition cursor-pointer"
+                >
+                  <Trash2 className="h-4 w-4" />
+                  <span>+ Afkir Eksemplar Rusak</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setMainTab('CATALOG');
+                    setLabelFilter('ALL');
+                  }}
+                  className="px-4 py-2 rounded-xl bg-surface hover:bg-surface-2 border border-border text-text font-bold text-xs inline-flex items-center gap-2 transition cursor-pointer"
+                >
+                  <BookOpen className="h-4 w-4" />
+                  <span>Kembali ke Katalog Koleksi</span>
+                </button>
+              </div>
             </div>
           ) : (
             <div className="rounded-2xl border border-border bg-surface overflow-hidden shadow-xs">
@@ -641,6 +804,214 @@ export const BookManagement: React.FC<BookManagementProps> = ({
             </div>
           )}
         </div>
+      ) : mainTab === 'UNPRINTED' ? (
+        <div className="space-y-4 animate-in fade-in duration-150">
+          {/* Header Panel Belum Cetak Label */}
+          <div className="p-4 sm:p-5 rounded-2xl bg-surface border border-amber-500/30 shadow-xs flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
+            <div className="space-y-1">
+              <div className="flex items-center gap-2">
+                <div className="p-2 rounded-xl bg-amber-500/15 text-amber-500">
+                  <Tag className="h-5 w-5" />
+                </div>
+                <div>
+                  <h3 className="text-sm sm:text-base font-bold text-text flex items-center gap-2">
+                    Antrean Eksemplar Belum Cetak Label & Belum Dicap
+                    <span className="px-2.5 py-0.5 rounded-full bg-amber-500/15 text-amber-500 font-mono text-xs font-bold border border-amber-500/30">
+                      {unprintedCount} Eksemplar
+                    </span>
+                  </h3>
+                  <p className="text-xs text-text-muted">
+                    Daftar seluruh eksemplar fisik buku di perpustakaan yang belum ditempel stiker barcode fisik atau belum dicap/ditulis manual nomor inventarisnya.
+                  </p>
+                </div>
+              </div>
+            </div>
+
+            <div className="flex flex-wrap items-center gap-2 self-stretch md:self-auto">
+              <button
+                type="button"
+                disabled={unprintedCount === 0}
+                onClick={() => {
+                  const unprintedBarcodes = unprintedCopies.map((i) => i.itemBarcode);
+                  onOpenLabelPrinter(unprintedBarcodes);
+                }}
+                className="flex-1 md:flex-initial px-4 py-2.5 rounded-xl bg-amber-500 hover:bg-amber-600 disabled:opacity-50 text-slate-950 font-bold text-xs flex items-center justify-center gap-2 shadow-sm shadow-amber-500/30 transition cursor-pointer"
+                title="Buka Generator & Cetak Semua Stiker Barcode Tom & Jerry 103"
+              >
+                <Printer className="h-4 w-4" />
+                <span>Cetak Semua Label ({unprintedCount})</span>
+              </button>
+
+              <button
+                type="button"
+                disabled={unprintedCount === 0}
+                onClick={() => {
+                  const unprintedBarcodes = unprintedCopies.map((i) => i.itemBarcode);
+                  libraryStore.markLabelsPrinted(unprintedBarcodes, true, 'MANUAL_STAMP');
+                  soundFx.playSuccessChime();
+                  alert(`✓ Berhasil menandai ${unprintedBarcodes.length} eksemplar sudah dicap manual / ditulis ballpoint!`);
+                  setRefreshTick((r) => r + 1);
+                  onRefresh?.();
+                }}
+                className="flex-1 md:flex-initial px-3.5 py-2.5 rounded-xl bg-emerald-500/15 hover:bg-emerald-500/25 disabled:opacity-50 text-emerald-500 border border-emerald-500/30 font-bold text-xs flex items-center justify-center gap-1.5 transition cursor-pointer"
+                title="Tandai semua eksemplar sudah dicap stempel inventaris manual tanpa printer"
+              >
+                <CheckSquare className="h-4 w-4" />
+                <span>Tandai Semua Dicap ({unprintedCount})</span>
+              </button>
+            </div>
+          </div>
+
+          {/* Body: Empty State or Table */}
+          {unprintedCount === 0 ? (
+            <div className="p-12 text-center rounded-2xl bg-surface border border-border space-y-3">
+              <div className="h-14 w-14 rounded-2xl bg-emerald-500/10 text-emerald-500 flex items-center justify-center mx-auto">
+                <CheckCircle className="h-7 w-7" />
+              </div>
+              <h4 className="text-sm font-bold text-text">Semua Eksemplar Sudah Dicetak / Dicap Label! 🎉</h4>
+              <p className="text-xs text-text-muted max-w-md mx-auto">
+                Seluruh eksemplar koleksi fisik perpustakaan ({allItems.length} eksemplar) sudah memiliki stiker barcode fisik atau sudah dicap stempel inventaris manual. Tidak ada antrean cetak yang tertunda.
+              </p>
+              <div className="pt-2">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setMainTab('CATALOG');
+                    setLabelFilter('ALL');
+                  }}
+                  className="px-4 py-2 rounded-xl bg-amber-500 hover:bg-amber-600 text-slate-950 font-bold text-xs inline-flex items-center gap-2 shadow-xs transition cursor-pointer"
+                >
+                  <BookOpen className="h-4 w-4" />
+                  <span>Kembali ke Katalog Koleksi Aktif</span>
+                </button>
+              </div>
+            </div>
+          ) : (
+            <div className="rounded-2xl border border-border bg-surface overflow-hidden shadow-xs">
+              <div className="overflow-x-auto">
+                <table className="w-full text-left text-xs">
+                  <thead className="bg-surface-2 text-text-muted border-b border-border font-semibold uppercase tracking-wider text-[10px]">
+                    <tr>
+                      <th className="py-3 px-4 w-10">No</th>
+                      <th className="py-3 px-4">Judul & Eksemplar Buku</th>
+                      <th className="py-3 px-3">Kategori & Posisi Rak</th>
+                      <th className="py-3 px-3">Barcode Unik</th>
+                      <th className="py-3 px-3">Tgl Masuk / Asal</th>
+                      <th className="py-3 px-3">Status</th>
+                      <th className="py-3 px-4 text-right">Aksi Cepat</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-border">
+                    {unprintedCopies.map((item, idx) => {
+                      const book = books.find((b) => b.id === item.bookId);
+                      const cat = categories.find((c) => c.id === book?.categoryId) || CATEGORIES[0];
+                      return (
+                        <tr key={item.id} className="hover:bg-surface-2/40 transition">
+                          <td className="py-3 px-4 font-mono text-[11px] text-text-muted">{idx + 1}.</td>
+                          <td className="py-3 px-4">
+                            <div className="flex items-center gap-3">
+                              <div className="h-12 w-9 rounded-lg overflow-hidden shrink-0 border border-border bg-surface-2">
+                                <SmartBookCover
+                                  title={book?.title || 'Buku'}
+                                  author={book?.author || ''}
+                                  coverUrl={book?.coverImage}
+                                  categoryId={book?.categoryId}
+                                  className="h-full w-full object-cover text-[8px]"
+                                />
+                              </div>
+                              <div>
+                                <div
+                                  className="font-bold text-text hover:text-amber-500 transition cursor-pointer"
+                                  onClick={() => book && setSelectedBookForEdit(book)}
+                                >
+                                  {book?.title || 'Judul Tidak Diketahui'}
+                                </div>
+                                <div className="text-[11px] text-text-muted mt-0.5">
+                                  {book?.author || '-'} • {book?.publisher} ({book?.publicationYear})
+                                </div>
+                                <div className="mt-1 flex items-center gap-1">
+                                  <span className="text-[9px] font-bold text-text-muted uppercase tracking-wider">
+                                    Punggung:
+                                  </span>
+                                  <span className="font-mono text-[10px] px-1.5 py-0.2 rounded bg-amber-500/15 border border-amber-500/30 text-amber-500 font-bold">
+                                    {book?.shelfCode || 'SR'}
+                                  </span>
+                                  <span className="font-mono text-[10px] px-1.5 py-0.2 rounded bg-surface-2 border border-border text-text font-bold">
+                                    {book?.classification || '813'}
+                                  </span>
+                                  <span className="font-mono text-[10px] px-1.5 py-0.2 rounded bg-surface-2 border border-border text-text font-bold uppercase">
+                                    {book?.authorCode || deriveAuthorCode(book?.author || '')}
+                                  </span>
+                                  <span className="font-mono text-[10px] px-1.5 py-0.2 rounded bg-surface-2 border border-border text-text font-bold lowercase">
+                                    {book?.titleCode || deriveTitleCode(book?.title || '')}
+                                  </span>
+                                </div>
+                              </div>
+                            </div>
+                          </td>
+                          <td className="py-3 px-3 whitespace-nowrap">
+                            <span
+                              className="text-[10px] font-bold px-2 py-0.5 rounded-md inline-flex items-center gap-1"
+                              style={{ backgroundColor: `${cat.colorHex}20`, color: cat.colorHex }}
+                            >
+                              <span className="h-1.5 w-1.5 rounded-full" style={{ backgroundColor: cat.colorHex }} />
+                              {cat.shortName}
+                            </span>
+                            <div className="text-[11px] text-text-muted mt-1">📍 {item.shelfLocation || book?.shelfLocation || 'Rak Utama'}</div>
+                          </td>
+                          <td className="py-3 px-3 whitespace-nowrap font-mono">
+                            <span className="text-xs font-bold text-amber-500 bg-amber-500/10 px-2 py-0.5 rounded border border-amber-500/20">
+                              {item.itemBarcode}
+                            </span>
+                            <div className="text-[10px] text-text-muted mt-0.5 font-sans">
+                              Eksemplar #{item.copyNumber}
+                            </div>
+                          </td>
+                          <td className="py-3 px-3 whitespace-nowrap text-[11px] text-text-muted">
+                            <div>{item.acquisitionDate || '-'}</div>
+                            <div className="text-[10px]">{item.source === 'BELI_SEKOLAH' ? 'Beli Sekolah' : 'Sumbangan'}</div>
+                          </td>
+                          <td className="py-3 px-3 whitespace-nowrap">
+                            <span className="px-2 py-0.5 rounded-md text-[10px] font-bold bg-amber-500/15 text-amber-500 border border-amber-500/30">
+                              ⚠️ Belum Cetak
+                            </span>
+                          </td>
+                          <td className="py-3 px-4 whitespace-nowrap text-right">
+                            <div className="flex items-center justify-end gap-1.5">
+                              <button
+                                type="button"
+                                onClick={() => onOpenLabelPrinter([item.itemBarcode])}
+                                className="px-2.5 py-1.5 rounded-lg bg-amber-500 hover:bg-amber-600 text-slate-950 font-bold text-xs inline-flex items-center gap-1.5 shadow-2xs transition cursor-pointer"
+                                title="Cetak label barcode untuk eksemplar ini"
+                              >
+                                <Printer className="h-3.5 w-3.5" />
+                                <span>Cetak</span>
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  libraryStore.markLabelsPrinted([item.itemBarcode], true, 'MANUAL_STAMP');
+                                  soundFx.playSuccessChime();
+                                  setRefreshTick((r) => r + 1);
+                                  onRefresh?.();
+                                }}
+                                className="px-2.5 py-1.5 rounded-lg border border-emerald-500/30 bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-500 font-bold text-xs inline-flex items-center gap-1.5 transition cursor-pointer"
+                                title="Tandai eksemplar ini sudah dicap stempel / ditulis manual"
+                              >
+                                <CheckSquare className="h-3.5 w-3.5" />
+                                <span>Tandai Dicap</span>
+                              </button>
+                            </div>
+                          </td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          )}
+        </div>
       ) : (
         <>
           {/* 2. Toolbar: Search on left + Segmented Category Chips + View & Sort Toggles */}
@@ -712,6 +1083,26 @@ export const BookManagement: React.FC<BookManagementProps> = ({
                 <option value="COPIES" className="bg-surface text-text">{t.sortCopies || 'Paling Banyak Eksemplar'}</option>
               </select>
             </div>
+
+            {/* Toggle Fitur Baris Rak (ON / OFF) */}
+            <button
+              type="button"
+              onClick={() => {
+                const next = !isShelfRowEnabled;
+                setIsShelfRowEnabled(next);
+                libraryStore.setShelfRowFeatureEnabled(next);
+                soundFx.playScanBeep();
+              }}
+              className={`px-3 py-1.5 rounded-xl border text-xs font-semibold flex items-center gap-1.5 transition cursor-pointer shadow-2xs ${
+                isShelfRowEnabled
+                  ? 'bg-amber-500/15 border-amber-500/40 text-amber-500 hover:bg-amber-500/25'
+                  : 'bg-surface-2 border-border text-text-muted hover:text-text'
+              }`}
+              title="Klik untuk ON/OFF kolom Baris pada Posisi Rak di tabel koleksi buku"
+            >
+              <Layers className="h-3.5 w-3.5" />
+              <span>Kolom Baris: <strong className={isShelfRowEnabled ? 'text-amber-500 font-extrabold' : 'text-text-muted'}>{isShelfRowEnabled ? 'ON' : 'OFF'}</strong></span>
+            </button>
 
             {/* View Mode Toggle (Cards, Table Tanpa Cover, Grid) */}
             <div className="flex items-center p-1 rounded-xl bg-surface-2 border border-border">
@@ -815,97 +1206,122 @@ export const BookManagement: React.FC<BookManagementProps> = ({
         </div>
       </div>
 
-      {/* 2b. Bulk Edit Shelf Action Bar (Edit Massal Posisi Rak) */}
+      {/* 2b. Bulk Action Bar (Edit Massal Posisi Rak & Punggung Buku) */}
       <div className="rounded-2xl bg-surface border border-border p-3.5 flex flex-col md:flex-row items-stretch md:items-center justify-between gap-3 shadow-xs">
         <div className="flex flex-wrap items-center gap-2.5">
           <button
             type="button"
             onClick={handleSelectAllVisible}
-            className="px-3 py-1.5 rounded-xl bg-surface-2 hover:bg-surface-3 border border-border text-xs font-semibold text-text flex items-center gap-1.5 transition cursor-pointer"
+            className={`px-3 py-1.5 rounded-xl border text-xs font-semibold flex items-center gap-1.5 transition cursor-pointer ${
+              isAllVisibleSelected
+                ? 'bg-amber-500 text-slate-950 border-amber-500 font-bold shadow-2xs'
+                : 'bg-surface-2 hover:bg-surface-3 border-border text-text'
+            }`}
           >
-            <CheckSquare className="h-4 w-4 text-amber-500" />
-            <span>Pilih Semua ({allFilteredItemIds.length} Eksemplar)</span>
+            <CheckSquare className={`h-4 w-4 ${isAllVisibleSelected ? 'text-slate-950' : 'text-amber-500'}`} />
+            <span>Pilih Semua ({filteredBooks.length} Judul • {allFilteredItemIds.length} Eks)</span>
           </button>
 
-          {selectedItemIds.length > 0 && (
+          {(selectedBookIds.length > 0 || selectedItemIds.length > 0) && (
             <button
               type="button"
               onClick={handleResetSelection}
               className="px-3 py-1.5 rounded-xl bg-surface-2 hover:bg-rose-500/10 text-rose-500 border border-border text-xs font-semibold flex items-center gap-1.5 transition cursor-pointer"
             >
               <RotateCcw className="h-3.5 w-3.5" />
-              <span>Reset Pilihan ({selectedItemIds.length})</span>
+              <span>Reset Pilihan ({selectedBookIds.length})</span>
             </button>
           )}
 
           <div className="text-xs text-text-muted">
-            {selectedItemIds.length > 0 ? (
+            {selectedBookIds.length > 0 ? (
               <span className="text-amber-500 font-bold">
-                ✓ {selectedItemIds.length} eksemplar terpilih untuk edit massal
+                ✓ {selectedBookIds.length} judul ({selectedItemIds.length} eksemplar) terpilih untuk edit massal
               </span>
             ) : (
-              <span>Centang eksemplar atau buku untuk memindahkan rak secara massal</span>
+              <span>Centang buku atau eksemplar untuk memindahkan rak & sinkron punggung massal</span>
             )}
           </div>
         </div>
 
-        {selectedItemIds.length > 0 && (
-          <div className="flex flex-wrap items-center gap-2">
-            <span className="text-xs font-semibold text-text whitespace-nowrap">Pindah ke:</span>
-            <select
-              value={bulkShelfTarget}
-              onChange={(e) => setBulkShelfTarget(e.target.value)}
-              className="px-2.5 py-1.5 rounded-xl bg-surface-2 border border-border text-xs text-text font-semibold outline-hidden cursor-pointer max-w-[210px] truncate"
-            >
-              <option value="" className="bg-surface text-text">-- Pilih Posisi Rak --</option>
-              {shelves.map((sh) => (
-                <option key={sh.id} value={`${sh.name} - Baris 1`} className="bg-surface text-text">
-                  {sh.name} - Baris 1 ({sh.categoryName})
-                </option>
-              ))}
-              {uniqueShelves.map((sh) => (
-                <option key={sh} value={sh} className="bg-surface text-text">
-                  {sh}
-                </option>
-              ))}
-            </select>
-            <button
-              type="button"
-              disabled={!bulkShelfTarget}
-              onClick={handleApplyBulkShelf}
-              className="px-3 py-1.5 rounded-xl bg-amber-500 hover:bg-amber-600 disabled:opacity-50 text-slate-950 font-bold text-xs flex items-center gap-1.5 transition cursor-pointer shrink-0"
-              title="Terapkan lokasi rak ke semua eksemplar terpilih"
-            >
-              <Check className="h-4 w-4" />
-              <span>Pindah ({selectedItemIds.length})</span>
-            </button>
+        <div className="flex flex-wrap items-center gap-2">
+          {/* Sinkronkan Massal Punggung Buku Button */}
+          <button
+            type="button"
+            onClick={() => setIsBulkSpineModalOpen(true)}
+            className="px-3 py-1.5 rounded-xl bg-amber-500/15 hover:bg-amber-500/25 text-amber-500 border border-amber-500/30 text-xs font-bold flex items-center gap-1.5 transition cursor-pointer shadow-2xs"
+            title="Kustomisasi & Sinkronkan 4 Baris Stiker Punggung Buku secara massal"
+          >
+            <Sparkles className="h-3.5 w-3.5 text-amber-500" />
+            <span>
+              {selectedBookIds.length > 0
+                ? `⚡ Sinkronkan Punggung (${selectedBookIds.length})`
+                : '⚡ Sinkronkan Punggung Koleksi'}
+            </span>
+          </button>
 
-            <button
-              type="button"
-              onClick={() => handleBulkMarkPrinted(true)}
-              className="px-3 py-1.5 rounded-xl bg-emerald-500/15 hover:bg-emerald-500/25 text-emerald-500 border border-emerald-500/30 text-xs font-bold flex items-center gap-1.5 transition cursor-pointer"
-              title="Tandai terpilih sudah dicap stempel / ditulis nomor daftar manual (tanpa printer)"
-            >
-              <CheckSquare className="h-3.5 w-3.5" />
-              <span>Tandai Dicap ({selectedItemIds.length})</span>
-            </button>
+          {selectedItemIds.length > 0 && (
+            <>
+              <span className="text-xs font-semibold text-text whitespace-nowrap">Pindah ke:</span>
+              <select
+                value={bulkShelfTarget}
+                onChange={(e) => setBulkShelfTarget(e.target.value)}
+                className="px-2.5 py-1.5 rounded-xl bg-surface-2 border border-border text-xs text-text font-semibold outline-hidden cursor-pointer max-w-[210px] truncate"
+              >
+                <option value="" className="bg-surface text-text">-- Pilih Posisi Rak --</option>
+                {shelves.map((sh) => (
+                  <option
+                    key={sh.id}
+                    value={isShelfRowEnabled ? `${sh.name} - Baris 1` : sh.name}
+                    className="bg-surface text-text"
+                  >
+                    {sh.name} {isShelfRowEnabled ? '- Baris 1' : ''} ({sh.categoryName || sh.code})
+                  </option>
+                ))}
+                {uniqueShelves.map((sh) => (
+                  <option key={sh} value={sh} className="bg-surface text-text">
+                    {sh}
+                  </option>
+                ))}
+              </select>
+              <button
+                type="button"
+                disabled={!bulkShelfTarget}
+                onClick={handleApplyBulkShelf}
+                className="px-3 py-1.5 rounded-xl bg-amber-500 hover:bg-amber-600 disabled:opacity-50 text-slate-950 font-bold text-xs flex items-center gap-1.5 transition cursor-pointer shrink-0"
+                title="Terapkan lokasi rak ke semua eksemplar terpilih"
+              >
+                <Check className="h-4 w-4" />
+                <span>Pindah ({selectedItemIds.length})</span>
+              </button>
 
-            <button
-              type="button"
-              onClick={() => {
-                const barcodes = allItems
-                  .filter((i) => selectedItemIds.includes(i.id))
-                  .map((i) => i.itemBarcode);
-                onOpenLabelPrinter(barcodes);
-              }}
-              className="px-3 py-1.5 rounded-xl bg-sky-500 hover:bg-sky-600 text-white text-xs font-bold flex items-center gap-1.5 transition cursor-pointer shadow-xs"
-              title="Cetak stiker barcode untuk eksemplar terpilih (bisa cetak kapan saja)"
-            >
-              <Printer className="h-3.5 w-3.5" />
-              <span>Cetak Barcode ({selectedItemIds.length})</span>
-            </button>
-          </div>
-        )}
+              <button
+                type="button"
+                onClick={() => handleBulkMarkPrinted(true)}
+                className="px-3 py-1.5 rounded-xl bg-emerald-500/15 hover:bg-emerald-500/25 text-emerald-500 border border-emerald-500/30 text-xs font-bold flex items-center gap-1.5 transition cursor-pointer"
+                title="Tandai terpilih sudah dicap stempel / ditulis nomor daftar manual (tanpa printer)"
+              >
+                <CheckSquare className="h-3.5 w-3.5" />
+                <span>Tandai Dicap ({selectedItemIds.length})</span>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => {
+                  const barcodes = allItems
+                    .filter((i) => selectedItemIds.includes(i.id))
+                    .map((i) => i.itemBarcode);
+                  onOpenLabelPrinter(barcodes);
+                }}
+                className="px-3 py-1.5 rounded-xl bg-sky-500 hover:bg-sky-600 text-white text-xs font-bold flex items-center gap-1.5 transition cursor-pointer shadow-xs"
+                title="Cetak stiker barcode untuk eksemplar terpilih (bisa cetak kapan saja)"
+              >
+                <Printer className="h-3.5 w-3.5" />
+                <span>Cetak Barcode ({selectedItemIds.length})</span>
+              </button>
+            </>
+          )}
+        </div>
       </div>
 
       {/* 3. Book List Cards / Table / Grid */}
@@ -919,16 +1335,23 @@ export const BookManagement: React.FC<BookManagementProps> = ({
                     <button
                       type="button"
                       onClick={handleSelectAllVisible}
-                      title="Pilih / Batalkan Semua"
-                      className="text-text-muted hover:text-amber-500"
+                      title={isAllVisibleSelected ? 'Batalkan pilihan semua buku' : `Pilih Semua (${filteredBooks.length} Judul Buku)`}
+                      className="p-1 rounded-md hover:bg-surface-3 transition cursor-pointer"
                     >
-                      <CheckSquare className="h-4 w-4" />
+                      {isAllVisibleSelected ? (
+                        <CheckSquare className="h-4 w-4 text-amber-500" />
+                      ) : isSomeVisibleSelected ? (
+                        <div className="h-4 w-4 rounded border-2 border-amber-500 bg-amber-500/20 flex items-center justify-center text-[10px] text-amber-500 font-bold leading-none">-</div>
+                      ) : (
+                        <Square className="h-4 w-4 text-text-muted hover:text-amber-500" />
+                      )}
                     </button>
                   </th>
                   <th className="py-3 px-4">No & Judul Buku</th>
                   <th className="py-3 px-3">Kategori</th>
                   <th className="py-3 px-3">ISBN & Eksemplar</th>
                   <th className="py-3 px-3">Posisi Rak (Cepat)</th>
+                  {isShelfRowEnabled && <th className="py-3 px-3">Baris (Cepat)</th>}
                   <th className="py-3 px-3">Kondisi / Status</th>
                   <th className="py-3 px-3 text-right">Nilai Aset</th>
                   <th className="py-3 px-4 text-right">Aksi</th>
@@ -938,8 +1361,8 @@ export const BookManagement: React.FC<BookManagementProps> = ({
                 {filteredBooks.map((book, idx) => {
                   const items = allItems.filter((i) => i.bookId === book.id);
                   const bookItemIds = items.map((i) => i.id);
-                  const allBookItemsSelected = bookItemIds.length > 0 && bookItemIds.every((id) => selectedItemIds.includes(id));
-                  const someBookItemsSelected = bookItemIds.some((id) => selectedItemIds.includes(id));
+                  const isBookSelected = selectedBookIds.includes(book.id) || (bookItemIds.length > 0 && bookItemIds.every((id) => selectedItemIds.includes(id)));
+                  const someBookItemsSelected = !isBookSelected && (bookItemIds.some((id) => selectedItemIds.includes(id)) || selectedBookIds.includes(book.id));
                   const available = items.filter((i) => i.status === 'AVAILABLE').length;
                   const borrowed = items.filter((i) => i.status === 'BORROWED').length;
                   const inRepair = items.filter((i) => i.status === 'IN_REPAIR').length;
@@ -953,17 +1376,11 @@ export const BookManagement: React.FC<BookManagementProps> = ({
                       <td className="py-3 px-3 text-center">
                         <button
                           type="button"
-                          onClick={() => {
-                            if (allBookItemsSelected) {
-                              setSelectedItemIds((prev) => prev.filter((id) => !bookItemIds.includes(id)));
-                            } else {
-                              setSelectedItemIds((prev) => Array.from(new Set([...prev, ...bookItemIds])));
-                            }
-                          }}
-                          className="p-1 rounded-md hover:bg-surface-3 transition"
-                          title="Pilih seluruh eksemplar buku ini"
+                          onClick={() => toggleSelectBook(book.id)}
+                          className="p-1 rounded-md hover:bg-surface-3 transition cursor-pointer"
+                          title="Pilih buku ini untuk aksi massal"
                         >
-                          {allBookItemsSelected ? (
+                          {isBookSelected ? (
                             <CheckSquare className="h-4 w-4 text-amber-500" />
                           ) : someBookItemsSelected ? (
                             <div className="h-4 w-4 rounded border-2 border-amber-500 bg-amber-500/20 flex items-center justify-center text-[10px] text-amber-500 font-bold leading-none">-</div>
@@ -984,6 +1401,44 @@ export const BookManagement: React.FC<BookManagementProps> = ({
                             </div>
                             <div className="text-[11px] text-text-muted mt-0.5">
                               {book.author} • {book.publisher} ({book.publicationYear}) {book.pageCount ? `• ${book.pageCount} Hal` : ''}
+                            </div>
+                            <div className="text-[10px] text-amber-600 dark:text-amber-400 font-semibold mt-0.5 flex items-center gap-1">
+                              <Clock className="h-2.5 w-2.5 shrink-0" />
+                              <span>Diinput: {formatDateTimeIndo(book.createdAt)}</span>
+                            </div>
+
+                            {/* Standar Punggung Buku SBTH 4-Baris Badge */}
+                            <div className="mt-1 flex flex-wrap items-center gap-1">
+                              <span className="text-[9px] font-bold text-text-muted uppercase tracking-wider">
+                                Punggung:
+                              </span>
+                              <span
+                                className="font-mono text-[10px] px-1.5 py-0.2 rounded bg-amber-500/15 border border-amber-500/30 text-amber-500 font-bold"
+                                title="Baris 1: Kode Rak / Kategori"
+                              >
+                                {book.shelfCode || 'SR'}
+                              </span>
+                              <span
+                                className="font-mono text-[10px] px-1.5 py-0.2 rounded bg-surface-2 border border-border text-text font-bold"
+                                title="Baris 2: Nomor Klasifikasi DDC"
+                              >
+                                {book.classification || '813'}
+                              </span>
+                              <span
+                                className="font-mono text-[10px] px-1.5 py-0.2 rounded bg-surface-2 border border-border text-text font-bold uppercase"
+                                title="Baris 3: 3 Huruf Pengarang (Cutter)"
+                              >
+                                {book.authorCode || deriveAuthorCode(book.author)}
+                              </span>
+                              <span
+                                className="font-mono text-[10px] px-1.5 py-0.2 rounded bg-surface-2 border border-border text-text font-bold lowercase"
+                                title="Baris 4: 1 Huruf Depan Judul"
+                              >
+                                {book.titleCode || deriveTitleCode(book.title)}
+                              </span>
+                              <span className="text-[9px] text-text-muted font-mono ml-0.5" title="Nomor Panggil SLiMS">
+                                ({book.callNumber || `${book.classification || '813'} ${book.authorCode || deriveAuthorCode(book.author)} ${book.titleCode || deriveTitleCode(book.title)}`})
+                              </span>
                             </div>
                           </div>
                         </div>
@@ -1012,35 +1467,77 @@ export const BookManagement: React.FC<BookManagementProps> = ({
                           )}
                         </div>
                       </td>
-                      <td className="py-3 px-3 whitespace-nowrap">
-                        {/* Inline quick shelf changer dropdown without popup */}
-                        <div className="inline-flex items-center gap-1 bg-surface-2 px-2 py-1 rounded-lg border border-border">
-                          <MapPin className="h-3 w-3 text-amber-500 shrink-0" />
-                          <select
-                            value={book.shelfLocation || ''}
-                            onChange={(e) => {
-                              const newShelf = e.target.value;
-                              libraryStore.updateBookShelf(book.id, newShelf);
-                              soundFx.playSuccessChime();
-                              setRefreshTick((r) => r + 1);
-                            }}
-                            className="bg-transparent text-[11px] font-semibold text-text outline-hidden cursor-pointer max-w-[130px] truncate"
-                            title="Klik untuk langsung memindahkan rak buku ini"
-                          >
-                            <option value="" className="bg-surface text-text">Pilih Rak...</option>
-                            {shelves.map((sh) => (
-                              <option key={sh.id} value={`${sh.name} - Baris 1`} className="bg-surface text-text">
-                                {sh.name} ({sh.categoryName})
-                              </option>
-                            ))}
-                            {book.shelfLocation && !shelves.some(s => s.name === book.shelfLocation?.split(' - ')[0]) && (
-                              <option value={book.shelfLocation} className="bg-surface text-text">
-                                {book.shelfLocation}
-                              </option>
+                      {/* Posisi Rak Cepat & Baris Cepat */}
+                      {(() => {
+                        const parsedShelf = parseShelfLocation(book.shelfLocation);
+                        return (
+                          <>
+                            <td className="py-3 px-3 whitespace-nowrap">
+                              {/* Inline quick shelf changer dropdown */}
+                              <div className="inline-flex items-center gap-1 bg-surface-2 px-2 py-1 rounded-lg border border-border">
+                                <MapPin className="h-3 w-3 text-amber-500 shrink-0" />
+                                <select
+                                  value={shelves.some((s) => s.name === parsedShelf.shelfName) ? parsedShelf.shelfName : parsedShelf.shelfName || ''}
+                                  onChange={(e) => {
+                                    const newShelf = e.target.value;
+                                    const combined = combineShelfLocation(newShelf, parsedShelf.rowName, isShelfRowEnabled);
+                                    libraryStore.updateBookShelf(book.id, combined);
+                                    soundFx.playSuccessChime();
+                                    setRefreshTick((r) => r + 1);
+                                  }}
+                                  className="bg-transparent text-[11px] font-semibold text-text outline-hidden cursor-pointer max-w-[130px] truncate"
+                                  title="Klik untuk memilih nama rak buku ini"
+                                >
+                                  <option value="" className="bg-surface text-text">Pilih Rak...</option>
+                                  {shelves.map((sh) => (
+                                    <option key={sh.id} value={sh.name} className="bg-surface text-text">
+                                      {sh.name} ({sh.categoryName || sh.code})
+                                    </option>
+                                  ))}
+                                  {parsedShelf.shelfName && !shelves.some((s) => s.name === parsedShelf.shelfName) && (
+                                    <option value={parsedShelf.shelfName} className="bg-surface text-text">
+                                      {parsedShelf.shelfName}
+                                    </option>
+                                  )}
+                                </select>
+                              </div>
+                            </td>
+
+                            {isShelfRowEnabled && (
+                              <td className="py-3 px-3 whitespace-nowrap">
+                                <div className="inline-flex items-center gap-1 bg-surface-2 px-2 py-1 rounded-lg border border-border">
+                                  <Layers className="h-3 w-3 text-sky-500 shrink-0" />
+                                  <select
+                                    value={parsedShelf.rowName || ''}
+                                    onChange={(e) => {
+                                      const newRow = e.target.value;
+                                      const baseShelf = parsedShelf.shelfName || shelves[0]?.name || 'Rak Utama';
+                                      const combined = combineShelfLocation(baseShelf, newRow, true);
+                                      libraryStore.updateBookShelf(book.id, combined);
+                                      soundFx.playSuccessChime();
+                                      setRefreshTick((r) => r + 1);
+                                    }}
+                                    className="bg-transparent text-[11px] font-semibold text-sky-600 dark:text-sky-400 outline-hidden cursor-pointer min-w-[85px]"
+                                    title="Klik untuk memilih tingkat/baris rak buku ini"
+                                  >
+                                    <option value="" className="bg-surface text-text">- Tanpa Baris -</option>
+                                    {DEFAULT_SHELF_ROWS.map((r) => (
+                                      <option key={r} value={r} className="bg-surface text-text">
+                                        {r}
+                                      </option>
+                                    ))}
+                                    {parsedShelf.rowName && !DEFAULT_SHELF_ROWS.includes(parsedShelf.rowName) && (
+                                      <option value={parsedShelf.rowName} className="bg-surface text-text">
+                                        {parsedShelf.rowName}
+                                      </option>
+                                    )}
+                                  </select>
+                                </div>
+                              </td>
                             )}
-                          </select>
-                        </div>
-                      </td>
+                          </>
+                        );
+                      })()}
                       <td className="py-3 px-3 whitespace-nowrap">
                         <div className="flex flex-wrap items-center gap-1 text-[10px]">
                           <span className="px-1.5 py-0.5 rounded bg-emerald-500/15 text-emerald-500 font-bold">
@@ -1134,8 +1631,8 @@ export const BookManagement: React.FC<BookManagementProps> = ({
             const cat = categories.find((c) => c.id === book.categoryId) || CATEGORIES[0];
             const expanded = isBookExpanded(book.id);
             const bookItemIds = items.map((i) => i.id);
-            const allBookItemsSelected = bookItemIds.length > 0 && bookItemIds.every((id) => selectedItemIds.includes(id));
-            const someBookItemsSelected = bookItemIds.some((id) => selectedItemIds.includes(id));
+            const isBookSelected = selectedBookIds.includes(book.id) || (bookItemIds.length > 0 && bookItemIds.every((id) => selectedItemIds.includes(id)));
+            const someBookItemsSelected = !isBookSelected && (bookItemIds.some((id) => selectedItemIds.includes(id)) || selectedBookIds.includes(book.id));
 
             return (
               <div
@@ -1145,20 +1642,14 @@ export const BookManagement: React.FC<BookManagementProps> = ({
                 {/* Card Header: Cover (56x75) | Info | Badges & Actions */}
                 <div className="flex flex-col sm:flex-row items-start justify-between gap-4">
                   <div className="flex items-start gap-3.5">
-                    {/* Book-level Checkbox for Bulk Shelf Assign */}
+                    {/* Book-level Checkbox for Bulk Selection */}
                     <button
                       type="button"
-                      onClick={() => {
-                        if (allBookItemsSelected) {
-                          setSelectedItemIds((prev) => prev.filter((id) => !bookItemIds.includes(id)));
-                        } else {
-                          setSelectedItemIds((prev) => Array.from(new Set([...prev, ...bookItemIds])));
-                        }
-                      }}
+                      onClick={() => toggleSelectBook(book.id)}
                       className="p-1 rounded-md hover:bg-surface-2 transition self-center sm:self-start mt-1 cursor-pointer"
-                      title="Pilih seluruh eksemplar buku ini"
+                      title="Pilih buku ini untuk aksi massal"
                     >
-                      {allBookItemsSelected ? (
+                      {isBookSelected ? (
                         <CheckSquare className="h-4 w-4 text-amber-500" />
                       ) : someBookItemsSelected ? (
                         <div className="h-4 w-4 rounded border-2 border-amber-500 bg-amber-500/20 flex items-center justify-center text-[10px] text-amber-500 font-bold leading-none">-</div>
@@ -1188,6 +1679,10 @@ export const BookManagement: React.FC<BookManagementProps> = ({
                         <span className="text-[11px] font-mono text-text-muted">
                           ISBN: {book.isbn}
                         </span>
+                        <span className="inline-flex items-center gap-1 text-[10px] text-amber-600 dark:text-amber-400 font-semibold bg-amber-500/10 px-2 py-0.5 rounded-md border border-amber-500/20">
+                          <Clock className="h-2.5 w-2.5" />
+                          <span>Input: {formatDateTimeIndo(book.createdAt)}</span>
+                        </span>
                         {unprintedInBook > 0 && (
                           <span className="text-[10px] font-semibold px-2 py-0.5 rounded-md bg-amber-500/15 text-amber-500 border border-amber-500/30">
                             {unprintedInBook} Belum Cetak Label
@@ -1198,38 +1693,110 @@ export const BookManagement: React.FC<BookManagementProps> = ({
                       <h3 className="text-sm sm:text-base font-semibold text-text mt-1 leading-snug">
                         {book.title}
                       </h3>
-                      
+
+                      {/* Standar Punggung Buku SBTH 4-Baris Badge */}
+                      <div className="mt-1 flex flex-wrap items-center gap-1">
+                        <span className="text-[9px] font-bold text-text-muted uppercase tracking-wider">
+                          Punggung:
+                        </span>
+                        <span
+                          className="font-mono text-[10px] px-1.5 py-0.2 rounded bg-amber-500/15 border border-amber-500/30 text-amber-500 font-bold"
+                          title="Baris 1: Kode Rak / Kategori"
+                        >
+                          {book.shelfCode || 'SR'}
+                        </span>
+                        <span
+                          className="font-mono text-[10px] px-1.5 py-0.2 rounded bg-surface-2 border border-border text-text font-bold"
+                          title="Baris 2: Nomor Klasifikasi DDC"
+                        >
+                          {book.classification || '813'}
+                        </span>
+                        <span
+                          className="font-mono text-[10px] px-1.5 py-0.2 rounded bg-surface-2 border border-border text-text font-bold uppercase"
+                          title="Baris 3: 3 Huruf Pengarang (Cutter)"
+                        >
+                          {book.authorCode || deriveAuthorCode(book.author)}
+                        </span>
+                        <span
+                          className="font-mono text-[10px] px-1.5 py-0.2 rounded bg-surface-2 border border-border text-text font-bold lowercase"
+                          title="Baris 4: 1 Huruf Depan Judul"
+                        >
+                          {book.titleCode || deriveTitleCode(book.title)}
+                        </span>
+                        <span className="text-[9px] text-text-muted font-mono ml-0.5" title="Nomor Panggil SLiMS">
+                          ({book.callNumber || `${book.classification || '813'} ${book.authorCode || deriveAuthorCode(book.author)} ${book.titleCode || deriveTitleCode(book.title)}`})
+                        </span>
+                      </div>
+
                       <div className="flex flex-wrap items-center gap-1.5 text-xs text-text-muted mt-1">
                         <span>{book.author} • {book.publisher} ({book.publicationYear})</span>
                         {book.pageCount && <span>• 📄 {book.pageCount} Hal</span>}
-                        <span>•</span>
                         {/* Quick Inline Shelf Selector */}
-                        <div className="inline-flex items-center gap-1 bg-surface-2 px-2 py-0.5 rounded-md border border-border">
-                          <MapPin className="h-3 w-3 text-amber-500 shrink-0" />
-                          <select
-                            value={book.shelfLocation || ''}
-                            onChange={(e) => {
-                              const newShelf = e.target.value;
-                              libraryStore.updateBookShelf(book.id, newShelf);
-                              soundFx.playSuccessChime();
-                              setRefreshTick((r) => r + 1);
-                            }}
-                            className="bg-transparent text-[11px] font-semibold text-amber-500 outline-hidden cursor-pointer"
-                            title="Ubah posisi rak buku ini langsung tanpa popup"
-                          >
-                            <option value="" className="bg-surface text-text">Pilih Posisi Rak...</option>
-                            {shelves.map((sh) => (
-                              <option key={sh.id} value={`${sh.name} - Baris 1`} className="bg-surface text-text">
-                                {sh.name} ({sh.categoryName})
-                              </option>
-                            ))}
-                            {book.shelfLocation && !shelves.some(s => s.name === book.shelfLocation?.split(' - ')[0]) && (
-                              <option value={book.shelfLocation} className="bg-surface text-text">
-                                {book.shelfLocation}
-                              </option>
-                            )}
-                          </select>
-                        </div>
+                        {(() => {
+                          const parsedShelf = parseShelfLocation(book.shelfLocation);
+                          return (
+                            <div className="inline-flex items-center gap-1.5 flex-wrap">
+                              <div className="inline-flex items-center gap-1 bg-surface-2 px-2 py-0.5 rounded-md border border-border">
+                                <MapPin className="h-3 w-3 text-amber-500 shrink-0" />
+                                <select
+                                  value={shelves.some((s) => s.name === parsedShelf.shelfName) ? parsedShelf.shelfName : parsedShelf.shelfName || ''}
+                                  onChange={(e) => {
+                                    const newShelf = e.target.value;
+                                    const combined = combineShelfLocation(newShelf, parsedShelf.rowName, isShelfRowEnabled);
+                                    libraryStore.updateBookShelf(book.id, combined);
+                                    soundFx.playSuccessChime();
+                                    setRefreshTick((r) => r + 1);
+                                  }}
+                                  className="bg-transparent text-[11px] font-semibold text-amber-500 outline-hidden cursor-pointer max-w-[140px] truncate"
+                                  title="Ubah posisi rak buku ini"
+                                >
+                                  <option value="" className="bg-surface text-text">Pilih Rak...</option>
+                                  {shelves.map((sh) => (
+                                    <option key={sh.id} value={sh.name} className="bg-surface text-text">
+                                      {sh.name}
+                                    </option>
+                                  ))}
+                                  {parsedShelf.shelfName && !shelves.some((s) => s.name === parsedShelf.shelfName) && (
+                                    <option value={parsedShelf.shelfName} className="bg-surface text-text">
+                                      {parsedShelf.shelfName}
+                                    </option>
+                                  )}
+                                </select>
+                              </div>
+
+                              {isShelfRowEnabled && (
+                                <div className="inline-flex items-center gap-1 bg-surface-2 px-2 py-0.5 rounded-md border border-border">
+                                  <Layers className="h-3 w-3 text-sky-500 shrink-0" />
+                                  <select
+                                    value={parsedShelf.rowName || ''}
+                                    onChange={(e) => {
+                                      const newRow = e.target.value;
+                                      const baseShelf = parsedShelf.shelfName || shelves[0]?.name || 'Rak Utama';
+                                      const combined = combineShelfLocation(baseShelf, newRow, true);
+                                      libraryStore.updateBookShelf(book.id, combined);
+                                      soundFx.playSuccessChime();
+                                      setRefreshTick((r) => r + 1);
+                                    }}
+                                    className="bg-transparent text-[11px] font-semibold text-sky-500 outline-hidden cursor-pointer"
+                                    title="Ubah baris/tingkat rak buku ini"
+                                  >
+                                    <option value="" className="bg-surface text-text">- Tanpa Baris -</option>
+                                    {DEFAULT_SHELF_ROWS.map((r) => (
+                                      <option key={r} value={r} className="bg-surface text-text">
+                                        {r}
+                                      </option>
+                                    ))}
+                                    {parsedShelf.rowName && !DEFAULT_SHELF_ROWS.includes(parsedShelf.rowName) && (
+                                      <option value={parsedShelf.rowName} className="bg-surface text-text">
+                                        {parsedShelf.rowName}
+                                      </option>
+                                    )}
+                                  </select>
+                                </div>
+                              )}
+                            </div>
+                          );
+                        })()}
                       </div>
                     </div>
                   </div>
@@ -1508,11 +2075,29 @@ export const BookManagement: React.FC<BookManagementProps> = ({
         />
       )}
 
+      {/* SINKRONISASI MASSAL PUNGGUNG BUKU SBTH (4 BARIS VERTIKAL) */}
+      {isBulkSpineModalOpen && (
+        <BulkSpineSyncModal
+          isOpen={isBulkSpineModalOpen}
+          onClose={() => setIsBulkSpineModalOpen(false)}
+          selectedBookIds={selectedBookIds}
+          onSuccess={(count) => {
+            setRefreshTick((r) => r + 1);
+            onRefresh?.();
+          }}
+        />
+      )}
+
       {/* 4 MODALS SISTEM LENGKAP: RAK DINAMIS, KATEGORI & WARNA, STOCK OPNAME, LOG RIWAYAT BESAR */}
       <ShelfManagementModal
         isOpen={isShelfModalOpen}
         onClose={() => {
           setIsShelfModalOpen(false);
+          setIsShelfRowEnabled(libraryStore.isShelfRowFeatureEnabled());
+          setRefreshTick((r) => r + 1);
+        }}
+        onShelvesUpdated={() => {
+          setIsShelfRowEnabled(libraryStore.isShelfRowFeatureEnabled());
           setRefreshTick((r) => r + 1);
         }}
       />
@@ -1853,6 +2438,249 @@ export const BookManagement: React.FC<BookManagementProps> = ({
                 </div>
               </div>
             </div>
+          </div>
+        </div>
+      )}
+      {/* MODAL CATAT PEMUSNAHAN / AFKIR EKSEMPLAR (WEEDING) */}
+      {isDisposeNewModalOpen && (
+        <div className="fixed inset-0 z-70 flex items-center justify-center bg-black/75 backdrop-blur-xs p-4 overflow-y-auto animate-in fade-in">
+          <div className="relative w-full max-w-lg rounded-3xl bg-surface border border-border shadow-2xl p-6 sm:p-7 my-8 space-y-5">
+            {/* Header */}
+            <div className="flex items-start justify-between gap-4 border-b border-border pb-4">
+              <div className="flex items-center gap-3">
+                <div className="p-2.5 rounded-2xl bg-rose-500/15 text-rose-500">
+                  <Trash2 className="h-6 w-6" />
+                </div>
+                <div>
+                  <h3 className="text-base font-bold text-text">
+                    Catat Pemusnahan & Afkir Buku
+                  </h3>
+                  <p className="text-xs text-text-muted">
+                    Keluarkan eksemplar koleksi dari peredaran sekolah karena rusak berat, hilang, atau kadaluarsa.
+                  </p>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => {
+                  setIsDisposeNewModalOpen(false);
+                  setDisposeSelectedItemId('');
+                  setDisposeBarcodeSearch('');
+                }}
+                className="p-1.5 rounded-xl hover:bg-surface-2 text-text-muted transition cursor-pointer"
+              >
+                <X className="h-5 w-5" />
+              </button>
+            </div>
+
+            <form onSubmit={handleConfirmDisposal} className="space-y-4">
+              {/* Cari & Pilih Eksemplar */}
+              <div className="space-y-1.5">
+                <label className="text-xs font-bold text-text flex items-center justify-between">
+                  <span>Pilih Eksemplar Fisik yang Diafkir:</span>
+                  <span className="text-[11px] text-text-muted font-normal">
+                    {allItems.filter((i) => i.status !== 'DISPOSED').length} Eksemplar Aktif
+                  </span>
+                </label>
+
+                {/* Input filter search */}
+                <div className="relative">
+                  <Search className="absolute left-3 top-2.5 h-4 w-4 text-text-muted" />
+                  <input
+                    type="text"
+                    value={disposeBarcodeSearch}
+                    onChange={(e) => setDisposeBarcodeSearch(e.target.value)}
+                    placeholder="Ketik barcode (cth: SBTH-) atau judul buku..."
+                    className="w-full rounded-xl border border-border bg-surface-2 pl-9 pr-3 py-2 text-xs text-text placeholder-text-muted focus:outline-hidden focus:ring-1 focus:ring-rose-500"
+                  />
+                </div>
+
+                {/* Dropdown pilih item */}
+                <select
+                  value={disposeSelectedItemId}
+                  onChange={(e) => setDisposeSelectedItemId(e.target.value)}
+                  required
+                  size={5}
+                  className="w-full rounded-xl border border-border bg-surface-2 p-2 text-xs text-text focus:outline-hidden focus:ring-1 focus:ring-rose-500"
+                >
+                  <option value="" disabled className="text-text-muted">
+                    -- Klik salah satu eksemplar di bawah ini --
+                  </option>
+                  {allItems
+                    .filter((i) => i.status !== 'DISPOSED')
+                    .filter((i) => {
+                      if (!disposeBarcodeSearch.trim()) return true;
+                      const q = disposeBarcodeSearch.toLowerCase();
+                      const b = books.find((x) => x.id === i.bookId);
+                      return (
+                        i.itemBarcode.toLowerCase().includes(q) ||
+                        (b && b.title.toLowerCase().includes(q)) ||
+                        (b && b.author.toLowerCase().includes(q))
+                      );
+                    })
+                    .slice(0, 40)
+                    .map((item) => {
+                      const b = books.find((x) => x.id === item.bookId);
+                      return (
+                        <option key={item.id} value={item.id} className="py-1">
+                          [{item.itemBarcode}] {b?.title || 'Buku'} (Copy #{item.copyNumber}) • {item.shelfLocation || 'Rak'}
+                        </option>
+                      );
+                    })}
+                </select>
+              </div>
+
+              {/* Detail Buku Terpilih (Pratinjau) */}
+              {disposeSelectedItemId && (() => {
+                const item = allItems.find((i) => i.id === disposeSelectedItemId);
+                const book = item ? books.find((b) => b.id === item.bookId) : null;
+                if (!item || !book) return null;
+                return (
+                  <div className="p-3 rounded-2xl bg-surface-2 border border-border flex items-center gap-3">
+                    <div className="h-12 w-9 rounded-lg overflow-hidden shrink-0 border border-border bg-surface">
+                      <SmartBookCover
+                        title={book.title}
+                        author={book.author}
+                        coverUrl={book.coverImage}
+                        categoryId={book.categoryId}
+                        className="h-full w-full object-cover text-[8px]"
+                      />
+                    </div>
+                    <div className="min-w-0 flex-1">
+                      <div className="font-bold text-xs text-text truncate">{book.title}</div>
+                      <div className="text-[11px] text-text-muted truncate">{book.author}</div>
+                      <div className="flex items-center gap-2 mt-1">
+                        <span className="font-mono text-[10px] font-bold text-rose-500 bg-rose-500/10 px-1.5 py-0.5 rounded border border-rose-500/20">
+                          {item.itemBarcode}
+                        </span>
+                        <span className="text-[10px] text-text-muted">Copy #{item.copyNumber}</span>
+                        <span className="text-[10px] text-amber-500 font-semibold">{item.shelfLocation || '-'}</span>
+                      </div>
+                    </div>
+                  </div>
+                );
+              })()}
+
+              {/* Alasan Pemusnahan */}
+              <div className="space-y-1.5">
+                <label className="text-xs font-bold text-text">Alasan Pemusnahan / Weeding:</label>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-xs">
+                  <label className={`p-2.5 rounded-xl border cursor-pointer flex items-center gap-2 transition ${
+                    disposeReasonType === 'RUSAK_BERAT'
+                      ? 'border-rose-500 bg-rose-500/10 text-rose-500 font-bold'
+                      : 'border-border bg-surface-2 text-text'
+                  }`}>
+                    <input
+                      type="radio"
+                      name="disposeReason"
+                      checked={disposeReasonType === 'RUSAK_BERAT'}
+                      onChange={() => setDisposeReasonType('RUSAK_BERAT')}
+                      className="hidden"
+                    />
+                    <span>Rusak Parah / Robek</span>
+                  </label>
+
+                  <label className={`p-2.5 rounded-xl border cursor-pointer flex items-center gap-2 transition ${
+                    disposeReasonType === 'HILANG'
+                      ? 'border-rose-500 bg-rose-500/10 text-rose-500 font-bold'
+                      : 'border-border bg-surface-2 text-text'
+                  }`}>
+                    <input
+                      type="radio"
+                      name="disposeReason"
+                      checked={disposeReasonType === 'HILANG'}
+                      onChange={() => setDisposeReasonType('HILANG')}
+                      className="hidden"
+                    />
+                    <span>Hilang Permanen</span>
+                  </label>
+
+                  <label className={`p-2.5 rounded-xl border cursor-pointer flex items-center gap-2 transition ${
+                    disposeReasonType === 'KADALUARSA'
+                      ? 'border-rose-500 bg-rose-500/10 text-rose-500 font-bold'
+                      : 'border-border bg-surface-2 text-text'
+                  }`}>
+                    <input
+                      type="radio"
+                      name="disposeReason"
+                      checked={disposeReasonType === 'KADALUARSA'}
+                      onChange={() => setDisposeReasonType('KADALUARSA')}
+                      className="hidden"
+                    />
+                    <span>Kurikulum Usang</span>
+                  </label>
+
+                  <label className={`p-2.5 rounded-xl border cursor-pointer flex items-center gap-2 transition ${
+                    disposeReasonType === 'LAINNYA'
+                      ? 'border-rose-500 bg-rose-500/10 text-rose-500 font-bold'
+                      : 'border-border bg-surface-2 text-text'
+                  }`}>
+                    <input
+                      type="radio"
+                      name="disposeReason"
+                      checked={disposeReasonType === 'LAINNYA'}
+                      onChange={() => setDisposeReasonType('LAINNYA')}
+                      className="hidden"
+                    />
+                    <span>Alasan Khusus Lainnya</span>
+                  </label>
+                </div>
+
+                {disposeReasonType === 'LAINNYA' && (
+                  <input
+                    type="text"
+                    value={disposeCustomReason}
+                    onChange={(e) => setDisposeCustomReason(e.target.value)}
+                    required
+                    placeholder="Tulis alasan pemusnahan resmi..."
+                    className="w-full mt-2 rounded-xl border border-border bg-surface-2 px-3 py-2 text-xs text-text focus:outline-hidden focus:ring-1 focus:ring-rose-500"
+                  />
+                )}
+              </div>
+
+              {/* Catatan Tambahan / Kondisi Fisik */}
+              <div className="space-y-1.5">
+                <label className="text-xs font-bold text-text">Catatan Kondisi Fisik (Opsional):</label>
+                <textarea
+                  value={disposeConditionNote}
+                  onChange={(e) => setDisposeConditionNote(e.target.value)}
+                  placeholder="Contoh: Cover terlepas, 10 halaman hilang, terkena tumpahan susu siswa..."
+                  rows={2}
+                  className="w-full rounded-xl border border-border bg-surface-2 p-2.5 text-xs text-text focus:outline-hidden focus:ring-1 focus:ring-rose-500"
+                />
+              </div>
+
+              {/* Pustakawan Petugas */}
+              <div className="p-2.5 rounded-xl bg-surface-2 border border-border text-[11px] text-text-muted flex items-center justify-between">
+                <span>Petugas Pencatat:</span>
+                <span className="font-bold text-text">
+                  {libraryStore.getCurrentLibrarian()?.name || 'Pustakawan SBTH'}
+                </span>
+              </div>
+
+              {/* Buttons */}
+              <div className="flex items-center justify-end gap-2 pt-2 border-t border-border">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setIsDisposeNewModalOpen(false);
+                    setDisposeSelectedItemId('');
+                    setDisposeBarcodeSearch('');
+                  }}
+                  className="px-4 py-2 rounded-xl text-xs font-semibold text-text-muted hover:bg-surface-2 transition cursor-pointer"
+                >
+                  Batal
+                </button>
+                <button
+                  type="submit"
+                  disabled={!disposeSelectedItemId}
+                  className="px-5 py-2.5 rounded-xl bg-rose-600 hover:bg-rose-700 disabled:opacity-50 text-white font-bold text-xs flex items-center gap-1.5 shadow-sm shadow-rose-600/30 transition cursor-pointer"
+                >
+                  <Trash2 className="h-4 w-4" />
+                  <span>Konfirmasi Afkir Eksemplar</span>
+                </button>
+              </div>
+            </form>
           </div>
         </div>
       )}

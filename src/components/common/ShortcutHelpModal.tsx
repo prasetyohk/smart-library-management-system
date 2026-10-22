@@ -4,6 +4,7 @@ import React from 'react';
 import { Keyboard, X, Sparkles, Command, ArrowRight } from 'lucide-react';
 import { KeyboardShortcutConfig } from '@/types';
 import { soundFx } from '@/lib/sound';
+import { libraryStore } from '@/lib/storage';
 
 interface ShortcutHelpModalProps {
   isOpen: boolean;
@@ -136,7 +137,12 @@ export const ShortcutHelpModal: React.FC<ShortcutHelpModalProps> = ({
       color: 'bg-sky-500/10 text-sky-500 border-sky-500/30',
       action: () => {},
     },
-  ];
+  ].filter((s) => {
+    if (s.title === 'Tagihan & Terlambat' && !libraryStore.getFinanceModuleEnabled()) {
+      return false;
+    }
+    return true;
+  });
 
   return (
     <div className="fixed inset-0 z-60 flex items-center justify-center bg-black/70 backdrop-blur-md p-4 animate-in fade-in">

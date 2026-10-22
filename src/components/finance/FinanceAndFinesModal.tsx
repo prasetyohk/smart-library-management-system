@@ -805,6 +805,11 @@ export const FinanceAndFinesModal: React.FC<FinanceAndFinesModalProps> = ({
                     <p className="text-[11px] font-semibold text-text">
                       BCA • Mandiri • BRI • BNI • GoPay • OVO • ShopeePay • Bank Jateng
                     </p>
+                    {rules.bankAccountNumber && (
+                      <p className="text-[11px] font-mono font-bold text-amber-500 bg-surface py-1 px-2.5 rounded-lg border border-border inline-block mt-1">
+                        🏦 Rekening {rules.bankName || 'Bank'}: {rules.bankAccountNumber} (a.n. {rules.bankAccountHolder || 'Perpustakaan SBTH'})
+                      </p>
+                    )}
                     <p className="text-[10px] text-text-muted">
                       Scan via Mobile Banking untuk pembayaran denda atau dana kas perpustakaan
                     </p>

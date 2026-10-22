@@ -44,13 +44,40 @@ export const CirculationDesk: React.FC<CirculationDeskProps> = ({
   onClearScannedCode,
   initialSubTab,
 }) => {
+  const [isFinanceEnabled, setIsFinanceEnabled] = useState<boolean>(() => libraryStore.getFinanceModuleEnabled());
   const [activeTab, setActiveTab] = useState<'BORROW' | 'RETURN' | 'RENEW' | 'OVERDUE' | 'INSPECT'>('BORROW');
 
   useEffect(() => {
+    const handleSettingsUpdated = () => {
+      const enabled = libraryStore.getFinanceModuleEnabled();
+      setIsFinanceEnabled(enabled);
+      if (!enabled && activeTab === 'OVERDUE') {
+        setActiveTab('BORROW');
+      }
+    };
+    window.addEventListener('sbth_settings_updated', handleSettingsUpdated);
+    window.addEventListener('storage', handleSettingsUpdated);
+    return () => {
+      window.removeEventListener('sbth_settings_updated', handleSettingsUpdated);
+      window.removeEventListener('storage', handleSettingsUpdated);
+    };
+  }, [activeTab]);
+
+  useEffect(() => {
     if (initialSubTab) {
-      setActiveTab(initialSubTab);
+      if (initialSubTab === 'OVERDUE' && !libraryStore.getFinanceModuleEnabled()) {
+        setActiveTab('BORROW');
+      } else {
+        setActiveTab(initialSubTab);
+      }
     }
   }, [initialSubTab]);
+
+  useEffect(() => {
+    if (!isFinanceEnabled && activeTab === 'OVERDUE') {
+      setActiveTab('BORROW');
+    }
+  }, [activeTab, isFinanceEnabled]);
 
   const [inspectBarcode, setInspectBarcode] = useState<string>('SBTH-B-00101');
 
@@ -402,23 +429,25 @@ export const CirculationDesk: React.FC<CirculationDeskProps> = ({
           <span>Perpanjangan Pinjam</span>
         </button>
 
-        <button
-          type="button"
-          onClick={() => setActiveTab('OVERDUE')}
-          className={`flex-1 sm:flex-initial px-4 py-2 rounded-xl text-xs font-semibold flex items-center justify-center gap-2 transition ${
-            activeTab === 'OVERDUE'
-              ? 'bg-amber-500 text-slate-950 font-bold shadow-xs'
-              : 'text-text-muted hover:text-text'
-          }`}
-        >
-          <Clock className="h-4 w-4" />
-          <span>Buku Terlambat</span>
-          {overdueLoans.length > 0 && (
-            <span className="px-2 py-0.5 rounded-full bg-rose-500 text-white font-bold text-[10px]">
-              {overdueLoans.length}
-            </span>
-          )}
-        </button>
+        {isFinanceEnabled && (
+          <button
+            type="button"
+            onClick={() => setActiveTab('OVERDUE')}
+            className={`flex-1 sm:flex-initial px-4 py-2 rounded-xl text-xs font-semibold flex items-center justify-center gap-2 transition ${
+              activeTab === 'OVERDUE'
+                ? 'bg-amber-500 text-slate-950 font-bold shadow-xs'
+                : 'text-text-muted hover:text-text'
+            }`}
+          >
+            <Clock className="h-4 w-4" />
+            <span>Buku Terlambat & Denda</span>
+            {overdueLoans.length > 0 && (
+              <span className="px-2 py-0.5 rounded-full bg-rose-500 text-white font-bold text-[10px]">
+                {overdueLoans.length}
+              </span>
+            )}
+          </button>
+        )}
 
         <button
           type="button"

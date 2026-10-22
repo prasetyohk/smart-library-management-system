@@ -12,6 +12,7 @@ import {
   Key,
   Trash2,
   CheckCircle2,
+  Check,
   Clock,
   Sparkles,
   Phone,
@@ -34,6 +35,9 @@ import {
   Megaphone,
   Keyboard,
   RotateCcw,
+  QrCode,
+  CreditCard,
+  Building2,
 } from 'lucide-react';
 import {
   SchoolProfile,
@@ -65,7 +69,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
   onProfileUpdated,
 }) => {
   const [activeTab, setActiveTab] = useState<
-    'SCHOOL' | 'LOAN_RULES' | 'SLIMS_CONFIG' | 'CMS_NEWS' | 'LIBRARIANS' | 'CATEGORIES' | 'REMINDERS' | 'SHORTCUTS'
+    'SCHOOL' | 'LOAN_RULES' | 'FINANCE_RULES' | 'SLIMS_CONFIG' | 'CMS_NEWS' | 'LIBRARIANS' | 'CATEGORIES' | 'REMINDERS' | 'SHORTCUTS'
   >('SCHOOL');
   const [toastMessage, setToastMessage] = useState<string>('');
 
@@ -158,6 +162,27 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
     }
   };
 
+  // Handle QRIS Image Upload (Base64 file reader)
+  const handleQrisFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      if (file.size > 2 * 1024 * 1024) {
+        alert('Ukuran file QRIS maksimal 2MB.');
+        return;
+      }
+      const reader = new FileReader();
+      reader.onload = (event) => {
+        const result = event.target?.result as string;
+        setLoanRules((prev) => ({ ...prev, qrisImageUrl: result }));
+      };
+      reader.readAsDataURL(file);
+    }
+  };
+
+  const handleRemoveQris = () => {
+    setLoanRules((prev) => ({ ...prev, qrisImageUrl: '' }));
+  };
+
   const handleSaveProfile = (e: React.FormEvent) => {
     e.preventDefault();
     const updated = {
@@ -167,6 +192,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
     libraryStore.saveSchoolProfile(updated);
     if (updated.enableFinanceModule !== undefined) {
       libraryStore.setFinanceModuleEnabled(updated.enableFinanceModule);
+      setLoanRules((prev) => ({ ...prev, enableFinanceModule: updated.enableFinanceModule }));
     }
     soundFx.playSuccessChime();
     showToast('✓ Profil, Tanda Tangan & Konfigurasi Sekolah berhasil disimpan!');
@@ -275,12 +301,36 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
     soundFx.playSuccessChime();
   };
 
-  // --- LOAN RULES HANDLERS ---
+  // --- LOAN RULES & FINANCE HANDLERS ---
   const handleSaveLoanRules = (e: React.FormEvent) => {
     e.preventDefault();
     libraryStore.saveLoanRules(loanRules);
+    if (loanRules.enableFinanceModule !== undefined) {
+      setProfile((prev) => ({ ...prev, enableFinanceModule: loanRules.enableFinanceModule }));
+      libraryStore.setFinanceModuleEnabled(loanRules.enableFinanceModule);
+    }
     soundFx.playSuccessChime();
-    showToast('✓ Aturan peminjaman, durasi & kuota berhasil disimpan!');
+    showToast('✓ Aturan peminjaman berhasil disimpan!');
+    if (typeof window !== 'undefined') {
+      window.dispatchEvent(new Event('sbth_settings_updated'));
+    }
+    if (onProfileUpdated) onProfileUpdated();
+  };
+
+  const handleSaveFinanceRules = (e?: React.FormEvent) => {
+    if (e) e.preventDefault();
+    libraryStore.saveLoanRules(loanRules);
+    libraryStore.saveSchoolProfile({
+      ...profile,
+      enableFinanceModule: loanRules.enableFinanceModule,
+    });
+    libraryStore.setFinanceModuleEnabled(!!loanRules.enableFinanceModule);
+    soundFx.playSuccessChime();
+    showToast('✓ Pengaturan Mode Denda, QRIS & Rekening Bank berhasil disimpan!');
+    if (typeof window !== 'undefined') {
+      window.dispatchEvent(new Event('sbth_settings_updated'));
+    }
+    if (onProfileUpdated) onProfileUpdated();
   };
 
   const handleUpdateMemberRule = (memberType: string, field: keyof MemberTypeRule, value: number) => {
@@ -301,35 +351,82 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
     showToast('✓ Konfigurasi pola nomor eksemplar SLiMS berhasil disimpan!');
   };
 
-  const handleApplyPreset = (mode: SlimsPatternConfig['patternMode']) => {
+  const handleApplyPreset = (mode: SlimsPatternConfig['patternMode'], autoSave: boolean = true) => {
     let prefix = slimsPattern.prefix;
     let serialLength = slimsPattern.serialLength || 5;
     let suffix = slimsPattern.suffix || '';
+    let label = 'Standar SBTH 4-Digit (Fisik)';
+
     if (mode === 'SBTH_4DIGIT') {
       prefix = '';
       serialLength = 4;
       suffix = '';
+      label = 'Standar SBTH 4-Digit (Fisik)';
     } else if (mode === 'SBTH') {
       prefix = 'SBTH-B-';
       serialLength = 5;
       suffix = '';
+      label = 'Standar SBTH TK (5-Digit)';
     } else if (mode === 'SLIMS_STANDARD') {
       prefix = 'B';
       serialLength = 5;
       suffix = '';
+      label = 'SLiMS 9 Bulian';
     } else if (mode === 'CATEGORY_BASED') {
       prefix = 'DNG-';
       serialLength = 5;
       suffix = '';
+      label = 'Kode Kategori Rak';
+    } else if (mode === 'CUSTOM') {
+      label = 'Kustom Bebas';
     }
-    setSlimsPattern({
+
+    const updatedConfig: SlimsPatternConfig = {
       ...slimsPattern,
       patternMode: mode,
       prefix,
       serialLength,
       suffix,
-    });
-    soundFx.playScanBeep();
+    };
+
+    setSlimsPattern(updatedConfig);
+
+    if (autoSave) {
+      libraryStore.saveSlimsPattern(updatedConfig);
+      soundFx.playSuccessChime();
+      showToast(`✓ Preset "${label}" berhasil diterapkan dan disimpan! Format baru siap digunakan.`);
+      if (onProfileUpdated) onProfileUpdated();
+    } else {
+      soundFx.playScanBeep();
+    }
+  };
+
+  const handleConvertOldPrefixBarcodes = () => {
+    const confirmConvert = confirm(
+      `⚡ BERSIHKAN KODE BARCODE BUKU LAMA MENJADI 4-DIGIT BERSIH?\n\n` +
+      `Contoh perubahan:\n` +
+      `• SBTH-B-0176  ➔  0176\n` +
+      `• B0175        ➔  0175\n\n` +
+      `Seluruh data peminjaman, riwayat siswa, dan katalog buku tetap aman.\n` +
+      `Lanjutkan pembersihan awalan barcode?`
+    );
+    if (!confirmConvert) return;
+
+    const res = libraryStore.convertOldPrefixBarcodesTo4Digit();
+    if (res.count > 0) {
+      soundFx.playSuccessChime();
+      alert(
+        `✅ Berhasil Membersihkan ${res.count} Kode Barcode!\n\n` +
+        res.convertedList.map(c => `• ${c.old} ➔ ${c.new}`).join('\n') +
+        `\n\nNomor eksemplar sekarang murni 4-digit sesuai standar cap fisik SBTH.`
+      );
+      setSlimsPattern(libraryStore.getSlimsPattern());
+      if (onProfileUpdated) onProfileUpdated();
+      showToast(`✓ Berhasil mengubah ${res.count} barcode menjadi 4-digit.`);
+    } else {
+      soundFx.playScanBeep();
+      alert(`Informasi: Seluruh kode barcode buku sudah bersih (tidak ada awalan huruf lama).`);
+    }
   };
 
   const handleReindexAllBarcodes = () => {
@@ -504,6 +601,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
             {[
               { id: 'SCHOOL', label: 'Profil Sekolah', icon: School, desc: 'Nama, Logo & Kontak' },
               { id: 'LOAN_RULES', label: 'Aturan Pinjam', icon: Sliders, desc: 'Durasi, Kuota & Reservasi' },
+              { id: 'FINANCE_RULES', label: 'Mode Denda & Bayar', icon: Wallet, desc: 'ON/OFF Denda, QRIS & Bank' },
               { id: 'SLIMS_CONFIG', label: 'Pola SLiMS & Barcode', icon: Barcode, desc: 'DDC, Call No & Barcode' },
               { id: 'CMS_NEWS', label: 'Warta Perpus (CMS)', icon: Newspaper, desc: 'Berita & Info OPAC' },
               { id: 'LIBRARIANS', label: 'Pustakawan', icon: Users, desc: 'Akun & PIN Akses' },
@@ -522,23 +620,41 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                     setActiveTab(nav.id as any);
                     soundFx.playScanBeep();
                   }}
-                  className={`w-full p-3 rounded-xl text-left transition flex items-center gap-3 ${
+                  className={`w-full p-3 rounded-xl text-left transition flex items-center justify-between gap-2 cursor-pointer ${
                     isActive
                       ? 'bg-amber-500 text-slate-950 font-bold shadow-xs'
                       : 'text-text-muted hover:text-text hover:bg-surface'
                   }`}
                 >
-                  <Icon className={`h-4 w-4 shrink-0 ${isActive ? 'text-slate-950' : 'text-amber-500'}`} />
-                  <div className="min-w-0">
-                    <div className="text-xs truncate">{nav.label}</div>
-                    <div
-                      className={`text-[10px] truncate hidden md:block ${
-                        isActive ? 'text-slate-900/80' : 'text-text-muted/70'
-                      }`}
-                    >
-                      {nav.desc}
+                  <div className="flex items-center gap-3 min-w-0">
+                    <Icon className={`h-4 w-4 shrink-0 ${isActive ? 'text-slate-950' : 'text-amber-500'}`} />
+                    <div className="min-w-0">
+                      <div className="text-xs truncate">{nav.label}</div>
+                      <div
+                        className={`text-[10px] truncate hidden md:block ${
+                          isActive ? 'text-slate-900/80' : 'text-text-muted/70'
+                        }`}
+                      >
+                        {nav.desc}
+                      </div>
                     </div>
                   </div>
+
+                  {nav.id === 'FINANCE_RULES' && (
+                    <span
+                      className={`text-[9px] font-bold px-1.5 py-0.5 rounded-full shrink-0 ${
+                        isActive
+                          ? loanRules.enableFinanceModule
+                            ? 'bg-emerald-950 text-emerald-300'
+                            : 'bg-rose-950 text-rose-300'
+                          : loanRules.enableFinanceModule
+                            ? 'bg-emerald-500/15 text-emerald-500 border border-emerald-500/30'
+                            : 'bg-rose-500/15 text-rose-500 border border-rose-500/30'
+                      }`}
+                    >
+                      {loanRules.enableFinanceModule ? 'ON' : 'OFF'}
+                    </span>
+                  )}
                 </button>
               );
             })}
@@ -746,10 +862,12 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                     <label className="relative inline-flex items-center cursor-pointer">
                       <input
                         type="checkbox"
-                        checked={profile.enableFinanceModule ?? true}
-                        onChange={(e) =>
-                          setProfile({ ...profile, enableFinanceModule: e.target.checked })
-                        }
+                        checked={profile.enableFinanceModule ?? false}
+                        onChange={(e) => {
+                          const val = e.target.checked;
+                          setProfile({ ...profile, enableFinanceModule: val });
+                          setLoanRules((prev) => ({ ...prev, enableFinanceModule: val }));
+                        }}
                         className="sr-only peer"
                       />
                       <div className="w-11 h-6 bg-surface peer-focus:outline-hidden rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-border after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-amber-500 border border-border"></div>
@@ -1238,15 +1356,193 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                         />
                         <span className="text-xs text-text-muted">Jam (default: 24 Jam / 1x24 Jam)</span>
                       </div>
-                      <span className="text-[10px] text-text-muted mt-1 block">
-                        Bila melewati batas waktu ini, reservasi otomatis dibatalkan agar buku tersedia lagi.
-                      </span>
                     </div>
 
+                    <div className="sm:col-span-2">
+                      <span className="text-[10px] text-text-muted block">
+                        Bila melewati batas waktu hold 1x24 jam ini, reservasi otomatis dibatalkan sistem agar buku dapat dipinjam siswa lain.
+                      </span>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Ringkasan Mode Denda & Tombol Buka Tab Denda */}
+                <div className="p-4 rounded-2xl bg-surface-2 border border-border flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                  <div className="flex items-start gap-3">
+                    <div className={`h-9 w-9 rounded-xl flex items-center justify-center shrink-0 border ${
+                      loanRules.enableFinanceModule
+                        ? 'bg-emerald-500/15 text-emerald-500 border-emerald-500/30'
+                        : 'bg-rose-500/15 text-rose-500 border-rose-500/30'
+                    }`}>
+                      <Wallet className="h-4 w-4" />
+                    </div>
                     <div>
-                      <label className="text-[11px] font-semibold text-text block mb-1">
-                        Denda Keterlambatan:
-                      </label>
+                      <div className="flex items-center gap-2">
+                        <h4 className="text-xs font-bold text-text">
+                          Mode Denda &amp; Pembayaran (QRIS / Bank)
+                        </h4>
+                        <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${
+                          loanRules.enableFinanceModule
+                            ? 'bg-emerald-500/15 text-emerald-500 border border-emerald-500/30'
+                            : 'bg-rose-500/15 text-rose-500 border border-rose-500/30'
+                        }`}>
+                          {loanRules.enableFinanceModule ? 'AKTIF (ON)' : 'NONAKTIF (OFF - Bawaan SBTH)'}
+                        </span>
+                      </div>
+                      <p className="text-[11px] text-text-muted mt-0.5">
+                        {loanRules.enableFinanceModule
+                          ? 'Denda dihitung, tab Buku Terlambat aktif di sirkulasi, dan info bayar QRIS & Rekening Bank tampil di Portal Siswa.'
+                          : 'Bawaan sekolah: Bebas denda uang. Seluruh tab denda, menu Kas & Denda, dan tagihan QRIS disembunyikan.'}
+                      </p>
+                    </div>
+                  </div>
+
+                  <div className="flex items-center gap-2 shrink-0">
+                    <label className="relative inline-flex items-center cursor-pointer">
+                      <input
+                        type="checkbox"
+                        checked={loanRules.enableFinanceModule ?? false}
+                        onChange={(e) => {
+                          const val = e.target.checked;
+                          setLoanRules((prev) => ({ ...prev, enableFinanceModule: val }));
+                          setProfile((prev) => ({ ...prev, enableFinanceModule: val }));
+                        }}
+                        className="sr-only peer"
+                      />
+                      <div className="w-11 h-6 bg-surface peer-focus:outline-hidden rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-border after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-emerald-500 border border-border"></div>
+                    </label>
+
+                    <button
+                      type="button"
+                      onClick={() => setActiveTab('FINANCE_RULES')}
+                      className="px-3 py-1.5 rounded-xl bg-amber-500/15 hover:bg-amber-500/25 text-amber-500 border border-amber-500/30 text-xs font-bold transition flex items-center gap-1.5 cursor-pointer"
+                    >
+                      <span>Buka Tab Denda &amp; QRIS</span>
+                      <span>➔</span>
+                    </button>
+                  </div>
+                </div>
+              </form>
+            )}
+
+            {/* TAB: MODE DENDA & PEMBAYARAN NON-TUNAI (FINANCE_RULES) */}
+            {activeTab === 'FINANCE_RULES' && (
+              <form onSubmit={handleSaveFinanceRules} className="space-y-6 animate-in fade-in">
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                  <div>
+                    <div className="flex items-center gap-2">
+                      <h3 className="text-sm font-bold font-display text-text flex items-center gap-2">
+                        <Wallet className="h-4 w-4 text-amber-500" />
+                        <span>Mode Denda &amp; Pembayaran Non-Tunai</span>
+                      </h3>
+                      <span className={`text-[10px] font-bold px-2.5 py-0.5 rounded-full ${
+                        loanRules.enableFinanceModule
+                          ? 'bg-emerald-500/15 text-emerald-500 border border-emerald-500/30'
+                          : 'bg-rose-500/15 text-rose-500 border border-rose-500/30'
+                      }`}>
+                        {loanRules.enableFinanceModule ? '● AKTIF (ON)' : '○ NONAKTIF (OFF - Bawaan SBTH)'}
+                      </span>
+                    </div>
+                    <p className="text-xs text-text-muted mt-0.5">
+                      Pengaturan ON/OFF denda keterlambatan buku, tarif denda per hari, upload QRIS, dan rekening transfer bank
+                    </p>
+                  </div>
+
+                  <button
+                    type="submit"
+                    className="px-4 py-2 rounded-xl bg-amber-500 hover:bg-amber-600 text-slate-950 font-bold text-xs flex items-center gap-1.5 transition shadow-xs cursor-pointer shrink-0"
+                  >
+                    <Save className="h-3.5 w-3.5" />
+                    <span>Simpan Pengaturan Denda</span>
+                  </button>
+                </div>
+
+                {/* Saklar Utama: Mode Denda ON/OFF */}
+                <div className="p-5 rounded-2xl bg-surface border border-border shadow-xs space-y-4">
+                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                    <div className="space-y-1">
+                      <div className="flex items-center gap-2">
+                        <span className="text-sm font-bold text-text">Saklar Mode Denda Perpustakaan</span>
+                        <span className="text-[10px] font-mono px-2 py-0.5 rounded bg-surface-2 border border-border text-text-muted">
+                          Default: NONAKTIF (OFF)
+                        </span>
+                      </div>
+                      <p className="text-xs text-text-muted">
+                        Geser saklar ini ke kanan untuk mengaktifkan denda, atau ke kiri untuk menonaktifkan sepenuhnya.
+                      </p>
+                    </div>
+
+                    <label className="relative inline-flex items-center cursor-pointer shrink-0">
+                      <input
+                        type="checkbox"
+                        checked={loanRules.enableFinanceModule ?? false}
+                        onChange={(e) => {
+                          const val = e.target.checked;
+                          setLoanRules((prev) => ({ ...prev, enableFinanceModule: val }));
+                          setProfile((prev) => ({ ...prev, enableFinanceModule: val }));
+                        }}
+                        className="sr-only peer"
+                      />
+                      <div className="w-14 h-7 bg-surface-2 peer-focus:outline-hidden rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[4px] after:bg-white after:border-border after:border after:rounded-full after:h-6 after:w-6 after:transition-all peer-checked:bg-emerald-500 border border-border"></div>
+                    </label>
+                  </div>
+
+                  {/* Penjelasan Status Saat Ini */}
+                  {loanRules.enableFinanceModule ? (
+                    <div className="p-4 rounded-xl bg-emerald-500/10 border border-emerald-500/30 text-xs text-emerald-400 space-y-1.5">
+                      <div className="font-bold flex items-center gap-1.5 text-emerald-400">
+                        <span>✓ Mode Denda Sedang AKTIF (ON)</span>
+                      </div>
+                      <p className="text-[11px] text-emerald-300/90 leading-relaxed">
+                        Perpustakaan memberlakukan sistem denda keterlambatan buku. Tab &quot;Buku Terlambat &amp; Denda&quot; di sirkulasi pustakawan, menu navigasi &quot;Kas &amp; Denda&quot;, serta rincian tagihan denda beserta QRIS dan rekening bank di Portal Siswa aktif ditampilkan.
+                      </p>
+                    </div>
+                  ) : (
+                    <div className="p-4 rounded-xl bg-surface-2 border border-border text-xs text-text space-y-2.5">
+                      <div className="font-bold flex items-center gap-1.5 text-text">
+                        <span>🛡️ Mode Denda Sedang NONAKTIF (OFF - Bawaan Bebas Denda)</span>
+                      </div>
+                      <p className="text-[11px] text-text-muted leading-relaxed">
+                        Sesuai standar operasional KB-TK Bhakti Tunas Harapan (SBTH), sistem berjalan bebas denda uang. Seluruh komponen berikut disembunyikan otomatis:
+                      </p>
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-[11px] text-text-muted pt-1">
+                        <div className="p-2.5 rounded-xl bg-surface border border-border flex items-center gap-2">
+                          <span className="text-rose-400 font-bold">✕</span>
+                          <span>Tab &quot;Buku Terlambat &amp; Denda&quot; di Sirkulasi disembunyikan</span>
+                        </div>
+                        <div className="p-2.5 rounded-xl bg-surface border border-border flex items-center gap-2">
+                          <span className="text-rose-400 font-bold">✕</span>
+                          <span>Menu navigasi &quot;Kas &amp; Denda&quot; di sidebar pustakawan disembunyikan</span>
+                        </div>
+                        <div className="p-2.5 rounded-xl bg-surface border border-border flex items-center gap-2">
+                          <span className="text-rose-400 font-bold">✕</span>
+                          <span>Tab &quot;Tagihan Denda &amp; QRIS&quot; di Portal Siswa disembunyikan</span>
+                        </div>
+                        <div className="p-2.5 rounded-xl bg-surface border border-border flex items-center gap-2">
+                          <span className="text-rose-400 font-bold">✕</span>
+                          <span>Pintasan keyboard Alt+4 (Tagihan) dinonaktifkan</span>
+                        </div>
+                      </div>
+                      <p className="text-[11px] text-amber-500 font-semibold pt-1">
+                        💡 Untuk mengaktifkan denda, geser tombol saklar di atas ke kanan (ON) lalu klik &quot;Simpan Pengaturan Denda&quot;.
+                      </p>
+                    </div>
+                  )}
+                </div>
+
+                {/* Bagian Input Pengaturan (Tarif, QRIS, Bank) */}
+                <div className={`space-y-6 ${!loanRules.enableFinanceModule ? 'opacity-50' : ''}`}>
+                  {/* 1. Tarif Denda */}
+                  <div className="p-4 rounded-2xl bg-surface border border-border shadow-xs space-y-3">
+                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                      <div>
+                        <label className="text-xs font-bold text-text block">
+                          Besaran Tarif Denda Keterlambatan:
+                        </label>
+                        <p className="text-[11px] text-text-muted mt-0.5">
+                          Dihitung otomatis per hari keterlambatan per buku yang belum dikembalikan
+                        </p>
+                      </div>
                       <div className="flex items-center gap-2">
                         <span className="text-xs font-bold text-text-muted">Rp</span>
                         <input
@@ -1260,12 +1556,216 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                               finePerDay: parseInt(e.target.value) || 0,
                             })
                           }
-                          className="w-32 h-10 rounded-xl border border-border bg-surface px-3 text-xs text-text font-bold text-center"
+                          className="w-32 h-10 rounded-xl border border-border bg-surface-2 px-3 text-xs text-text font-bold text-center outline-hidden focus:border-amber-500"
                         />
                         <span className="text-xs text-text-muted">/ hari / buku</span>
                       </div>
                     </div>
+
+                    <div>
+                      <label className="text-[11px] text-text-muted block mb-1">
+                        Keterangan / Tujuan Denda (Tampil pada Slip &amp; Portal Siswa):
+                      </label>
+                      <input
+                        type="text"
+                        value={loanRules.finesPurpose || ''}
+                        onChange={(e) =>
+                          setLoanRules({ ...loanRules, finesPurpose: e.target.value })
+                        }
+                        placeholder="Denda bertujuan untuk menertibkan peminjaman dan dikumpulkan kembali untuk pembelian buku cerita baru..."
+                        className="w-full h-10 rounded-xl border border-border bg-surface-2 px-3 text-xs text-text outline-hidden focus:border-amber-500"
+                      />
+                    </div>
                   </div>
+
+                  {/* 2. Grid 2 Kolom: QRIS di Kiri + Rekening Bank di Kanan */}
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    {/* KARTU 1: QRIS PEMBAYARAN */}
+                    <div className="p-4 rounded-2xl bg-surface border border-border space-y-3 shadow-xs">
+                      <div className="flex items-center justify-between border-b border-border pb-2.5">
+                        <span className="text-xs font-bold text-text flex items-center gap-2">
+                          <QrCode className="h-4 w-4 text-rose-500" />
+                          <span>Pengaturan QRIS Pembayaran</span>
+                        </span>
+                        <span className="text-[10px] font-mono px-2 py-0.5 rounded-md bg-rose-500/10 text-rose-500 font-bold">
+                          QRIS Statis/Dinamis
+                        </span>
+                      </div>
+
+                      {/* Preview & Upload Box */}
+                      <div className="flex gap-3 items-center">
+                        <div className="w-24 h-24 rounded-xl border border-border bg-white p-1.5 flex items-center justify-center shrink-0 overflow-hidden shadow-2xs">
+                          {loanRules.qrisImageUrl ? (
+                            <img
+                              src={loanRules.qrisImageUrl}
+                              alt="Preview QRIS"
+                              className="w-full h-full object-contain"
+                            />
+                          ) : (
+                            <div className="text-center text-slate-400 p-1">
+                              <QrCode className="h-8 w-8 mx-auto opacity-40" />
+                              <span className="text-[9px] block leading-tight">Belum ada QRIS</span>
+                            </div>
+                          )}
+                        </div>
+
+                        <div className="flex-1 space-y-1.5 text-xs">
+                          <label className="text-[11px] font-semibold text-text block">
+                            Unggah Foto / Gambar QRIS:
+                          </label>
+                          <div className="flex items-center gap-2">
+                            <label className="px-3 py-1.5 rounded-lg bg-surface-2 hover:bg-surface border border-border text-text font-semibold text-[11px] flex items-center gap-1.5 cursor-pointer transition">
+                              <Upload className="h-3.5 w-3.5 text-text-muted" />
+                              <span>Pilih File Gambar</span>
+                              <input
+                                type="file"
+                                accept="image/*"
+                                onChange={handleQrisFileChange}
+                                className="hidden"
+                              />
+                            </label>
+                            {loanRules.qrisImageUrl && (
+                              <button
+                                type="button"
+                                onClick={handleRemoveQris}
+                                className="px-2.5 py-1.5 rounded-lg border border-rose-500/30 text-rose-500 hover:bg-rose-500/10 text-[11px] font-semibold transition cursor-pointer"
+                              >
+                                Hapus
+                              </button>
+                            )}
+                          </div>
+                          <span className="text-[10px] text-text-muted block">
+                            Format PNG/JPG, maksimal 2MB. Tampil di portal siswa.
+                          </span>
+                        </div>
+                      </div>
+
+                      <div className="space-y-2.5 text-xs">
+                        <div>
+                          <label className="text-[11px] text-text-muted block mb-1">
+                            URL Gambar QRIS (Alternatif Tautan):
+                          </label>
+                          <input
+                            type="text"
+                            value={loanRules.qrisImageUrl || ''}
+                            onChange={(e) =>
+                              setLoanRules({ ...loanRules, qrisImageUrl: e.target.value })
+                            }
+                            placeholder="https://... atau data:image/..."
+                            className="w-full h-9 rounded-xl border border-border bg-surface-2 px-3 text-xs text-text outline-hidden focus:border-amber-500"
+                          />
+                        </div>
+
+                        <div>
+                          <label className="text-[11px] text-text-muted block mb-1">
+                            Nama Merchant QRIS:
+                          </label>
+                          <input
+                            type="text"
+                            value={loanRules.qrisMerchantName || ''}
+                            onChange={(e) =>
+                              setLoanRules({ ...loanRules, qrisMerchantName: e.target.value })
+                            }
+                            placeholder="PERPUSTAKAAN KB-TK BHAKTI TUNAS HARAPAN"
+                            className="w-full h-9 rounded-xl border border-border bg-surface-2 px-3 text-xs text-text font-semibold outline-hidden focus:border-amber-500"
+                          />
+                        </div>
+
+                        <div>
+                          <label className="text-[11px] text-text-muted block mb-1">
+                            NMID QRIS (Opsional):
+                          </label>
+                          <input
+                            type="text"
+                            value={loanRules.qrisNmid || ''}
+                            onChange={(e) =>
+                              setLoanRules({ ...loanRules, qrisNmid: e.target.value })
+                            }
+                            placeholder="ID1020039482910"
+                            className="w-full h-9 rounded-xl border border-border bg-surface-2 px-3 text-xs text-text outline-hidden focus:border-amber-500"
+                          />
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* KARTU 2: REKENING BANK TRANSFER */}
+                    <div className="p-4 rounded-2xl bg-surface border border-border space-y-3 shadow-xs">
+                      <div className="flex items-center justify-between border-b border-border pb-2.5">
+                        <span className="text-xs font-bold text-text flex items-center gap-2">
+                          <Building2 className="h-4 w-4 text-blue-500" />
+                          <span>Pengaturan Rekening Bank Sekolah</span>
+                        </span>
+                        <span className="text-[10px] font-mono px-2 py-0.5 rounded-md bg-blue-500/10 text-blue-500 font-bold">
+                          Transfer Bank
+                        </span>
+                      </div>
+
+                      <p className="text-[11px] text-text-muted leading-relaxed">
+                        Informasi rekening ini akan ditampilkan di Portal Siswa jika orang tua memilih transfer bank:
+                      </p>
+
+                      <div className="space-y-2.5 text-xs">
+                        <div>
+                          <label className="text-[11px] text-text-muted block mb-1">
+                            Nama Bank:
+                          </label>
+                          <input
+                            type="text"
+                            value={loanRules.bankName || ''}
+                            onChange={(e) =>
+                              setLoanRules({ ...loanRules, bankName: e.target.value })
+                            }
+                            placeholder="BCA (Bank Central Asia) / BRI / Bank Jateng"
+                            className="w-full h-9 rounded-xl border border-border bg-surface-2 px-3 text-xs text-text font-semibold outline-hidden focus:border-amber-500"
+                          />
+                        </div>
+
+                        <div>
+                          <label className="text-[11px] text-text-muted block mb-1">
+                            Nomor Rekening:
+                          </label>
+                          <input
+                            type="text"
+                            value={loanRules.bankAccountNumber || ''}
+                            onChange={(e) =>
+                              setLoanRules({ ...loanRules, bankAccountNumber: e.target.value })
+                            }
+                            placeholder="012-345-6789"
+                            className="w-full h-9 rounded-xl border border-border bg-surface-2 px-3 text-xs text-text font-mono font-bold outline-hidden focus:border-amber-500"
+                          />
+                        </div>
+
+                        <div>
+                          <label className="text-[11px] text-text-muted block mb-1">
+                            Atas Nama Rekening (Pemilik):
+                          </label>
+                          <input
+                            type="text"
+                            value={loanRules.bankAccountHolder || ''}
+                            onChange={(e) =>
+                              setLoanRules({ ...loanRules, bankAccountHolder: e.target.value })
+                            }
+                            placeholder="Perpustakaan KB-TK Bhakti Tunas Harapan"
+                            className="w-full h-9 rounded-xl border border-border bg-surface-2 px-3 text-xs text-text outline-hidden focus:border-amber-500"
+                          />
+                        </div>
+                      </div>
+
+                      <div className="p-2.5 rounded-lg bg-blue-500/10 border border-blue-500/20 text-[10px] text-blue-300">
+                        💡 Tombol &quot;Salin No. Rekening&quot; akan otomatis tersedia bagi orang tua di portal siswa.
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="pt-2 flex justify-end">
+                  <button
+                    type="submit"
+                    className="px-6 py-2.5 rounded-xl bg-amber-500 hover:bg-amber-600 text-slate-950 font-bold text-xs flex items-center gap-2 transition shadow-xs cursor-pointer"
+                  >
+                    <Save className="h-4 w-4" />
+                    <span>Simpan Pengaturan Denda &amp; Pembayaran</span>
+                  </button>
                 </div>
               </form>
             )}
@@ -1427,31 +1927,52 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                         sample: (slimsPattern.prefix || '') + '0143' + (slimsPattern.suffix || ''),
                         desc: 'Tentukan awalan dan akhiran manual',
                       },
-                    ].map((preset) => (
-                      <button
-                        key={preset.id}
-                        type="button"
-                        onClick={() => handleApplyPreset(preset.id as any)}
-                        className={`p-3 rounded-2xl border text-left transition flex flex-col justify-between cursor-pointer ${
-                          slimsPattern.patternMode === preset.id
-                            ? 'bg-amber-500/15 border-amber-500/60 shadow-2xs'
-                            : 'bg-surface border-border hover:bg-surface-2'
-                        }`}
-                      >
-                        <div>
-                          <div className="flex items-center justify-between">
-                            <span className="text-xs font-bold text-text">{preset.title}</span>
-                            {slimsPattern.patternMode === preset.id && (
-                              <CheckCircle2 className="h-3.5 w-3.5 text-amber-500 shrink-0" />
-                            )}
+                    ].map((preset) => {
+                      const isSelected = slimsPattern.patternMode === preset.id;
+                      return (
+                        <div
+                          key={preset.id}
+                          className={`p-3 rounded-2xl border text-left transition flex flex-col justify-between ${
+                            isSelected
+                              ? 'bg-amber-500/15 border-amber-500/60 shadow-2xs ring-1 ring-amber-500/50'
+                              : 'bg-surface border-border hover:bg-surface-2'
+                          }`}
+                        >
+                          <div>
+                            <div className="flex items-center justify-between">
+                              <span className="text-xs font-bold text-text">{preset.title}</span>
+                              {isSelected && (
+                                <CheckCircle2 className="h-4 w-4 text-amber-500 shrink-0" />
+                              )}
+                            </div>
+                            <p className="text-[10px] text-text-muted mt-1 leading-snug">{preset.desc}</p>
                           </div>
-                          <p className="text-[10px] text-text-muted mt-1">{preset.desc}</p>
+                          <div className="mt-2.5 space-y-2">
+                            <div className="font-mono text-[11px] font-bold text-amber-500 bg-surface-2 px-2 py-0.5 rounded-lg border border-border w-fit">
+                              {preset.sample}
+                            </div>
+                            <button
+                              type="button"
+                              onClick={() => handleApplyPreset(preset.id as any, true)}
+                              className={`w-full py-1.5 px-2 rounded-xl text-[11px] font-bold flex items-center justify-center gap-1 transition cursor-pointer ${
+                                isSelected
+                                  ? 'bg-amber-500 text-slate-950 shadow-xs hover:bg-amber-600'
+                                  : 'bg-surface-2 hover:bg-amber-500 hover:text-slate-950 text-text border border-border'
+                              }`}
+                            >
+                              {isSelected ? (
+                                <>
+                                  <Check className="h-3 w-3" />
+                                  <span>Preset Aktif (Tersimpan)</span>
+                                </>
+                              ) : (
+                                <span>Gunakan Preset Ini</span>
+                              )}
+                            </button>
+                          </div>
                         </div>
-                        <div className="mt-2 font-mono text-[11px] font-bold text-amber-500 bg-surface-2 px-2 py-0.5 rounded-lg border border-border w-fit">
-                          {preset.sample}
-                        </div>
-                      </button>
-                    ))}
+                      );
+                    })}
                   </div>
                 </div>
 
@@ -1547,7 +2068,17 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                     </p>
                   </div>
 
-                  <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3 pt-1">
+                  <div className="flex flex-col sm:flex-row flex-wrap items-stretch sm:items-center gap-3 pt-1">
+                    <button
+                      type="button"
+                      onClick={handleConvertOldPrefixBarcodes}
+                      className="px-4 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs shadow-md transition flex items-center justify-center gap-2 cursor-pointer"
+                      title="Bersihkan awalan teks pada kode lama (misal: SBTH-B-0176 menjadi 0176 dan B0175 menjadi 0175)"
+                    >
+                      <Sparkles className="h-4 w-4" />
+                      <span>⚡ Bersihkan Awalan Lama ke 4-Digit (SBTH-B-0176 → 0176)</span>
+                    </button>
+
                     <button
                       type="button"
                       onClick={handleReindexAllBarcodes}
@@ -1857,27 +2388,45 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                     { key: 'opacTab' as const, label: 'Katalog Visual Anak (OPAC)', desc: 'Buka Katalog Visual Anak (OPAC)', defaultVal: 'Alt+7' },
                     { key: 'settingsModal' as const, label: 'Pengaturan Sistem', desc: 'Buka Pengaturan Sistem Perpustakaan', defaultVal: 'Alt+8' },
                     { key: 'helpModal' as const, label: 'Panduan Pintasan Keyboard', desc: 'Tampilkan panduan tombol pintasan cepat', defaultVal: 'F1' },
-                  ].map((item) => (
-                    <div
-                      key={item.key}
-                      className="p-4 rounded-2xl bg-surface border border-border shadow-2xs flex items-center justify-between gap-3"
-                    >
-                      <div className="flex-1">
-                        <h4 className="text-xs font-bold text-text">{item.label}</h4>
-                        <p className="text-[11px] text-text-muted mt-0.5">{item.desc}</p>
-                      </div>
+                  ].map((item) => {
+                    const rawVal = shortcuts[item.key];
+                    const cleanVal = (rawVal && !rawVal.toLowerCase().includes('control') && !rawVal.toLowerCase().includes('ctrl'))
+                      ? rawVal
+                      : item.defaultVal;
+                    const isOverdueItem = item.key === 'overdueTab';
+                    const isFineOff = isOverdueItem && !(loanRules.enableFinanceModule ?? false);
 
-                      <div className="flex items-center gap-1.5 shrink-0">
-                        <input
-                          type="text"
-                          value={shortcuts[item.key] || item.defaultVal}
-                          onChange={(e) => handleShortcutChange(item.key, e.target.value)}
-                          placeholder={item.defaultVal}
-                          className="w-28 h-9 rounded-lg border border-amber-500/50 bg-amber-500/10 text-center font-mono font-bold text-xs text-amber-400 outline-hidden focus:border-amber-500"
-                        />
+                    return (
+                      <div
+                        key={item.key}
+                        className={`p-4 rounded-2xl bg-surface border transition shadow-2xs flex items-center justify-between gap-3 ${
+                          isFineOff ? 'opacity-60 border-border/50' : 'border-border'
+                        }`}
+                      >
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-center gap-2">
+                            <h4 className="text-xs font-bold text-text">{item.label}</h4>
+                            {isFineOff && (
+                              <span className="text-[9px] px-1.5 py-0.5 rounded bg-surface-2 border border-border text-rose-400 font-medium">
+                                Nonaktif (Mode Denda OFF)
+                              </span>
+                            )}
+                          </div>
+                          <p className="text-[11px] text-text-muted mt-0.5">{item.desc}</p>
+                        </div>
+
+                        <div className="flex items-center gap-1.5 shrink-0">
+                          <input
+                            type="text"
+                            value={cleanVal}
+                            onChange={(e) => handleShortcutChange(item.key, e.target.value)}
+                            placeholder={item.defaultVal}
+                            className="w-28 h-9 rounded-lg border border-amber-500/50 bg-amber-500/10 text-center font-mono font-bold text-xs text-amber-400 outline-hidden focus:border-amber-500"
+                          />
+                        </div>
                       </div>
-                    </div>
-                  ))}
+                    );
+                  })}
                 </div>
               </div>
             )}

@@ -20,9 +20,20 @@ import {
   HeartHandshake,
   MapPin,
   RefreshCw,
+  Clock,
+  Calendar,
 } from 'lucide-react';
 import { Book, BookItem, CategoryId, AcquisitionSource, AgeGroup, BookStatus } from '@/types';
-import { CATEGORIES, PHYSICAL_FORMAT_OPTIONS } from '@/lib/constants';
+import {
+  CATEGORIES,
+  PHYSICAL_FORMAT_OPTIONS,
+  getSbthSpineCode,
+  formatDateTimeIndo,
+  formatDateDDMMYYYY,
+  parseShelfLocation,
+  combineShelfLocation,
+  DEFAULT_SHELF_ROWS,
+} from '@/lib/constants';
 import { libraryStore } from '@/lib/storage';
 import { soundFx } from '@/lib/sound';
 import { SmartBookCover } from '@/components/common/SmartBookCover';
@@ -60,6 +71,9 @@ export const EditBookModal: React.FC<EditBookModalProps> = ({
   const [ageGroup, setAgeGroup] = useState<AgeGroup>(book.ageGroup || 'TK_A');
   const [synopsis, setSynopsis] = useState(book.synopsis || '');
   const [shelfLocation, setShelfLocation] = useState(book.shelfLocation || '');
+  const isShelfRowEnabled = libraryStore.isShelfRowFeatureEnabled();
+  const shelves = libraryStore.getShelves();
+  const parsedShelf = parseShelfLocation(shelfLocation);
   const [shelfCode, setShelfCode] = useState(book.shelfCode || '');
   const [classification, setClassification] = useState(book.classification || '');
   const [authorCode, setAuthorCode] = useState(book.authorCode || '');
@@ -116,6 +130,15 @@ export const EditBookModal: React.FC<EditBookModalProps> = ({
     } finally {
       setIsSearchingCover(false);
     }
+  };
+
+  const handleSyncSpineCodes = () => {
+    const spine = getSbthSpineCode(title, author, categoryId);
+    setShelfCode(spine.shelfCode);
+    setClassification(spine.ddc);
+    setAuthorCode(spine.authorCode);
+    setTitleCode(spine.titleCode);
+    soundFx.playScanBeep();
   };
 
   if (!isOpen) return null;
@@ -316,9 +339,16 @@ export const EditBookModal: React.FC<EditBookModalProps> = ({
               <h2 className="text-base font-bold text-text truncate max-w-[280px] sm:max-w-md">
                 Edit: {book.title}
               </h2>
-              <p className="text-xs text-text-muted">
-                ISBN: {book.isbn} • {items.length} Eksemplar Fisik
-              </p>
+              <div className="flex flex-wrap items-center gap-1.5 text-xs text-text-muted mt-0.5">
+                <span>ISBN: {book.isbn || '-'}</span>
+                <span>•</span>
+                <span>{items.length} Eksemplar Fisik</span>
+                <span>•</span>
+                <span className="inline-flex items-center gap-1 font-semibold text-amber-500 bg-amber-500/10 px-2 py-0.5 rounded-md border border-amber-500/20">
+                  <Clock className="h-3 w-3" />
+                  <span>Diinput: {formatDateTimeIndo(book.createdAt)}</span>
+                </span>
+              </div>
             </div>
           </div>
           <button
@@ -377,6 +407,27 @@ export const EditBookModal: React.FC<EditBookModalProps> = ({
           {/* TAB 1: DATA BUKU & NILAI ASET */}
           {activeSection === 'INFO' && (
             <form id="edit-book-form" onSubmit={handleSaveBook} className="space-y-4 text-xs">
+              {/* Tanggal & Waktu Input ke Koleksi Perpustakaan */}
+              <div className="p-3.5 rounded-2xl bg-amber-500/10 border border-amber-500/25 flex flex-col sm:flex-row sm:items-center justify-between gap-2.5">
+                <div className="flex items-center gap-2.5">
+                  <div className="h-8 w-8 rounded-xl bg-amber-500 text-slate-950 flex items-center justify-center shrink-0 shadow-2xs font-bold">
+                    <Calendar className="h-4 w-4" />
+                  </div>
+                  <div>
+                    <span className="font-bold text-text text-xs block">
+                      Waktu & Tanggal Input Buku ke Koleksi Perpustakaan:
+                    </span>
+                    <span className="text-text-muted text-[11px]">
+                      Tercatat saat buku pertama kali didaftarkan oleh pustakawan ke sistem
+                    </span>
+                  </div>
+                </div>
+                <div className="font-mono font-extrabold text-xs text-amber-500 bg-surface px-3 py-1.5 rounded-xl border border-border w-fit shrink-0 flex items-center gap-1.5 shadow-2xs">
+                  <Clock className="h-3.5 w-3.5" />
+                  <span>{formatDateTimeIndo(book.createdAt)}</span>
+                </div>
+              </div>
+
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div className="sm:col-span-2">
                   <label className="text-xs font-semibold text-text block mb-1">
@@ -497,26 +548,79 @@ export const EditBookModal: React.FC<EditBookModalProps> = ({
                   </select>
                 </div>
 
-                <div>
-                  <label className="text-xs font-semibold text-text block mb-1">
-                    Posisi Rak Default di Sistem:
+                <div className="space-y-1.5">
+                  <label className="text-xs font-semibold text-text flex items-center justify-between">
+                    <span>Posisi Rak Default di Sistem:</span>
+                    <span className="text-[10px] text-amber-500 font-normal">
+                      Fitur Baris: {isShelfRowEnabled ? 'ON' : 'OFF'}
+                    </span>
                   </label>
-                  <input
-                    type="text"
-                    value={shelfLocation}
-                    onChange={(e) => setShelfLocation(e.target.value)}
-                    placeholder="Contoh: Rak A (Dongeng) - Baris 2"
-                    className="w-full rounded-xl border border-border bg-surface-2 px-3.5 py-2 text-xs text-text focus:border-amber-500 outline-hidden"
-                  />
-                  <span className="text-[10px] text-text-muted mt-0.5 block">
-                    Disimpan di database. Jika buku berpindah rak, tidak perlu cetak ulang label!
+                  <div className={`grid grid-cols-1 ${isShelfRowEnabled ? 'sm:grid-cols-2' : ''} gap-2`}>
+                    <div>
+                      <select
+                        value={shelves.some((s) => s.name === parsedShelf.shelfName) ? parsedShelf.shelfName : ''}
+                        onChange={(e) => {
+                          const val = e.target.value;
+                          setShelfLocation(combineShelfLocation(val, parsedShelf.rowName, isShelfRowEnabled));
+                        }}
+                        className="w-full rounded-xl border border-border bg-surface-2 px-3 py-2 text-xs text-text focus:border-amber-500 outline-hidden font-semibold"
+                      >
+                        <option value="">-- Pilih Rak Tersedia --</option>
+                        {shelves.map((s) => (
+                          <option key={s.id} value={s.name}>
+                            {s.name} ({s.code})
+                          </option>
+                        ))}
+                      </select>
+                      <input
+                        type="text"
+                        value={parsedShelf.shelfName}
+                        onChange={(e) => {
+                          const val = e.target.value;
+                          setShelfLocation(combineShelfLocation(val, parsedShelf.rowName, isShelfRowEnabled));
+                        }}
+                        placeholder="Atau ketik nama rak..."
+                        className="w-full mt-1.5 rounded-xl border border-border bg-surface-2 px-3 py-1.5 text-xs text-text focus:border-amber-500 outline-hidden"
+                      />
+                    </div>
+
+                    {isShelfRowEnabled && (
+                      <div>
+                        <select
+                          value={parsedShelf.rowName || ''}
+                          onChange={(e) => {
+                            const val = e.target.value;
+                            setShelfLocation(combineShelfLocation(parsedShelf.shelfName || 'Rak Utama', val, true));
+                          }}
+                          className="w-full rounded-xl border border-border bg-surface-2 px-3 py-2 text-xs text-sky-600 dark:text-sky-400 font-semibold focus:border-amber-500 outline-hidden"
+                        >
+                          <option value="">- Tanpa Baris -</option>
+                          {DEFAULT_SHELF_ROWS.map((r) => (
+                            <option key={r} value={r}>
+                              {r}
+                            </option>
+                          ))}
+                          {parsedShelf.rowName && !DEFAULT_SHELF_ROWS.includes(parsedShelf.rowName) && (
+                            <option value={parsedShelf.rowName}>
+                              {parsedShelf.rowName}
+                            </option>
+                          )}
+                        </select>
+                        <span className="text-[10px] text-text-muted mt-1 block">
+                          Tingkat/sap rak ({parsedShelf.rowName || 'Tanpa Baris'})
+                        </span>
+                      </div>
+                    )}
+                  </div>
+                  <span className="text-[10px] text-text-muted block">
+                    {shelfLocation ? `Lokasi tersimpan: "${shelfLocation}"` : 'Disimpan di database. Jika buku berpindah rak, tidak perlu cetak ulang label!'}
                   </span>
                 </div>
               </div>
 
               {/* Standar Punggung Buku Fisik SBTH (4 Baris Vertikal) */}
               <div className="rounded-2xl p-4 bg-amber-500/10 border border-amber-500/30 space-y-3">
-                <div className="flex items-center justify-between">
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-amber-500/20 pb-2.5">
                   <div className="flex items-center gap-2">
                     <span className="text-base">📏</span>
                     <div>
@@ -528,6 +632,15 @@ export const EditBookModal: React.FC<EditBookModalProps> = ({
                       </p>
                     </div>
                   </div>
+                  <button
+                    type="button"
+                    onClick={handleSyncSpineCodes}
+                    className="px-2.5 py-1 rounded-lg bg-surface border border-amber-500/40 hover:bg-amber-500/10 text-[10px] font-bold text-amber-500 flex items-center gap-1 shadow-xs transition self-start sm:self-auto cursor-pointer"
+                    title="Otomatis buat ulang kode dari data kategori, pengarang, dan judul saat ini"
+                  >
+                    <Sparkles className="h-3 w-3 text-amber-500" />
+                    <span>⚡ Sinkronkan Ulang</span>
+                  </button>
                 </div>
 
                 <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5">
@@ -887,6 +1000,11 @@ export const EditBookModal: React.FC<EditBookModalProps> = ({
                           <span>Rp {(item.priceValue ?? priceValue).toLocaleString('id-ID')}</span>
                           <span>•</span>
                           <span>{item.source === 'SUMBANGAN_ORTU' ? `Donasi: ${item.donorName || 'Ortu'}` : 'Beli Sekolah'}</span>
+                          <span>•</span>
+                          <span className="flex items-center gap-1">
+                            <Clock className="h-3 w-3 text-amber-500" />
+                            <span>Tgl Masuk: {formatDateDDMMYYYY(item.acquisitionDate || book.createdAt)}</span>
+                          </span>
                         </div>
                       </div>
 

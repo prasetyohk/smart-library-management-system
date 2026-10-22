@@ -265,6 +265,51 @@ Di panel SLiMS tersedia fitur canggih untuk mengubah format seluruh koleksi:
 
 ---
 
+## 12.1 Fitur Posisi Rak Cepat & Kolom Baris (ON / OFF)
+
+Aplikasi perpustakaan mendukung fleksibilitas penataan rak buku fisik:
+- **Mode Tanpa Baris (Fitur Baris OFF):**
+  - Cocok untuk perpustakaan yang hanya ingin mendata nama lemari/rak saja (contoh: *Rak Dongeng*, *Rak Sains*).
+  - Kolom **Baris** di tabel koleksi buku dan input struktur baris waktu kelola rak akan **hilang/disembunyikan** otomatis.
+  - Dropdown posisi rak hanya menampilkan nama rak bersih.
+- **Mode Dengan Baris (Fitur Baris ON):**
+  - Cocok untuk perpustakaan dengan rak bertingkat/sap (contoh: *Dongeng & Cerita Bergambar - Baris 2*).
+  - Di tabel koleksi buku, muncul kolom terpisah **Posisi Rak (Cepat)** dan **Baris (Cepat)** yang dapat diubah langsung 1-klik tanpa membuka modal.
+  - Pustakawan dapat mengatur jumlah/nama baris rak di menu **Template Rak**.
+- **Cara Mengubah Status ON / OFF:**
+  1. **Di Tabel Koleksi Buku:** Klik tombol `[ 📑 Kolom Baris: ON / OFF ]` di toolbar atas tabel. Status langsung berubah seketika.
+  2. **Di Modal Template Rak:** Buka tombol `[ 📍 Template Rak ]` di atas tabel koleksi, lalu gunakan saklar toggle `[ Fitur Pembagian Baris Rak ]`.
+
+---
+
+## 12.2 Mode Select All & Sinkronisasi Massal Label Punggung Buku (4 Baris Vertikal)
+
+Untuk mempercepat penataan stiker fisik punggung buku di rak perpustakaan SBTH, pustakawan dapat menggunakan mode centang semua dan sinkronisasi massal:
+
+- **1. Mode Centang Semua (Select All):**
+  - **Tombol Toolbar:** Klik tombol `[ ☑ Pilih Semua (X Judul • Y Eks) ]` pada bilah aksi massal di atas daftar buku. Seluruh judul dan eksemplar yang sedang tampil langsung terpilih.
+  - **Checkbox Header Tabel:** Kotak centang di kolom paling kiri header tabel mendukung 3 kondisi visual: centang penuh (semua terpilih), tanda strip `[-]` (sebagian terpilih), atau kosong.
+  - **Tombol Reset:** Muncul tombol `[ ↩️ Reset Pilihan (X) ]` berwarna merah lembut untuk membatalkan semua pilihan seketika.
+
+- **2. Tombol `[ ⚡ Sinkronkan Punggung (...) ]`:**
+  - Klik tombol berwarna oranye terang di bilah aksi massal untuk membuka modal **"Sinkronisasi Massal Label Punggung Buku - 4 Baris Vertikal SBTH"**.
+  - **Pilihan Target:**
+    - *Buku Terpilih*: Hanya memperbarui judul-judul buku yang dicentang.
+    - *Seluruh Koleksi*: Memperbarui seluruh katalog buku di sistem secara serentak.
+  - **Metode Pengisian Kode:**
+    - **Otomatis SBTH (Rekomendasi):** Menghitung otomatis 4 baris kode stiker berdasarkan formula perpustakaan (Baris 1: Kode Rak Kategori, Baris 2: Nomor DDC Klasifikasi, Baris 3: 3 Huruf Cutter Pengarang, Baris 4: 1 Huruf Awal Judul).
+    - **Kustomisasi Nilai:** Memungkinkan pustakawan menetapkan nilai seragam atau kode rak khusus secara bersamaan dengan bantuan pratinjau langsung.
+  - **Pratinjau Langsung (Live Preview):**
+    - Menampilkan kartu stiker mini vertikal asli (4 baris vertikal) bersebelahan dengan judul buku sebelum tombol simpan diklik.
+  - **Eksekusi 1-Klik:** Klik tombol `[ ⚡ Sinkronkan X Judul Buku ]`, semua data tersimpan seketika di database lokal perpustakaan.
+
+- **3. Tampilan Badge Punggung di Koleksi:**
+  - Di bawah setiap judul buku (baik pada tampilan Tabel maupun Kartu/Grid), langsung ditampilkan badge 4 baris:
+    `Punggung: [SR] [813] [ASD] [a] (Call Number)`
+  - Pustakawan dapat langsung memverifikasi kesesuaian stiker fisik buku di rak secara cepat tanpa harus membuka jendela edit satu per satu.
+
+---
+
 ## 13. CMS Warta & Pengumuman Multi-Disematkan (Auto-Carousel)
 
 Buka menu **Lainnya ➔ Pengaturan ➔ Tab "Warta Perpus (CMS)"**:
@@ -278,22 +323,46 @@ Buka menu **Lainnya ➔ Pengaturan ➔ Tab "Warta Perpus (CMS)"**:
 
 ---
 
-## 14. Ekspor & Impor Master Excel (.xlsx) dengan 4 Baris Punggung Buku
+## 14. Ekspor & Impor Master Excel (.xlsx): Pindah Kategori, Rak Buku & Draf Koleksi
 
-Pustakawan dapat mengamankan dan memindahkan data lama sekolah secara rapi:
-1. **Unduh Master Excel 5-Sheet Yayasan SBTH:**
-   - Buka menu **Lainnya ➔ Master Excel ➔ Unduh Master Excel 5-Sheet**.
-   - Berisi Sheet: `Ringkasan_Statistik`, `Master_Katalog`, `Inventaris_Fisik_SBTH`, `Riwayat_Sirkulasi`, dan `Data_Anggota_Siswa`.
-2. **Dukungan 4 Baris Punggung Buku & Status Label di Excel:**
-   - Kolom Excel mencakup:
-     - `Baris 1 - Kode Rak (misal SR)`
-     - `Baris 2 - Nomor DDC (misal 813)`
-     - `Baris 3 - Kode Pengarang (misal JUL)`
-     - `Baris 4 - Kode Judul (misal T)`
-     - `Status Dicap / Label (Sudah/Belum)`
-3. **Impor Koleksi dari Excel:**
-   - Pustakawan cukup mengunggah file Excel data buku lama sekolah.
-   - Sistem akan langsung membaca seluruh metadata buku, posisi 4 baris punggung buku, dan otomatis menandai eksemplar yang sudah dicap stempel.
+Modul Excel Perpustakaan SBTH dirancang untuk transisi koleksi lama dan pemindahan kategori/rak secara massal tanpa merusak data:
+1. **Unduh Master Template 2-Sheet (Data & Panduan):**
+   - Buka menu **Lainnya ➔ Master Excel ➔ Unduh Template (.xlsx)**.
+   - Dilengkapi **Sheet 2 (Panduan_Pengisian)** dengan penjelasan fungsi tiap kolom.
+2. **Pindah Kategori & Lokasi Rak Buku Massal (Ekspor Transisi):**
+   - Klik **"Ekspor Laporan & Format Transisi ➔ Unduh Excel Transisi & Pindah Rak"**.
+   - Seluruh buku aktif akan diekspor dengan lokasi rak dan kategori saat ini. Pustakawan cukup mengganti kolom *Kategori* atau *Posisi Rak* di Excel, lalu mengunggah kembali. Sistem otomatis memindahkan buku beserta seluruh eksemplar fisiknya tanpa merusak nomor barcode dan riwayat sirkulasi!
+3. **Penanganan Baris Impor Kurang Lengkap & Sistem Draf (Draft Books):**
+   - Jika file Excel memiliki kolom yang belum lengkap (misal sinopsis atau pengarang kosong):
+     - Sistem membuka **Pratinjau & Validasi Interaktif** dengan badge peringatan kolom yang kosong.
+     - Pustakawan bisa **mengedit langsung (*inline edit*)** di tabel pratinjau sebelum disimpan.
+     - Opsi **"Impor yang Siap Saja & Sisa ke Draf"**: Hanya buku yang sudah lengkap yang dimasukkan ke katalog; sisanya disimpan di tab **Draf Koleksi** untuk dilengkapi nanti.
+     - Opsi **"Paksa Impor Semua"**: Tetap memasukkan semua baris buku dengan nilai default aman perpustakaan SBTH (misal sinopsis otomatis diisi teks ramah anak).
+     - Opsi **"Simpan Semua ke Draf"**: Menyimpan semua baris ke penampungan draf.
+4. **Otomatisasi 4-Baris Punggung Buku SBTH:**
+   - **Baris 1 (Kode Rak):** Bawaan `SR` (Story Rack) atau kode rak kategori.
+   - **Baris 2 (Nomor DDC):** Otomatis mengikuti kategori (Dongeng: `398.2`/`813`, Alam: `500`, Karakter: `170`/`200`, Ensiklopedia: `030`, Mandarin/Bahasa: `495.1`, Aktivitas: `372.2`).
+   - **Baris 3 (3 Huruf Pengarang / Cutter):** Otomatis mengambil 3 huruf kapital nama pengarang, mengabaikan gelar umum (e.g. Kak Bambang ➔ `BAM`, Yovita Siswati ➔ `SIS`, Juliet ➔ `JUL`).
+   - **Baris 4 (1 Huruf Depan Judul):** Otomatis mengambil huruf depan judul buku (e.g. Kancil ➔ `k`, Timeless ➔ `t`, Cerita Si Kancil ➔ `k`).
+5. **Sinkronisasi Penuh Pencarian:**
+   - Pencarian di Katalog OPAC Kiosk Anak, Meja Pustakawan, dan Portal Siswa kini tersinkronisasi 100%. Pencarian dapat mencocokkan:
+     - Nomor Daftar Buku / Barcode Fisik (e.g. `SBTH-B-0001`, `0001`)
+     - Kategori Buku (e.g. `Dongeng`, `Sains`, `Alam`)
+     - Rak Buku & Kode Rak (e.g. `Rak Kuning B`, `SR`)
+     - Kode Buku (DDC `813`, `398.2`, Cutter `BAM`, `JUL`)
+     - Judul Buku & Pengarang
+
+---
+
+## 15. Mode OPAC (Kiosk Anak): Pilihan Bahasa & Ukuran Font Header
+
+Pada bagian bilah atas (*header*) Mode OPAC Kiosk Anak:
+1. **Pengaturan Ukuran Font:** Tombol `[A- A A+]` untuk menyesuaikan ukuran teks anak-anak.
+2. **Pilihan Bahasa Berdampingan:** Tombol `[🇮🇩 ID | 🇬🇧 EN | 🇨🇳 中文]` diletakkan tepat di sebelah pengaturan font:
+   - **🇮🇩 ID**: Bahasa Indonesia untuk siswa & pustakawan lokal.
+   - **🇬🇧 EN**: English untuk kelas bilingual SBTH.
+   - **🇨🇳 中文**: Bahasa Mandarin untuk kelas trilingual SBTH.
+   - Pilihan bahasa ini langsung mengubah seluruh tampilan antarmuka dan judul kategori secara instan.
 
 ---
 

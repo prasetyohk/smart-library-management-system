@@ -17,9 +17,20 @@ import {
   Loader2,
   ExternalLink,
   RotateCcw,
+  Clock,
+  Calendar,
 } from 'lucide-react';
 import { Book, BookItem, CategoryId, AgeGroup, AcquisitionSource, Category } from '@/types';
-import { CATEGORIES, PHYSICAL_FORMAT_OPTIONS } from '@/lib/constants';
+import {
+  CATEGORIES,
+  PHYSICAL_FORMAT_OPTIONS,
+  getSbthSpineCode,
+  deriveAuthorCode,
+  deriveTitleCode,
+  deriveCategoryDdc,
+  deriveShelfCode,
+  formatDateTimeIndo,
+} from '@/lib/constants';
 import { libraryStore } from '@/lib/storage';
 import { soundFx } from '@/lib/sound';
 import { SmartBookCover } from '@/components/common/SmartBookCover';
@@ -69,11 +80,39 @@ export const ScanIsbnModal: React.FC<ScanIsbnModalProps> = ({
   const [donorName, setDonorName] = useState<string>('');
   const [priceValue, setPriceValue] = useState<number>(45000);
 
+  // Standar Punggung Buku SBTH 4-Baris Vertikal
+  const [shelfCode, setShelfCode] = useState<string>('SR');
+  const [classification, setClassification] = useState<string>('398.2');
+  const [authorCode, setAuthorCode] = useState<string>('SBT');
+  const [titleCode, setTitleCode] = useState<string>('t');
+  const [isSpineManualEdited, setIsSpineManualEdited] = useState<boolean>(false);
+
   // Success summary state
   const [createdSummary, setCreatedSummary] = useState<{
     book: Book;
     items: BookItem[];
   } | null>(null);
+
+  // Otomatis sinkronkan 4 kode punggung buku saat Judul, Pengarang, atau Kategori berubah
+  useEffect(() => {
+    if (!isSpineManualEdited) {
+      const spine = getSbthSpineCode(title, author, categoryId);
+      setShelfCode(spine.shelfCode);
+      setClassification(spine.ddc);
+      setAuthorCode(spine.authorCode);
+      setTitleCode(spine.titleCode);
+    }
+  }, [title, author, categoryId, isSpineManualEdited]);
+
+  const handleSyncSpineCodesManually = () => {
+    const spine = getSbthSpineCode(title, author, categoryId);
+    setShelfCode(spine.shelfCode);
+    setClassification(spine.ddc);
+    setAuthorCode(spine.authorCode);
+    setTitleCode(spine.titleCode);
+    setIsSpineManualEdited(false);
+    soundFx.playScanBeep();
+  };
 
   useEffect(() => {
     if (isOpen) {
@@ -105,6 +144,13 @@ export const ScanIsbnModal: React.FC<ScanIsbnModalProps> = ({
     setCoverImage('');
     setCopiesCount(1);
     setSource('BELI_SEKOLAH');
+    setDonorName('');
+    setPriceValue(45000);
+    setShelfCode('SR');
+    setClassification('398.2');
+    setAuthorCode('SBT');
+    setTitleCode('t');
+    setIsSpineManualEdited(false);
     setCreatedSummary(null);
     setSearchSuggestions([]);
     setCategories(libraryStore.getCategories());
@@ -452,6 +498,10 @@ export const ScanIsbnModal: React.FC<ScanIsbnModalProps> = ({
         physicalFormat: physicalFormat || 'Cerita Bergambar',
         categoryId,
         ageGroup,
+        shelfCode: shelfCode.trim() || undefined,
+        classification: classification.trim() || undefined,
+        authorCode: authorCode.trim() || undefined,
+        titleCode: titleCode.trim() || undefined,
         synopsis: synopsis.trim() || 'Buku bacaan anak TK Sekolah Bina Tunas Harapan.',
         coverImage: coverImage.trim(),
       },
@@ -932,6 +982,124 @@ export const ScanIsbnModal: React.FC<ScanIsbnModalProps> = ({
                     </div>
                   </div>
 
+                  {/* Standar Label Punggung Buku SBTH 4-Baris Vertikal */}
+                  <div className="rounded-2xl p-4 bg-amber-50/50 dark:bg-amber-950/20 border border-amber-200 dark:border-amber-800/60 space-y-3">
+                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-amber-200/60 dark:border-amber-800/40 pb-2.5">
+                      <div className="flex items-center gap-2">
+                        <span className="text-base">🏷️</span>
+                        <div>
+                          <span className="font-bold text-slate-800 dark:text-slate-100 text-xs uppercase tracking-wider block">
+                            Standar Punggung Buku SBTH (4 Baris Vertikal)
+                          </span>
+                          <p className="text-[10px] text-slate-500 dark:text-slate-400">
+                            Otomatis di-generate dari kategori, pengarang (Cutter), & judul buku untuk penempatan di rak fisik.
+                          </p>
+                        </div>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={handleSyncSpineCodesManually}
+                        className="px-2.5 py-1 rounded-lg bg-white dark:bg-slate-800 border border-amber-300 dark:border-amber-700 hover:bg-amber-100/50 text-[10px] font-bold text-amber-700 dark:text-amber-300 flex items-center gap-1 shadow-xs transition self-start sm:self-auto cursor-pointer"
+                        title="Otomatis buat ulang kode dari data formulir saat ini"
+                      >
+                        <Sparkles className="h-3 w-3 text-amber-500" />
+                        <span>⚡ Sinkronkan Ulang</span>
+                      </button>
+                    </div>
+
+                    <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5">
+                      {/* Baris 1: Kode Rak */}
+                      <div>
+                        <label className="text-[10px] font-bold text-slate-700 dark:text-slate-300 block mb-1">
+                          Baris 1: Kode Rak
+                        </label>
+                        <input
+                          type="text"
+                          value={shelfCode}
+                          onChange={(e) => {
+                            setShelfCode(e.target.value.toUpperCase());
+                            setIsSpineManualEdited(true);
+                          }}
+                          placeholder="e.g. SR"
+                          className="w-full rounded-xl border border-amber-300/80 dark:border-amber-700 bg-white dark:bg-slate-900 px-2 py-1.5 text-xs font-mono font-bold text-slate-800 dark:text-slate-100 text-center uppercase outline-hidden"
+                        />
+                        <span className="text-[9px] text-slate-400 mt-0.5 block text-center">Bawaan: SR</span>
+                      </div>
+
+                      {/* Baris 2: Nomor DDC */}
+                      <div>
+                        <label className="text-[10px] font-bold text-slate-700 dark:text-slate-300 block mb-1">
+                          Baris 2: Nomor DDC
+                        </label>
+                        <input
+                          type="text"
+                          value={classification}
+                          onChange={(e) => {
+                            setClassification(e.target.value);
+                            setIsSpineManualEdited(true);
+                          }}
+                          placeholder="e.g. 398.2"
+                          className="w-full rounded-xl border border-amber-300/80 dark:border-amber-700 bg-white dark:bg-slate-900 px-2 py-1.5 text-xs font-mono font-bold text-slate-800 dark:text-slate-100 text-center outline-hidden"
+                        />
+                        <span className="text-[9px] text-slate-400 mt-0.5 block text-center">e.g. 398.2, 500, 170</span>
+                      </div>
+
+                      {/* Baris 3: 3 Huruf Pengarang */}
+                      <div>
+                        <label className="text-[10px] font-bold text-slate-700 dark:text-slate-300 block mb-1">
+                          Baris 3: 3 Huruf Pengarang
+                        </label>
+                        <input
+                          type="text"
+                          maxLength={3}
+                          value={authorCode}
+                          onChange={(e) => {
+                            setAuthorCode(e.target.value.toUpperCase());
+                            setIsSpineManualEdited(true);
+                          }}
+                          placeholder="e.g. BAM"
+                          className="w-full rounded-xl border border-amber-300/80 dark:border-amber-700 bg-white dark:bg-slate-900 px-2 py-1.5 text-xs font-mono font-bold text-slate-800 dark:text-slate-100 text-center uppercase outline-hidden"
+                        />
+                        <span className="text-[9px] text-slate-400 mt-0.5 block text-center">Cutter 3 Huruf</span>
+                      </div>
+
+                      {/* Baris 4: 1 Huruf Depan Judul */}
+                      <div>
+                        <label className="text-[10px] font-bold text-slate-700 dark:text-slate-300 block mb-1">
+                          Baris 4: 1 Huruf Judul
+                        </label>
+                        <input
+                          type="text"
+                          maxLength={2}
+                          value={titleCode}
+                          onChange={(e) => {
+                            setTitleCode(e.target.value);
+                            setIsSpineManualEdited(true);
+                          }}
+                          placeholder="e.g. k"
+                          className="w-full rounded-xl border border-amber-300/80 dark:border-amber-700 bg-white dark:bg-slate-900 px-2 py-1.5 text-xs font-mono font-bold text-slate-800 dark:text-slate-100 text-center outline-hidden"
+                        />
+                        <span className="text-[9px] text-slate-400 mt-0.5 block text-center">1 Huruf Judul</span>
+                      </div>
+                    </div>
+
+                    {/* Pratinjau Mini Label Samping Buku */}
+                    <div className="flex items-center gap-3 p-2.5 rounded-xl bg-white dark:bg-slate-900 border border-amber-200 dark:border-amber-800/50">
+                      <div className="w-12 h-20 rounded-md bg-amber-50 dark:bg-amber-950/60 border border-amber-300 dark:border-amber-700 flex flex-col items-center justify-center font-mono font-bold text-[10px] leading-tight text-slate-800 dark:text-slate-200 shadow-xs shrink-0">
+                        <span className="text-amber-600 dark:text-amber-400 font-extrabold">{shelfCode || 'SR'}</span>
+                        <span>{classification || '813'}</span>
+                        <span className="text-blue-600 dark:text-blue-400">{authorCode || 'SBT'}</span>
+                        <span className="text-rose-600 dark:text-rose-400">{titleCode || 't'}</span>
+                      </div>
+                      <div className="text-[11px] text-slate-600 dark:text-slate-400">
+                        <span className="font-bold text-slate-800 dark:text-slate-200 block mb-0.5">
+                          Pratinjau Fisik Punggung Buku SBTH:
+                        </span>
+                        Format 4 baris ini siap langsung dicetak pada stiker label punggung buku atau ditulis cap manual di perpustakaan.
+                      </div>
+                    </div>
+                  </div>
+
                   {/* Kelompok Usia & Jumlah Eksemplar */}
                   <div className="grid grid-cols-2 gap-3 pt-1">
                     <div>
@@ -1062,8 +1230,12 @@ export const ScanIsbnModal: React.FC<ScanIsbnModalProps> = ({
                   Buku Berhasil Ditambahkan ke Katalog SBTH!
                 </h3>
                 <p className="text-xs text-emerald-700 dark:text-emerald-400">
-                  "{createdSummary.book.title}" ({createdSummary.items.length} Eksemplar Fisik Siap Pakai)
+                  &quot;{createdSummary.book.title}&quot; ({createdSummary.items.length} Eksemplar Fisik Siap Pakai)
                 </p>
+                <div className="pt-1 flex items-center justify-center gap-1.5 text-[11px] text-emerald-800 dark:text-emerald-300 font-semibold">
+                  <Clock className="h-3.5 w-3.5 text-emerald-600 dark:text-emerald-400" />
+                  <span>Waktu Input: {formatDateTimeIndo(createdSummary.book.createdAt)}</span>
+                </div>
               </div>
 
               {/* Generated Barcode Items List */}

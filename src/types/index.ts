@@ -85,6 +85,31 @@ export interface BookItem {
   statusUpdatedAt?: string;
 }
 
+export interface DraftBook {
+  id: string;
+  isbn?: string;
+  title: string;
+  author?: string;
+  publisher?: string;
+  publicationYear?: string;
+  categoryId?: CategoryId;
+  shelfLocation?: string;
+  shelfCode?: string;
+  classification?: string;
+  authorCode?: string;
+  titleCode?: string;
+  copiesCount?: number;
+  statusDicap?: boolean;
+  synopsis?: string;
+  pageCount?: number;
+  physicalFormat?: string;
+  bookLanguage?: string;
+  source?: AcquisitionSource;
+  priceValue?: number;
+  missingFields?: string[];
+  createdAt: string;
+}
+
 export type GradeLevel = 'TODDLER' | 'NURSERY' | 'TK_A' | 'TK_B' | 'TEACHER' | 'ALUMNI';
 
 export type MemberStatus = 'ACTIVE' | 'GRADUATED' | 'INACTIVE';
@@ -333,6 +358,10 @@ export interface LoanRules {
   maxReservationsWhenBorrowing?: number; // Maksimal kuota reservasi jika sedang meminjam buku (default: 1)
   lastStockOpnameDate?: string;
   lastStockOpnameSummary?: string;
+  // Info Rekening Bank untuk Pustakawan
+  bankName?: string; // Nama Bank e.g. BCA, BRI, Bank Mandiri, BSI, Bank Jateng
+  bankAccountNumber?: string; // Nomor Rekening e.g. 1234-5678-90
+  bankAccountHolder?: string; // Atas Nama Pemilik Rekening e.g. Perpustakaan KB-TK SBTH
 }
 
 export interface KeyboardShortcutItem {
