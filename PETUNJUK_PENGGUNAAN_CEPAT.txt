@@ -1,0 +1,33 @@
+================================================================================
+   PANDUAN CEPAT MEMBUKA & MENGGUNAKAN APLIKASI PERPUSTAKAAN SBTH TK
+================================================================================
+
+A. CARA MEMBUKA APLIKASI (HANYA 2 KLIK):
+   Cara 1 (Dari Folder Ini):
+   - Cukup KLIK 2X file: "1_BUKA_APLIKASI_PERPUSTAKAAN.bat"
+   - Server akan otomatis aktif dan browser web langsung terbuka ke:
+     http://localhost:3000
+
+   Cara 2 (Dari Layar Desktop Windows):
+   - Ikon shortcut "Perpustakaan SBTH TK" sudah tersedia di Desktop komputer Anda.
+   - Cukup KLIK 2X ikon tersebut di Desktop, aplikasi langsung terbuka!
+
+B. CARA MENUTUP APLIKASI:
+   - Cukup tutup jendela hitam/terminal yang sedang berjalan, ATAU
+   - KLIK 2X file: "2_HENTIKAN_APLIKASI.bat"
+
+C. IMPORT DATA BUKU DARI EXCEL:
+   - Gunakan file: "Template_Master_Impor_Buku_SBTH_TK.xlsx"
+   - Isi judul, pengarang, penerbit, ISBN, dan jumlah eksemplar.
+   - Buka menu "Manajemen Buku" di aplikasi lalu pilih "Import Excel".
+
+D. DOKUMEN DAN PANDUAN LENGKAP:
+   - Seluruh panduan lengkap format Word (.docx), VPS deploy online,
+     dan video demo tersimpan rapi di dalam folder:
+     "DOKUMENTASI_DAN_PANDUAN"
+
+E. BANTUAN INSTALLER:
+   - Jika ingin memindahkan atau menginstal aplikasi ke komputer lain,
+     file instalasi Node.js tersedia di folder:
+     "INSTALLER_PENDUKUNG"
+================================================================================
