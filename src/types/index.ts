@@ -87,6 +87,8 @@ export type MemberStatus = 'ACTIVE' | 'GRADUATED' | 'INACTIVE';
 
 export type Language = 'id' | 'en' | 'zh';
 
+export type FontSize = 'normal' | 'large' | 'xlarge';
+
 export interface Member {
   id: string;
   memberCode: string; // e.g. "SBTH-M-0015" or "SBTH-C-TKA1"

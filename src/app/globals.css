@@ -35,6 +35,24 @@
   --color-accent: var(--accent);
 }
 
+/* Dynamic Font Size Scaling for Ergonomics */
+html {
+  font-size: 16px;
+  transition: font-size 0.15s ease-in-out;
+}
+
+html[data-font-size="normal"] {
+  font-size: 16px;
+}
+
+html[data-font-size="large"] {
+  font-size: 17.5px;
+}
+
+html[data-font-size="xlarge"] {
+  font-size: 19.5px;
+}
+
 body {
   background: var(--background);
   color: var(--foreground);

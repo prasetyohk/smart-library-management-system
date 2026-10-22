@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.IO;
 using System.Diagnostics;
 using System.Drawing;
@@ -74,16 +74,14 @@ namespace PerpustakaanSBTH
             // Jalankan server di latar belakang secara 100% SILENT (Tanpa CMD Hitam)
             StartBackgroundServer(appDir);
 
-            // Loop tunggu sampai server siap di background
+            // Loop tunggu sampai server siap di background dengan polling cepat (200ms)
             ThreadPool.QueueUserWorkItem(delegate
             {
-                bool ready = false;
-                for (int i = 0; i < 40; i++)
+                for (int i = 0; i < 150; i++)
                 {
-                    Thread.Sleep(1000);
-                    if (IsServerReady("http://localhost:3000", 1000))
+                    Thread.Sleep(200);
+                    if (IsServerReady("http://localhost:3000", 300))
                     {
-                        ready = true;
                         break;
                     }
                 }
@@ -147,10 +145,15 @@ namespace PerpustakaanSBTH
         {
             try
             {
+                // Prioritaskan 'npm start' jika folder .next sudah dibuild (super kilat < 500ms dan hemat RAM)
+                // Jika belum dibuild, fallback ke 'npm run dev'
+                string dotNext = Path.Combine(appDir, ".next");
+                string npmCommand = Directory.Exists(dotNext) ? "/c npm start" : "/c npm run dev";
+
                 ProcessStartInfo psi = new ProcessStartInfo
                 {
                     FileName = "cmd.exe",
-                    Arguments = "/c npm run dev",
+                    Arguments = npmCommand,
                     WorkingDirectory = appDir,
                     CreateNoWindow = true,
                     WindowStyle = ProcessWindowStyle.Hidden,

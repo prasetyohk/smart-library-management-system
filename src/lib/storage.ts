@@ -21,6 +21,7 @@ import {
   LoanRules,
   TelegramCommandTemplate,
   Language,
+  FontSize,
   WishlistNotification,
   StockOpnameRecord,
   ActivityLogEntry,
@@ -85,6 +86,7 @@ const STORAGE_KEYS = {
   LIBRARY_NEWS: 'sbth_library_news_v1',
   SLIMS_PATTERN: 'sbth_library_slims_pattern_v1',
   KEYBOARD_SHORTCUTS: 'sbth_library_keyboard_shortcuts_v1',
+  FONT_SIZE: 'sbth_library_font_size_v1',
 };
 
 export class LibraryStore {
@@ -1724,6 +1726,22 @@ Periode: Minggu ke-2 Oktober 2026
   public saveAppMode(mode: AppMode): void {
     if (!this.isClient()) return;
     localStorage.setItem(STORAGE_KEYS.APP_MODE, mode);
+  }
+
+  // --- FONT SIZE SCALING (NORMAL, LARGE, XLARGE) ---
+  public getFontSize(): FontSize {
+    if (!this.isClient()) return 'normal';
+    const data = localStorage.getItem(STORAGE_KEYS.FONT_SIZE) as FontSize | null;
+    if (data === 'large' || data === 'xlarge') return data;
+    return 'normal';
+  }
+
+  public saveFontSize(size: FontSize): void {
+    if (!this.isClient()) return;
+    localStorage.setItem(STORAGE_KEYS.FONT_SIZE, size);
+    if (typeof document !== 'undefined') {
+      document.documentElement.setAttribute('data-font-size', size);
+    }
   }
 
   // --- TOP BORROWED BOOKS (TRENDING FAVORIT ANAK TK) ---
