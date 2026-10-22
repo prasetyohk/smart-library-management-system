@@ -15,11 +15,13 @@
 8. [Manajemen Anggota (Username Unik & Pemakaian Ulang Akun)](#8-manajemen-anggota-username-unik--pemakaian-ulang-akun)
 9. [Lupa Username & Password Siswa (Kirim Langsung ke WhatsApp Ortu)](#9-lupa-username--password-siswa-kirim-langsung-ke-whatsapp-ortu)
 10. [Mode Reservasi Mandiri Siswa (Timer Rundown 1x24 Jam)](#10-mode-reservasi-mandiri-siswa-timer-rundown-1x24-jam)
-11. [Panduan Penggunaan Format SLiMS & Barcode (4 Langkah Mudah)](#11-panduan-penggunaan-format-slims--barcode-4-langkah-mudah)
+11. [Panduan Penggunaan Format SLiMS & Barcode (Preset SBTH 4-Digit & Format 4-Baris)](#11-panduan-penggunaan-format-slims--barcode-preset-sbth-4-digit--format-4-baris)
 12. [Penomoran Ulang Massal Barcode & Fitur Pemulihan (Restore)](#12-penomoran-ulang-massal-barcode--fitur-pemulihan-restore)
 13. [CMS Warta & Pengumuman Multi-Disematkan (Auto-Carousel)](#13-cms-warta--pengumuman-multi-disematkan-auto-carousel)
-14. [Ekspor Cadangan Master Excel & SLiMS CSV](#14-ekspor-cadangan-master-excel--slims-csv)
-15. [Kontak Bantuan Teknis](#15-kontak-bantuan-teknis)
+14. [Ekspor & Impor Master Excel (.xlsx) dengan 4 Baris Punggung Buku](#14-ekspor--impor-master-excel-xlsx-dengan-4-baris-punggung-buku)
+15. [Panduan Cetak Label Barcode, Tips Kertas Awet & Cap Manual Tanpa Printer](#15-panduan-cetak-label-barcode-tips-kertas-awet--cap-manual-tanpa-printer)
+16. [Mode Kembali ke Atas (Back to Top) di OPAC](#16-mode-kembali-ke-atas-back-to-top-di-opac)
+17. [Kontak Bantuan Teknis](#17-kontak-bantuan-teknis)
 
 ---
 
@@ -208,35 +210,43 @@ Aturan ketat reservasi antrean buku:
 
 ---
 
-## 11. Panduan Penggunaan Format SLiMS & Barcode (4 Langkah Mudah)
+## 11. Panduan Penggunaan Format SLiMS & Barcode (Preset SBTH 4-Digit & Format 4-Baris)
 
 Buka menu **Lainnya ➔ Pengaturan ➔ Tab "Pola SLiMS & Barcode"**:
 
-### Langkah 1: Pilih Gaya Kode Barcode (Cukup Klik Salah Satu Kotak di Atas)
-Di bagian *"Pilih Preset Pola Penamaan"*, klik salah satu dari 4 kotak yang paling cocok dengan kebutuhan sekolah Anda:
-- **Jika ingin yang paling standar (Rekomendasi):** Biarkan terpilih di kotak ke-2 (**SLiMS 9 Bulian**). Kode bukunya nanti simpel: `B00001`, `B00002`, dst.
-- **Jika ingin ada nama sekolah SBTH:** Klik kotak ke-1 (**Standar SBTH TK**). Kode bukunya nanti otomatis menjadi: `SBTH-B-00001`, dst.
-- **Jika ingin tahu posisi rak langsung dari kode barcode:** Klik kotak ke-3 (**Kode Kategori Rak**). Kode bukunya nanti mengikuti topik rak, misalnya `DNG-00001` (Dongeng) atau `SAI-00001` (Sains).
-*(Catatan: Jika Anda sudah mengklik salah satu dari kotak di atas, kolom-kolom di bagian tengah otomatis terisi sendiri).*
+### Langkah 1: Pilih Gaya Kode Barcode (Klik Salah Satu Kotak di Atas)
+Di bagian *"Pilih Preset Pola Penamaan"*, tersedia 5 pilihan preset yang siap digunakan:
+1. **Standar SBTH 4-Digit (Fisik) — *Sesuai Buku Fisik & Cap Sekolah*:**
+   - Prefix: *(kosong)*
+   - Panjang Seri: **4 digit** angka murni (`0001`, `0101`, `0143`, dst.)
+   - Suffix: *(kosong)*
+   - Format ini persis seperti cap stempel nomor daftar fisik pada buku lama sekolah.
+2. **Standar SBTH TK:** Awalan `SBTH-B-` diikuti 5 digit nomor seri (contoh: `SBTH-B-00143`).
+3. **SLiMS 9 Bulian (Rekomendasi Standar Nasional):** Awalan `B` diikuti 5 digit nomor seri (contoh: `B00143`).
+4. **Kode Kategori Rak:** Mengikuti kode topik buku (contoh: `DNG-00143` untuk Dongeng, `SAI-00143` untuk Sains).
+5. **Kustom Bebas:** Anda bebas menentukan awalan, panjang digit seri, dan akhiran sesuai kebutuhan.
+
+*(Catatan: Setelah mengklik salah satu kotak di atas, kolom konfigurasi di bagian tengah otomatis terisi sendiri).*
 
 ### Langkah 2: Cek Bagian Tengah (Hanya Jika Perlu Diubah)
-Bagian *"Detail Konfigurasi Pola Nomor Barcode"* otomatis terisi saat Anda memilih kotak di Langkah 1. Anda hanya perlu mengubahnya jika:
-- **Nomor Urut Berikutnya:** Saat ini tertulis angka 1 (artinya buku baru pertama yang akan dimasukkan nanti kodenya `B00001`). Jika di perpustakaan sudah ada 50 buku yang ditempeli barcode lama dan Anda ingin melanjutkan dari nomor 51, ganti angka 1 tersebut menjadi **51**.
-- **Suffix (Akhiran):** Boleh dikosongkan saja. Isi dengan `/2026` hanya jika Anda ingin ada tahun pengadaan di ujung kode buku (contoh hasil: `B00001/2026`).
-- Lihat tulisan kuning di bagian *"Pratinjau Kode Eksemplar Baru"* (saat ini tertulis `B00001`). Jika bentuk kodenya sudah sesuai keinginan Anda, berarti pengaturannya sudah pas.
+- **Nomor Urut Berikutnya:** Jika di perpustakaan sudah ada 50 buku lama dan Anda ingin melanjutkan dari nomor 51, cukup ganti angka 1 menjadi **51**.
+- **Suffix (Akhiran):** Boleh dikosongkan. Isi `/2026` jika ingin mencantumkan tahun pengadaan.
+- Perhatikan tulisan kuning di bagian *"Pratinjau Kode Eksemplar Baru"*. Jika bentuk kodenya sudah cocok, format sudah siap.
 
-### Langkah 3: Bagian Bawah Tidak Perlu Diotak-atik
-Kotak paling bawah (*Standar Nomor Panggil Buku / Call Number 3-Baris SLiMS*) tidak perlu disetting. Bagian itu hanya info/contoh bahwa setiap kali Anda menambah buku baru dan mengisi judul serta nama pengarangnya, sistem otomatis membuatkan label stiker punggung buku 3 baris:
+### Langkah 3: Format Standar 4-Baris Stiker Punggung Buku SBTH
+Pada stiker punggung buku yang ditempel di rak, sistem menyediakan susunan **4 baris vertikal rapi**:
 ```text
 ┌──────────────┐
-│   398.2      │  <- Baris 1: Nomor Klasifikasi DDC
-│    TIM       │  <- Baris 2: 3 Huruf Nama Pengarang (KAPITAL)
-│     d        │  <- Baris 3: 1 Huruf Pertama Judul (kecil)
+│     SR       │  <- Baris 1: Kode Rak / Koleksi (misal SR, AG, CR, SN)
+│    813       │  <- Baris 2: Nomor Klasifikasi DDC (misal 813 Cerpen, 398.2 Dongeng)
+│    JUL       │  <- Baris 3: 3 Huruf Pengarang Kapital (Cutter, misal JUL dari Juliet)
+│     T        │  <- Baris 4: 1 Huruf Depan Judul Buku (misal T dari Timeless)
 └──────────────┘
 ```
+*(Catatan: Keempat baris ini dapat disunting secara fleksibel pada menu Edit Buku, serta didukung penuh melalui impor/ekspor file Excel).*
 
 ### Langkah 4: Klik Simpan
-Jika sudah memilih kotak di Langkah 1, langsung klik tombol oranye **"Simpan Format SLiMS"** di pojok kanan atas. Selesai!
+Klik tombol oranye **"Simpan Format SLiMS"** di pojok kanan atas untuk menyimpan konfigurasi.
 
 ---
 
@@ -268,20 +278,57 @@ Buka menu **Lainnya ➔ Pengaturan ➔ Tab "Warta Perpus (CMS)"**:
 
 ---
 
-## 14. Ekspor Cadangan Master Excel & SLiMS CSV
+## 14. Ekspor & Impor Master Excel (.xlsx) dengan 4 Baris Punggung Buku
 
-Pustakawan dapat mengamankan data secara berkala:
-1. **Master Excel 5-Sheet Yayasan SBTH:**
-   - Buka menu **Lainnya ➔ Master Excel**.
-   - Klik **"Unduh Master Excel 5-Sheet"**.
-   - Berisi Rekap Bulanan, Master Katalog, Inventaris Fisik, Riwayat Sirkulasi, dan Data Anggota Siswa.
-2. **Ekspor SLiMS CSV:**
-   - Buka menu **Koleksi & Eksemplar ➔ Unduh Format SLiMS**.
-   - File CSV langsung siap diimpor ke aplikasi SLiMS 9 Bulian standar perpustakaan nasional.
+Pustakawan dapat mengamankan dan memindahkan data lama sekolah secara rapi:
+1. **Unduh Master Excel 5-Sheet Yayasan SBTH:**
+   - Buka menu **Lainnya ➔ Master Excel ➔ Unduh Master Excel 5-Sheet**.
+   - Berisi Sheet: `Ringkasan_Statistik`, `Master_Katalog`, `Inventaris_Fisik_SBTH`, `Riwayat_Sirkulasi`, dan `Data_Anggota_Siswa`.
+2. **Dukungan 4 Baris Punggung Buku & Status Label di Excel:**
+   - Kolom Excel mencakup:
+     - `Baris 1 - Kode Rak (misal SR)`
+     - `Baris 2 - Nomor DDC (misal 813)`
+     - `Baris 3 - Kode Pengarang (misal JUL)`
+     - `Baris 4 - Kode Judul (misal T)`
+     - `Status Dicap / Label (Sudah/Belum)`
+3. **Impor Koleksi dari Excel:**
+   - Pustakawan cukup mengunggah file Excel data buku lama sekolah.
+   - Sistem akan langsung membaca seluruh metadata buku, posisi 4 baris punggung buku, dan otomatis menandai eksemplar yang sudah dicap stempel.
 
 ---
 
-## 15. Kontak Bantuan Teknis
+## 15. Panduan Cetak Label Barcode, Tips Kertas Awet & Cap Manual Tanpa Printer
+
+Buka menu **Koleksi & Eksemplar ➔ Cetak Label Barcode**:
+
+### A. Kertas HVS vs Thermal (Keawetan Jangka Panjang)
+- **Kertas Thermal (Roll Thermal 40x30 mm):**
+  - Menggunakan reaksi kimia panas (*thermo-sensitive*). Dalam **6–12 bulan**, hasil cetak akan memudar karena pengaruh suhu ruang dan gesekan. Kurang cocok untuk buku perpustakaan yang digunakan bertahun-tahun.
+- **Kertas Stiker HVS (Tom & Jerry No. 103 / Kertas Stiker HVS A4):**
+  - **Sangat Awet Puluhan Tahun.**
+  - **Pilihan Tinta:** Gunakan **Printer Laser (Toner Bubuk)** atau **Printer Inkjet Tinta Pigment / Art Paper**. Toner laser menyatu permanen ke serat kertas dan tidak akan luntur atau pudar.
+  - **Tips Perlindungan Ekstra:** Setelah stiker ditempel pada buku, lapisi permukaannya dengan **lakban bening tebal / selotip jilid transparan (*book tape*)** agar anti-air, tidak mudah robek, dan tahan terhadap tangan anak-anak.
+
+### B. Opsi Tanpa Printer: Cukup Cap Manual & Tulis Ballpoint
+- Jika sekolah belum ingin mencetak stiker barcode, pustakawan cukup mengecap stempel buku perpustakaan dan menulis nomor daftarnya memakai ballpoint.
+- Klik tombol **`🏷️ Tandai Dicap`** pada kartu buku atau klik badge **`⚠️ Belum`** pada eksemplar untuk langsung menandainya sebagai **`🏷️ Dicap/Cetak`**.
+- **Tetap Bisa Dicetak Kapan Saja:** Buku yang sudah ditandai dicap ini **tetap bisa dicetak ulang stiker barcodenya kapan saja** lewat tombol *"Cetak Barcode"* atau *"Cetak Semua"* saat sekolah ingin menambahkan stiker barcode untuk keperluan scan USB.
+- **Audit Log:** Seluruh aksi penandaan dicatat otomatis ke menu **Lainnya ➔ Audit & Riwayat** (`TANDAI_CAP_MANUAL` / `CETAK_LABEL_BARCODE`).
+
+---
+
+## 16. Mode Kembali ke Atas (Back to Top) di OPAC
+
+Pada halaman katalog OPAC (baik Mode Kiosk Layar Penuh Anak maupun Mode Pustakawan):
+1. **Floating Button Cepat:**
+   - Saat pengguna menggulir (*scroll*) halaman ke bawah lebih dari 80px, tombol oranye melayang **"Kembali ke Atas"** akan otomatis muncul di sudut kanan bawah.
+   - Mengklik tombol ini akan mengembalikan layar secara halus (*smooth scroll*) ke bagian paling atas halaman.
+2. **Bilah Navigasi Statis Bawah Katalog:**
+   - Di bagian paling bawah daftar buku, tersedia ringkasan jumlah buku yang sedang tampil serta tombol **`Kembali ke Puncak Katalog ⬆️`** sebagai navigasi alternatif.
+
+---
+
+## 17. Kontak Bantuan Teknis
 
 Aplikasi ini dikembangkan dan didukung penuh oleh:
 - **Nama**: Prasetyo Handy Kurniawan
