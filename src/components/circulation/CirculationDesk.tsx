@@ -152,25 +152,38 @@ export const CirculationDesk: React.FC<CirculationDeskProps> = ({
       return;
     }
 
-    // If it's a book item barcode
-    if (/^SBTH-B-/i.test(clean)) {
+    // If it's a book item barcode (supports SBTH-B-..., 4-digit accession number e.g. "0143", or direct barcode match)
+    const matchedItem = allItems.find(
+      (i) =>
+        i.itemBarcode.toUpperCase() === clean ||
+        (clean.length === 4 && i.itemBarcode.replace(/\D/g, '').slice(-4) === clean) ||
+        (clean.length === 4 && i.itemBarcode.replace(/\D/g, '').padStart(4, '0') === clean)
+    );
+
+    if (/^SBTH-B-/i.test(clean) || /^\d{4}$/.test(clean) || matchedItem) {
+      const barcodeToUse = matchedItem ? matchedItem.itemBarcode : clean;
       if (activeTab === 'RETURN') {
-        handleQuickReturn(clean);
+        handleQuickReturn(barcodeToUse);
       } else if (activeTab === 'INSPECT') {
-        setInspectBarcode(clean);
+        setInspectBarcode(barcodeToUse);
         soundFx.playScanBeep();
       } else {
-        handleScanBookToCart(clean);
+        handleScanBookToCart(barcodeToUse);
       }
       if (onClearScannedCode) onClearScannedCode();
       return;
     }
-  }, [scannedCode, activeTab, members]);
+  }, [scannedCode, activeTab, members, allItems]);
 
   // Add book to borrow cart
   const handleScanBookToCart = (barcode: string) => {
     const clean = barcode.trim().toUpperCase();
-    const item = allItems.find((i) => i.itemBarcode.toUpperCase() === clean);
+    const item = allItems.find(
+      (i) =>
+        i.itemBarcode.toUpperCase() === clean ||
+        (clean.length === 4 && i.itemBarcode.replace(/\D/g, '').slice(-4) === clean) ||
+        (clean.length === 4 && i.itemBarcode.replace(/\D/g, '').padStart(4, '0') === clean)
+    );
 
     if (!item) {
       alert(`Buku dengan barcode "${clean}" tidak ditemukan di database SBTH.`);
@@ -178,19 +191,21 @@ export const CirculationDesk: React.FC<CirculationDeskProps> = ({
       return;
     }
 
+    const itemBarcode = item.itemBarcode;
+
     if (item.status === 'BORROWED') {
-      alert(`Buku ${clean} sedang dipinjam oleh siswa lain! Silakan proses pengembalian terlebih dahulu.`);
+      alert(`Buku ${itemBarcode} sedang dipinjam oleh siswa lain! Silakan proses pengembalian terlebih dahulu.`);
       soundFx.playErrorBeep();
       return;
     }
 
     if (item.status === 'DAMAGED' || item.status === 'LOST') {
-      alert(`Buku ${clean} sedang berstatus "${item.status}" (${item.conditionNote}).`);
+      alert(`Buku ${itemBarcode} sedang berstatus "${item.status}" (${item.conditionNote}).`);
       soundFx.playErrorBeep();
       return;
     }
 
-    if (cartBarcodes.includes(clean)) {
+    if (cartBarcodes.includes(itemBarcode)) {
       soundFx.playScanBeep();
       return;
     }
@@ -202,7 +217,7 @@ export const CirculationDesk: React.FC<CirculationDeskProps> = ({
       return;
     }
 
-    setCartBarcodes((prev) => [...prev, clean]);
+    setCartBarcodes((prev) => [...prev, itemBarcode]);
     soundFx.playScanBeep();
   };
 
@@ -259,10 +274,18 @@ export const CirculationDesk: React.FC<CirculationDeskProps> = ({
     const clean = barcodeToReturn.trim().toUpperCase();
     if (!clean) return;
 
+    const matchedItem = allItems.find(
+      (i) =>
+        i.itemBarcode.toUpperCase() === clean ||
+        (clean.length === 4 && i.itemBarcode.replace(/\D/g, '').slice(-4) === clean) ||
+        (clean.length === 4 && i.itemBarcode.replace(/\D/g, '').padStart(4, '0') === clean)
+    );
+    const barcodeToUse = matchedItem ? matchedItem.itemBarcode : clean;
+
     const activeLibrarian = libraryStore.getCurrentLibrarian();
     const librarianName = activeLibrarian?.name || 'Pustakawan SBTH';
 
-    const result = libraryStore.returnLoanItem(clean, returnCondition, '', librarianName);
+    const result = libraryStore.returnLoanItem(barcodeToUse, returnCondition, '', librarianName);
 
     if (!result.success) {
       alert(result.message);
@@ -270,7 +293,7 @@ export const CirculationDesk: React.FC<CirculationDeskProps> = ({
       return;
     }
 
-    const item = allItems.find((i) => i.itemBarcode.toUpperCase() === clean);
+    const item = matchedItem || allItems.find((i) => i.itemBarcode.toUpperCase() === barcodeToUse);
     if (!item) return;
 
     const returningMember = (result.member || returnSelectedMember) || undefined;
@@ -642,7 +665,7 @@ export const CirculationDesk: React.FC<CirculationDeskProps> = ({
                           }
                         }
                       }}
-                      placeholder="Scan atau ketik barcode buku fisik (misal: SBTH-B-00101)..."
+                      placeholder="Scan atau ketik barcode slip buku (misal: 0143 atau SBTH-B-00101)..."
                       className="w-full rounded-xl border border-border bg-surface-2 pl-10 pr-3 py-2 text-xs font-mono text-text placeholder-text-muted focus:outline-hidden focus:ring-1 focus:ring-amber-500"
                     />
                   </div>
@@ -668,7 +691,7 @@ export const CirculationDesk: React.FC<CirculationDeskProps> = ({
                       Belum ada buku di keranjang peminjaman
                     </p>
                     <p className="text-[11px] text-text-muted">
-                      Arahkan USB Barcode Scanner ke stiker barcode di sampul belakang buku
+                      Arahkan USB Barcode Scanner ke stiker barcode 4-digit di slip dalam buku (atau ketik nomor daftar)
                     </p>
                   </div>
                 ) : (
@@ -1002,7 +1025,7 @@ export const CirculationDesk: React.FC<CirculationDeskProps> = ({
                             handleQuickReturn(returnBarcode);
                           }
                         }}
-                        placeholder="Scan atau ketik barcode buku (misal: SBTH-B-00101)..."
+                        placeholder="Scan atau ketik barcode slip buku (misal: 0143 atau SBTH-B-00101)..."
                         className="w-full rounded-xl border border-border bg-surface-2 pl-10 pr-3 py-2.5 text-xs font-mono font-bold text-text placeholder-text-muted focus:outline-hidden focus:ring-1 focus:ring-amber-500"
                       />
                     </div>

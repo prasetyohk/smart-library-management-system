@@ -271,7 +271,7 @@ export const LabelPrintGenerator: React.FC<LabelPrintGeneratorProps> = ({
               >
                 📑 Slip Dalam Buku
                 <span className="block text-[9px] font-normal text-slate-500 mt-0.5">
-                  6 x 2.5 cm Kotak • KOP, No. & Tgl
+                  6 x 2.5 cm Kotak • KOP, No. & Barcode
                 </span>
               </button>
               <button
@@ -379,7 +379,7 @@ export const LabelPrintGenerator: React.FC<LabelPrintGeneratorProps> = ({
                   className="w-16 h-8 rounded-lg border border-amber-500/60 bg-white dark:bg-slate-900 px-2 text-center text-xs font-mono font-bold text-amber-500 outline-hidden focus:ring-1 focus:ring-amber-500"
                 />
                 <p className="text-[10px] text-slate-500 dark:text-slate-400 leading-tight">
-                  Kode Rak: <strong>[{customShelfCode || 'SR'}]</strong> • KOP resmi SBTH & Barcode lengkap.
+                  Kode Rak: <strong>[{customShelfCode || 'SR'}]</strong> • KOP resmi SBTH & Nomor Panggil 4-Baris (Tanpa Barcode).
                 </p>
               </div>
             </div>
@@ -387,7 +387,7 @@ export const LabelPrintGenerator: React.FC<LabelPrintGeneratorProps> = ({
             <div className="flex items-center p-2.5 text-xs text-blue-700 dark:text-blue-300 bg-blue-50 dark:bg-blue-950/40 rounded-xl border border-blue-200 dark:border-blue-800 gap-2">
               <span className="text-xl">📑</span>
               <p className="leading-tight text-[11px]">
-                <strong>Slip Dalam 6 x 2.5 cm Kotak:</strong> Dilengkapi KOP resmi SBTH (Logo di kiri, Teks di tengah), No. Daftar 4 Digit (contoh: <code>0101</code>) & Tanggal (<code>DD/MM/TTTT</code>) untuk potong manual.
+                <strong>Slip Dalam 6 x 2.5 cm Kotak:</strong> Dilengkapi KOP resmi SBTH (Logo di kiri, Teks di tengah), No. Daftar 4 Digit (contoh: <code>0101</code>), Tanggal, & <strong>Barcode Scanner 4-Digit</strong> untuk sirkulasi buku.
               </p>
             </div>
           ) : (
@@ -581,7 +581,7 @@ export const LabelPrintGenerator: React.FC<LabelPrintGeneratorProps> = ({
                     <div>
                       <strong>Standar Label Punggung Buku Fisik SBTH (7.4 x 4 cm Kotak Potong Manual):</strong>
                       <p className="text-[11px] text-amber-800/80 dark:text-amber-300/80">
-                        Dilengkapi KOP resmi SBTH (Logo kiri, teks tengah), strip warna DDC, kotak 4 baris, & barcode untuk dipotong manual.
+                        Dilengkapi KOP resmi SBTH (Logo kiri, teks tengah), strip warna DDC, & kotak 4 baris nomor panggil untuk dipotong manual (Tanpa Barcode di Punggung).
                       </p>
                     </div>
                   </div>
@@ -612,6 +612,7 @@ export const LabelPrintGenerator: React.FC<LabelPrintGeneratorProps> = ({
                       book?.authorCode,
                       book?.titleCode
                     );
+                    const slip = getSbthInsideSlipData(ei.item.itemBarcode, ei.item.copyNumber, book?.createdAt || ei.item.acquisitionDate);
 
                     return (
                       <div
@@ -649,57 +650,61 @@ export const LabelPrintGenerator: React.FC<LabelPrintGeneratorProps> = ({
                           <span className="font-mono text-[7px] print:text-[5pt] opacity-90 shrink-0">#{ei.item.copyNumber}</span>
                         </div>
 
-                        {/* 3. KONTEN LABEL */}
+                        {/* 3. KONTEN LABEL PUNGGUNG (TANPA BARCODE) */}
                         {spineOrientation === 'LANDSCAPE' ? (
-                          <div className="flex-1 flex items-stretch gap-1.5 p-1 min-h-0">
-                            {/* Kotak Call Number 4-Baris Vertikal */}
-                            <div className="w-[24mm] shrink-0 border border-black rounded-xs flex flex-col justify-center divide-y divide-black font-mono text-center bg-slate-50">
-                              <div className="py-0.5 font-extrabold text-[10px] print:text-[8pt] text-black tracking-widest leading-none">{customShelfCode || spine.shelfCode}</div>
-                              <div className="py-0.5 font-extrabold text-[10px] print:text-[8pt] text-black tracking-wider leading-none">{spine.ddc}</div>
-                              <div className="py-0.5 font-extrabold text-[10px] print:text-[8pt] text-black tracking-widest uppercase leading-none">{spine.authorCode}</div>
-                              <div className="py-0.5 font-bold text-[10px] print:text-[8pt] text-black lowercase leading-none">{spine.titleCode}</div>
+                          <div className="flex-1 flex items-stretch gap-2 p-1.5 min-h-0">
+                            {/* Kotak Call Number 4-Baris Vertikal (Tegas & Jelas di Rak) */}
+                            <div className="w-[28mm] shrink-0 border-2 border-black rounded-xs flex flex-col justify-center divide-y-2 divide-black font-mono text-center bg-slate-50 shadow-2xs">
+                              <div className="py-0.5 font-black text-[11px] print:text-[8.5pt] text-black tracking-widest leading-none">{customShelfCode || spine.shelfCode}</div>
+                              <div className="py-0.5 font-black text-[11px] print:text-[8.5pt] text-black tracking-wider leading-none">{spine.ddc}</div>
+                              <div className="py-0.5 font-black text-[11px] print:text-[8.5pt] text-black tracking-widest uppercase leading-none">{spine.authorCode}</div>
+                              <div className="py-0.5 font-bold text-[11px] print:text-[8.5pt] text-black lowercase leading-none">{spine.titleCode}</div>
                             </div>
 
-                            {/* Barcode & Info Buku */}
-                            <div className="flex-1 flex flex-col justify-between items-center text-center min-w-0 py-0.5">
-                              <div className="w-full flex items-center justify-center scale-90 sm:scale-95 origin-center">
-                                <BarcodeSvg
-                                  value={ei.item.itemBarcode}
-                                  width={1.0}
-                                  height={22}
-                                  fontSize={8}
-                                  textMargin={1}
-                                />
-                              </div>
-                              <div className="w-full">
-                                <p className="text-[8px] print:text-[6pt] font-bold text-black leading-tight line-clamp-1">
+                            {/* Info Buku & Lokasi Rak Fisik (Tanpa Barcode) */}
+                            <div className="flex-1 flex flex-col justify-between py-0.5 min-w-0 text-left">
+                              <div>
+                                <p className="text-[9.5px] print:text-[7pt] font-black text-black leading-tight line-clamp-2">
                                   {book?.title || 'Buku Cerita SBTH'}
                                 </p>
-                                <p className="text-[7px] print:text-[5pt] font-mono text-slate-600 truncate mt-0.5">
-                                  No: {ei.item.itemBarcode} • Copy #{ei.item.copyNumber}
+                                <p className="text-[8px] print:text-[5.5pt] text-slate-700 leading-tight mt-0.5 truncate">
+                                  {book?.author || 'Penulis SBTH'} • {book?.publisher || ''} {book?.publicationYear ? `(${book.publicationYear})` : ''}
                                 </p>
+                              </div>
+
+                              <div className="space-y-0.5 pt-0.5 border-t border-slate-300">
+                                <div className="flex items-center justify-between text-[7.5px] print:text-[5pt] font-mono text-slate-700">
+                                  <span className="font-bold">No. Panggil: ({spine.ddc} {spine.authorCode} {spine.titleCode})</span>
+                                  <span>Copy #{ei.item.copyNumber}</span>
+                                </div>
+                                <div className="flex items-center justify-between text-[7px] print:text-[4.5pt] text-slate-600 font-mono">
+                                  <span className="truncate max-w-[110px]">📍 {book?.shelfLocation || cat.shelfLocation || 'Rak Buku'}</span>
+                                  <span className="font-bold text-black">No: {slip.accessionNumber}</span>
+                                </div>
                               </div>
                             </div>
                           </div>
                         ) : (
                           // Mode Potret (4 x 7.4 cm)
-                          <div className="flex-1 flex flex-col justify-between p-1 min-h-0">
-                            <div className="border border-black rounded-xs flex flex-col justify-center divide-y divide-black font-mono text-center bg-slate-50 my-1">
-                              <div className="py-1 font-extrabold text-xs print:text-[9pt] text-black tracking-widest">{customShelfCode || spine.shelfCode}</div>
-                              <div className="py-1 font-extrabold text-xs print:text-[9pt] text-black tracking-wider">{spine.ddc}</div>
-                              <div className="py-1 font-extrabold text-xs print:text-[9pt] text-black tracking-widest uppercase">{spine.authorCode}</div>
-                              <div className="py-1 font-bold text-xs print:text-[9pt] text-black lowercase">{spine.titleCode}</div>
+                          <div className="flex-1 flex flex-col justify-between p-1.5 min-h-0 text-center">
+                            {/* Kotak Call Number 4-Baris Vertikal */}
+                            <div className="border-2 border-black rounded-xs flex flex-col justify-center divide-y-2 divide-black font-mono text-center bg-slate-50 my-1 shadow-2xs">
+                              <div className="py-1 font-black text-xs print:text-[9.5pt] text-black tracking-widest leading-none">{customShelfCode || spine.shelfCode}</div>
+                              <div className="py-1 font-black text-xs print:text-[9.5pt] text-black tracking-wider leading-none">{spine.ddc}</div>
+                              <div className="py-1 font-black text-xs print:text-[9.5pt] text-black tracking-widest uppercase leading-none">{spine.authorCode}</div>
+                              <div className="py-1 font-bold text-xs print:text-[9.5pt] text-black lowercase leading-none">{spine.titleCode}</div>
                             </div>
-                            <div className="flex flex-col items-center justify-center text-center">
-                              <BarcodeSvg
-                                value={ei.item.itemBarcode}
-                                width={0.9}
-                                height={20}
-                                fontSize={7.5}
-                                textMargin={1}
-                              />
-                              <p className="text-[7.5px] print:text-[5.5pt] font-bold text-black line-clamp-1 mt-0.5">
+
+                            {/* Info Buku di bawah kotak (Tanpa Barcode) */}
+                            <div className="w-full space-y-0.5 pt-1 border-t border-slate-300">
+                              <p className="text-[8.5px] print:text-[6.5pt] font-black text-black line-clamp-2 leading-tight">
                                 {book?.title}
+                              </p>
+                              <p className="text-[7.5px] print:text-[5pt] text-slate-700 truncate leading-none">
+                                {book?.author}
+                              </p>
+                              <p className="text-[7px] print:text-[4.5pt] font-mono text-slate-600 leading-none">
+                                ({spine.ddc} {spine.authorCode} {spine.titleCode}) • Copy #{ei.item.copyNumber}
                               </p>
                             </div>
                           </div>
@@ -737,7 +742,7 @@ export const LabelPrintGenerator: React.FC<LabelPrintGeneratorProps> = ({
                     return (
                       <div
                         key={ei.item.id}
-                        className="sbth-slip-label border border-black print:border-[1pt] print:border-black rounded-lg print:rounded-none overflow-hidden bg-white text-black p-1.5 w-full sm:w-[240px] h-[120px] print:w-[60mm] print:h-[25mm] print:max-h-[25mm] print:shadow-none shadow-xs mx-auto flex flex-col justify-between"
+                        className="sbth-slip-label border border-black print:border-[1pt] print:border-black rounded-lg print:rounded-none overflow-hidden bg-white text-black p-1.5 w-full sm:w-[250px] h-[125px] print:w-[60mm] print:h-[25mm] print:max-h-[25mm] print:shadow-none shadow-xs mx-auto flex flex-col justify-between"
                       >
                         {/* 1. KOP Resmi SBTH (Logo di kiri, Teks di tengah) */}
                         <div className="flex items-center gap-1.5 border-b border-black pb-0.5 px-0.5 shrink-0 bg-white">
@@ -757,21 +762,36 @@ export const LabelPrintGenerator: React.FC<LabelPrintGeneratorProps> = ({
                           </div>
                         </div>
 
-                        {/* 2. Isi No Daftar 4 Digit & Tanggal DD/MM/YYYY */}
-                        <div className="my-0.5 space-y-0.5 font-mono text-[9px] print:text-[6.5pt]">
-                          <div className="flex items-center justify-between border border-black/60 px-1.5 py-0.5 rounded-xs bg-slate-50">
-                            <span className="font-semibold text-slate-800 text-[8px] print:text-[5.5pt]">No. Daftar :</span>
-                            <span className="font-black text-[10px] print:text-[7.5pt] text-black tracking-widest">{slip.accessionNumber}</span>
+                        {/* 2. Isi No Daftar 4 Digit, Tanggal & Barcode Scanner 4 Digit */}
+                        <div className="my-0.5 flex items-stretch gap-1.5 min-h-0">
+                          {/* Kolom Kiri: Kotak No. Daftar & Tanggal */}
+                          <div className="w-[52%] flex flex-col justify-center space-y-0.5 font-mono text-[8.5px] print:text-[6pt]">
+                            <div className="flex items-center justify-between border border-black/80 px-1 py-0.5 rounded-xs bg-slate-50">
+                              <span className="font-semibold text-slate-800 text-[7.5px] print:text-[5pt]">No. Daftar :</span>
+                              <span className="font-black text-[9.5px] print:text-[7pt] text-black tracking-wider">{slip.accessionNumber}</span>
+                            </div>
+                            <div className="flex items-center justify-between border border-black/80 px-1 py-0.5 rounded-xs bg-slate-50">
+                              <span className="font-semibold text-slate-800 text-[7.5px] print:text-[5pt]">Tanggal :</span>
+                              <span className="font-bold text-[8.5px] print:text-[6pt] text-black">{slip.dateStr}</span>
+                            </div>
                           </div>
-                          <div className="flex items-center justify-between border border-black/60 px-1.5 py-0.5 rounded-xs bg-slate-50">
-                            <span className="font-semibold text-slate-800 text-[8px] print:text-[5.5pt]">Tanggal :</span>
-                            <span className="font-bold text-[9px] print:text-[6.5pt] text-black">{slip.dateStr}</span>
+
+                          {/* Kolom Kanan: Barcode Scanner Code-128 dari Nomor Daftar 4 Digit */}
+                          <div className="flex-1 flex flex-col items-center justify-center overflow-hidden border border-slate-300 rounded-xs py-0.5 bg-white">
+                            <BarcodeSvg
+                              value={slip.accessionNumber}
+                              width={1.15}
+                              height={18}
+                              fontSize={8}
+                              textMargin={0}
+                              className="max-h-[14mm] w-auto"
+                            />
                           </div>
                         </div>
 
                         {/* 3. Info Judul & Eksemplar */}
                         <div className="border-t border-slate-300 pt-0.5 flex items-center justify-between text-[7.5px] print:text-[5pt] text-slate-600 font-sans leading-none shrink-0">
-                          <span className="truncate max-w-[130px] font-medium text-slate-900">{book?.title || 'Buku Cerita SBTH'}</span>
+                          <span className="truncate max-w-[125px] font-medium text-slate-900">{book?.title || 'Buku Cerita SBTH'}</span>
                           <span className="font-mono text-[7px] print:text-[4.5pt]">ISBN: {book?.isbn || '-'}</span>
                           <span>Copy #{ei.item.copyNumber}</span>
                         </div>

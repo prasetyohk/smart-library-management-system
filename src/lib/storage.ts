@@ -952,9 +952,15 @@ export class LibraryStore {
     const members = this.getMembers();
 
     const cleanBarcode = itemBarcode.trim().toUpperCase();
-    const item = items.find((i) => i.itemBarcode.toUpperCase() === cleanBarcode);
+    const item = items.find(
+      (i) =>
+        i.itemBarcode.toUpperCase() === cleanBarcode ||
+        (cleanBarcode.length === 4 && i.itemBarcode.replace(/\D/g, '').slice(-4) === cleanBarcode) ||
+        (cleanBarcode.length === 4 && i.itemBarcode.replace(/\D/g, '').padStart(4, '0') === cleanBarcode)
+    );
     if (!item) return { success: false, message: 'Buku dengan barcode ini tidak ditemukan di sistem perpustakaan.' };
 
+    const actualBarcode = item.itemBarcode.toUpperCase();
     let foundLoan: Loan | undefined;
     const todayStr = new Date().toISOString().split('T')[0];
 
@@ -962,13 +968,13 @@ export class LibraryStore {
       if (loan.status === 'RETURNED') return loan;
 
       const hasItem = loan.items.some(
-        (it) => it.itemBarcode.toUpperCase() === cleanBarcode && !it.returnDate
+        (it) => (it.itemBarcode.toUpperCase() === actualBarcode || it.itemBarcode.toUpperCase() === cleanBarcode) && !it.returnDate
       );
 
       if (hasItem) {
         foundLoan = loan;
         const updatedItems = loan.items.map((it) => {
-          if (it.itemBarcode.toUpperCase() === cleanBarcode && !it.returnDate) {
+          if ((it.itemBarcode.toUpperCase() === actualBarcode || it.itemBarcode.toUpperCase() === cleanBarcode) && !it.returnDate) {
             return {
               ...it,
               returnDate: todayStr,
@@ -995,7 +1001,7 @@ export class LibraryStore {
     if (condition === 'LOST') nextStatus = 'LOST';
 
     const updatedItems = items.map((i) => {
-      if (i.itemBarcode.toUpperCase() === cleanBarcode) {
+      if (i.itemBarcode.toUpperCase() === actualBarcode) {
         return {
           ...i,
           status: nextStatus,
@@ -1079,7 +1085,11 @@ export class LibraryStore {
     const members = this.getMembers();
 
     const item = items.find(
-      (i) => i.itemBarcode.toUpperCase() === clean || i.id.toUpperCase() === clean
+      (i) =>
+        i.itemBarcode.toUpperCase() === clean ||
+        i.id.toUpperCase() === clean ||
+        (clean.length === 4 && i.itemBarcode.replace(/\D/g, '').slice(-4) === clean) ||
+        (clean.length === 4 && i.itemBarcode.replace(/\D/g, '').padStart(4, '0') === clean)
     );
     if (!item) return { history: [] };
 

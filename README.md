@@ -28,13 +28,13 @@ Katalog pencarian buku visual ramah anak usia dini (PAUD/TK) dengan ilustrasi ce
 ---
 
 ### 2. 🏷️ Generator Cetak Label Punggung Presisi (7.4 x 4 cm Kotak Potong Manual)
-Sistem cetak label punggung buku fisik presisi tinggi dengan garis potong manual tegas (`1pt solid black`), **KOP Resmi SBTH (Logo di pojok kiri, Tulisan di tengah)**, strip warna DDC, nomor panggil 4-baris vertikal, dan Barcode Vector Code-128.
+Sistem cetak label punggung buku fisik presisi tinggi dengan garis potong manual tegas (`1pt solid black`), **KOP Resmi SBTH (Logo di pojok kiri, Tulisan di tengah)**, strip warna DDC, nomor panggil 4-baris vertikal (`[KODE RAK] / [DDC] / [PENGARANG] / [JUDUL]`), dan info buku lengkap tanpa barcode agar rapi dan fokus pada penataan rak.
 ![Cetak Label Punggung SBTH](docs/screenshots/04_cetak_label_punggung_sbth.png)
 
 ---
 
 ### 3. 📑 Slip Cap Bagian Dalam Buku Fisik (6 x 2.5 cm Kotak Potong Manual)
-Label khusus halaman dalam buku untuk mencatat No. Daftar 4-digit (misal: `0101`) dan Tanggal Masuk (`DD/MM/YYYY`) dengan KOP resmi sekolah dan garis potong rapi.
+Label khusus halaman dalam buku untuk mencatat No. Daftar 4-digit (misal: `0143`), Tanggal Masuk (`DD/MM/YYYY`), dan **Barcode Scanner Vector Code-128 dari nomor daftar 4-digit** untuk pemindaian sirkulasi kilat, dilengkapi KOP resmi sekolah dan garis kotak potong rapi.
 ![Slip Cap Bagian Dalam Buku](docs/screenshots/05_cetak_slip_dalam_buku.png)
 
 ---
@@ -79,13 +79,14 @@ Portal interaktif khusus siswa untuk melihat buku yang sedang dipinjam, histori 
     - *Baris 2*: `Jl. Jendral Sudirman No 68 A Magelang`
   - Strip warna kategori DDC cerah kontras untuk navigasi visual di rak.
   - Kotak Call Number 4-Baris Vertikal: `[KODE RAK]` / `[DDC]` / `[3-HURUF PENGARANG]` / `[1-huruf judul]`.
-  - Barcode Vector Code-128 anti-pecah.
+  - **Fokus Tanpa Barcode**: Punggung buku dirancang bersih khusus penataan rak lemari buku.
   - Pilihan orientasi: Default **Lanskap (7.4 x 4 cm)** dan opsional **Potret (4 x 7.4 cm)**.
 - **Slip Cap Dalam Buku (6 x 2.5 cm)**:
-  - Format kotak presisi potong manual.
+  - Format kotak presisi potong manual untuk ditempel di lembar dalam buku.
   - KOP Resmi SBTH (Logo kiri, teks tengah).
-  - No. Daftar 4 Digit (contoh: `0101`, `0102`).
+  - No. Daftar 4 Digit (contoh: `0101`, `0143`).
   - Tanggal Pengadaan Buku (`DD/MM/YYYY`).
+  - **Barcode Scanner Code-128**: Meng-encode nomor daftar 4 digit untuk dipindai scanner USB di meja sirkulasi.
   - Judul buku, nomor ISBN, dan nomor salinan eksemplar.
 
 ### 📚 2. Klasifikasi e-DDC Standar Perpusnas RI
