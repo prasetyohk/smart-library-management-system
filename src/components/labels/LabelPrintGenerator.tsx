@@ -45,6 +45,7 @@ export const LabelPrintGenerator: React.FC<LabelPrintGeneratorProps> = ({
 }) => {
   const [template, setTemplate] = useState<PrintTemplateType>('SPINE_SBTH');
   const [spineOrientation, setSpineOrientation] = useState<'LANDSCAPE' | 'PORTRAIT'>('LANDSCAPE');
+  const [spineSize, setSpineSize] = useState<'68x38' | '74x40'>('68x38'); // Default 68x38 mm (21 stiker/lembar A4)
   const [spineBoxWidth, setSpineBoxWidth] = useState<'CENTERED' | 'FULL'>('CENTERED');
   const [customShelfCode, setCustomShelfCode] = useState<string>('SR');
   const [startOffsetIndex, setStartOffsetIndex] = useState<number>(0); // 0 to 11 (position 1 to 12)
@@ -225,8 +226,20 @@ export const LabelPrintGenerator: React.FC<LabelPrintGeneratorProps> = ({
   // 1. Slip Dalam Buku: 3 kolom x 10 baris = 30 label per lembar A4 (60x25 mm)
   const slipSheets = useMemo(() => chunkArray(itemsToPrint, 30), [itemsToPrint]);
 
-  // 2. Punggung Buku SBTH: 2 kolom x 6 baris (Lanskap) atau 4 kolom x 3 baris (Potret) = 12 label per lembar A4
-  const spineSheets = useMemo(() => chunkArray(itemsToPrint, 12), [itemsToPrint]);
+  // 2. Punggung Buku SBTH:
+  // - 68x38 mm (Hemat HVS): 3 kolom x 7 baris = 21 label (Lanskap) atau 5 kolom x 4 baris = 20 label (Potret)
+  // - 74x40 mm (Klasik): 2 kolom x 6 baris = 12 label (Lanskap) atau 4 kolom x 3 baris = 12 label (Potret)
+  const spineItemsPerSheet = useMemo(() => {
+    if (spineSize === '68x38') {
+      return spineOrientation === 'LANDSCAPE' ? 21 : 20;
+    }
+    return 12;
+  }, [spineSize, spineOrientation]);
+
+  const spineSheets = useMemo(
+    () => chunkArray(itemsToPrint, spineItemsPerSheet),
+    [itemsToPrint, spineItemsPerSheet]
+  );
 
   // 3. Tom & Jerry 103: 3 kolom x 4 baris = 12 label per lembar A4 (64x32 mm)
   const tj103Sheets = useMemo(() => chunkArray(tj103Slots, 12), [tj103Slots]);
@@ -287,7 +300,13 @@ export const LabelPrintGenerator: React.FC<LabelPrintGeneratorProps> = ({
               >
                 📏 Punggung SBTH
                 <span className="block text-[9px] font-normal text-slate-500 mt-0.5">
-                  {spineOrientation === 'LANDSCAPE' ? '7.4x4 cm • Grid 2x6 (12/Lbr)' : '4x7.4 cm • Grid 4x3 (12/Lbr)'}
+                  {spineSize === '68x38'
+                    ? spineOrientation === 'LANDSCAPE'
+                      ? '68×38 mm • 3×7 (21/Lbr Hemat)'
+                      : '38×68 mm • 5×4 (20/Lbr Hemat)'
+                    : spineOrientation === 'LANDSCAPE'
+                    ? '74×40 mm • 2×6 (12/Lbr)'
+                    : '40×74 mm • 4×3 (12/Lbr)'}
                 </span>
               </button>
               <button
@@ -370,9 +389,43 @@ export const LabelPrintGenerator: React.FC<LabelPrintGeneratorProps> = ({
             </div>
           ) : template === 'SPINE_SBTH' ? (
             <div className="space-y-2 flex flex-col justify-center">
+              {/* Opsi Ukuran Stiker: 68x38 (21/Lbr Hemat) vs 74x40 (12/Lbr) */}
               <div className="flex items-center justify-between">
                 <label className="font-bold text-slate-700 dark:text-slate-300 text-xs flex items-center gap-1">
-                  <span>Orientasi Punggung:</span>
+                  <span>Ukuran Label:</span>
+                </label>
+                <div className="flex items-center gap-1">
+                  <button
+                    type="button"
+                    onClick={() => setSpineSize('68x38')}
+                    className={`px-2 py-1 rounded-none text-[11px] font-bold transition cursor-pointer ${
+                      spineSize === '68x38'
+                        ? 'bg-emerald-600 text-white shadow-xs'
+                        : 'bg-slate-200 dark:bg-slate-800 text-slate-600 dark:text-slate-400'
+                    }`}
+                    title="Ukuran 68x38 mm: Pas 3 Kolom x 7 Baris = 21 Stiker/Lembar A4 (100% Efisiensi HVS A4)"
+                  >
+                    68 × 38 mm (21 / Lbr) ⭐
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setSpineSize('74x40')}
+                    className={`px-2 py-1 rounded-none text-[11px] font-bold transition cursor-pointer ${
+                      spineSize === '74x40'
+                        ? 'bg-amber-500 text-slate-950 shadow-xs'
+                        : 'bg-slate-200 dark:bg-slate-800 text-slate-600 dark:text-slate-400'
+                    }`}
+                    title="Ukuran 74x40 mm: 2 Kolom x 6 Baris = 12 Stiker/Lembar A4"
+                  >
+                    74 × 40 mm (12 / Lbr)
+                  </button>
+                </div>
+              </div>
+
+              {/* Opsi Orientasi Stiker */}
+              <div className="flex items-center justify-between pt-1 border-t border-slate-200 dark:border-slate-800">
+                <label className="font-bold text-slate-700 dark:text-slate-300 text-xs flex items-center gap-1">
+                  <span>Orientasi:</span>
                 </label>
                 <div className="flex items-center gap-1">
                   <button
@@ -384,7 +437,7 @@ export const LabelPrintGenerator: React.FC<LabelPrintGeneratorProps> = ({
                         : 'bg-slate-200 dark:bg-slate-800 text-slate-600 dark:text-slate-400'
                     }`}
                   >
-                    Lanskap (7.4x4 cm)
+                    {spineSize === '68x38' ? 'Lanskap (68×38 mm)' : 'Lanskap (74×40 mm)'}
                   </button>
                   <button
                     type="button"
@@ -395,7 +448,7 @@ export const LabelPrintGenerator: React.FC<LabelPrintGeneratorProps> = ({
                         : 'bg-slate-200 dark:bg-slate-800 text-slate-600 dark:text-slate-400'
                     }`}
                   >
-                    Potret (4x7.4 cm)
+                    {spineSize === '68x38' ? 'Potret (38×68 mm)' : 'Potret (40×74 mm)'}
                   </button>
                 </div>
               </div>
@@ -413,9 +466,9 @@ export const LabelPrintGenerator: React.FC<LabelPrintGeneratorProps> = ({
                           ? 'bg-emerald-600 text-white font-bold'
                           : 'bg-slate-200 dark:bg-slate-800 text-slate-600 dark:text-slate-400'
                       }`}
-                      title="Kotak 38mm di tengah pas pada punggung buku"
+                      title={spineSize === '68x38' ? 'Kotak 34mm di tengah pas pada punggung buku' : 'Kotak 38mm di tengah pas pada punggung buku'}
                     >
-                      Tengah (38mm)
+                      {spineSize === '68x38' ? 'Tengah (34mm)' : 'Tengah (38mm)'}
                     </button>
                     <button
                       type="button"
@@ -425,9 +478,9 @@ export const LabelPrintGenerator: React.FC<LabelPrintGeneratorProps> = ({
                           ? 'bg-emerald-600 text-white font-bold'
                           : 'bg-slate-200 dark:bg-slate-800 text-slate-600 dark:text-slate-400'
                       }`}
-                      title="Kotak selebar stiker penuh (74mm)"
+                      title={spineSize === '68x38' ? 'Kotak selebar stiker penuh (68mm)' : 'Kotak selebar stiker penuh (74mm)'}
                     >
-                      Penuh (74mm)
+                      {spineSize === '68x38' ? 'Penuh (68mm)' : 'Penuh (74mm)'}
                     </button>
                   </div>
                 </div>
@@ -674,27 +727,39 @@ export const LabelPrintGenerator: React.FC<LabelPrintGeneratorProps> = ({
                   <div className="flex items-center gap-2.5">
                     <span className="text-xl">📏</span>
                     <div>
-                      <div className="font-bold flex items-center gap-2">
+                      <div className="font-bold flex items-center gap-2 flex-wrap">
                         <span>Standar Label Punggung Buku Fisik SBTH (Presisi Siku 90° - Tanpa Barcode)</span>
                         <span className="px-2 py-0.5 rounded-full bg-amber-500/20 text-amber-800 dark:text-amber-200 font-mono text-[10px]">
-                          {spineOrientation === 'LANDSCAPE' ? 'Grid A4: 2 Kolom × 6 Baris (12 Label / Lembar)' : 'Grid A4: 4 Kolom × 3 Baris (12 Label / Lembar)'}
+                          {spineSize === '68x38'
+                            ? spineOrientation === 'LANDSCAPE'
+                              ? 'Grid A4: 3 Kolom × 7 Baris (21 Label / Lembar Hemat ⭐)'
+                              : 'Grid A4: 5 Kolom × 4 Baris (20 Label / Lembar Hemat ⭐)'
+                            : spineOrientation === 'LANDSCAPE'
+                            ? 'Grid A4: 2 Kolom × 6 Baris (12 Label / Lembar)'
+                            : 'Grid A4: 4 Kolom × 3 Baris (12 Label / Lembar)'}
                         </span>
                       </div>
                       <p className="text-[11px] text-amber-800/80 dark:text-amber-300/80 mt-0.5">
-                        Format resmi 4 baris: <strong>SR</strong> (Kode Rak), <strong>DDC</strong>, <strong>Pengarang</strong> (3 huruf), <strong>Judul Depan</strong> (1 huruf). Tersedia mode Lanskap (7.4x4 cm) dan Potret (4x7.4 cm).
+                        Format resmi 4 baris: <strong>SR</strong> (Kode Rak), <strong>DDC</strong>, <strong>Pengarang</strong> (3 huruf), <strong>Judul Depan</strong> (1 huruf).
+                        {spineSize === '68x38' ? ' Ukuran efisien 68×38 mm memaksimalkan kertas A4 hingga 21 label per lembar.' : ' Ukuran 74×40 mm standar 12 label per lembar.'}
                       </p>
                     </div>
                   </div>
-                  <div className="flex items-center gap-2 shrink-0">
-                    <span className="font-mono text-xs bg-white dark:bg-slate-900 px-2.5 py-1 rounded-md border border-amber-300">
-                      Ukuran: <strong>{spineOrientation === 'LANDSCAPE' ? '7.4 × 4 cm' : '4 × 7.4 cm'}</strong>
-                    </span>
+                  <div className="flex items-center gap-2 shrink-0 flex-wrap">
+                    <button
+                      type="button"
+                      onClick={() => setSpineSize(s => s === '68x38' ? '74x40' : '68x38')}
+                      className="px-2.5 py-1 rounded-md bg-white dark:bg-slate-900 border border-amber-300 font-semibold text-[11px] hover:bg-amber-100 transition cursor-pointer"
+                      title="Klik untuk mengubah ukuran fisik label"
+                    >
+                      Ukuran: <strong>{spineSize === '68x38' ? '68 × 38 mm ⭐' : '74 × 40 mm'}</strong>
+                    </button>
                     <button
                       type="button"
                       onClick={() => setSpineOrientation(o => o === 'LANDSCAPE' ? 'PORTRAIT' : 'LANDSCAPE')}
                       className="px-2.5 py-1 rounded-md bg-amber-500 text-slate-950 font-bold text-[11px] hover:bg-amber-400 transition cursor-pointer shadow-xs"
                     >
-                      {spineOrientation === 'LANDSCAPE' ? '🔄 Ganti ke Potret (4 × 7.4 cm)' : '🔄 Ganti ke Lanskap (7.4 × 4 cm)'}
+                      {spineOrientation === 'LANDSCAPE' ? '🔄 Ganti ke Potret' : '🔄 Ganti ke Lanskap'}
                     </button>
                   </div>
                 </div>
@@ -707,26 +772,37 @@ export const LabelPrintGenerator: React.FC<LabelPrintGeneratorProps> = ({
                   spineSheets.map((sheetItems, sheetIdx) => (
                     <div
                       key={`spine-sheet-${sheetIdx}`}
-                      className={`a4-print-sheet sbth-spine-sheet ${spineOrientation === 'PORTRAIT' ? 'portrait' : ''} bg-white text-black p-4 rounded-xl shadow-lg border border-slate-300 mx-auto print:mb-0 print:p-0 print:border-none print:shadow-none print:rounded-none`}
+                      className={`a4-print-sheet sbth-spine-sheet ${spineSize === '68x38' ? 'size-68x38' : ''} ${spineOrientation === 'PORTRAIT' ? 'portrait' : ''} bg-white text-black p-4 rounded-xl shadow-lg border border-slate-300 mx-auto print:mb-0 print:p-0 print:border-none print:shadow-none print:rounded-none`}
                     >
                       {/* Sheet Header Badge (Screen only) */}
                       <div className="print:hidden w-full mb-3 pb-2 border-b border-slate-200 flex items-center justify-between text-xs text-slate-600">
                         <span className="font-semibold flex items-center gap-1.5 text-amber-700">
                           <span className="w-2 h-2 rounded-full bg-amber-500" />
-                          📄 Lembar {sheetIdx + 1} dari {spineSheets.length} ({sheetItems.length} Label • Grid {spineOrientation === 'LANDSCAPE' ? '2 Kolom × 6 Baris' : '4 Kolom × 3 Baris'})
+                          📄 Lembar {sheetIdx + 1} dari {spineSheets.length} ({sheetItems.length} Label • Grid{' '}
+                          {spineSize === '68x38'
+                            ? spineOrientation === 'LANDSCAPE'
+                              ? '3 Kolom × 7 Baris (21 Label)'
+                              : '5 Kolom × 4 Baris (20 Label)'
+                            : spineOrientation === 'LANDSCAPE'
+                            ? '2 Kolom × 6 Baris (12 Label)'
+                            : '4 Kolom × 3 Baris (12 Label)'})
                         </span>
                         <span className="font-mono text-[11px] bg-slate-100 px-2 py-0.5 rounded border border-slate-200">
-                          Kertas A4 (210 × 297 mm)
+                          {spineSize === '68x38' ? '68 × 38 mm' : '74 × 40 mm'} • Kertas A4 (210 × 297 mm)
                         </span>
                       </div>
 
-                      {/* Grid Container (2 Kolom di Layar untuk Lanskap, 4 Kolom untuk Potret) */}
+                      {/* Grid Container */}
                       <div
-                        className={`sbth-spine-grid ${spineOrientation === 'PORTRAIT' ? 'portrait' : ''} grid ${
-                          spineOrientation === 'LANDSCAPE'
-                            ? 'grid-cols-1 sm:grid-cols-2 gap-3 print:gap-x-[6mm] print:gap-y-[5mm]'
-                            : 'grid-cols-2 sm:grid-cols-4 gap-3 print:gap-x-[6mm] print:gap-y-[8mm]'
-                        } justify-center w-full max-w-[620px] sm:max-w-[660px] mx-auto`}
+                        className={`sbth-spine-grid ${spineSize === '68x38' ? 'size-68x38' : ''} ${spineOrientation === 'PORTRAIT' ? 'portrait' : ''} grid ${
+                          spineSize === '68x38'
+                            ? spineOrientation === 'LANDSCAPE'
+                              ? 'grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-2.5 print:gap-x-[2.5mm] print:gap-y-[3.5mm] max-w-[700px]'
+                              : 'grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-2 print:gap-x-[3.5mm] print:gap-y-[4.5mm] max-w-[700px]'
+                            : spineOrientation === 'LANDSCAPE'
+                            ? 'grid-cols-1 sm:grid-cols-2 gap-3 print:gap-x-[6mm] print:gap-y-[5mm] max-w-[620px] sm:max-w-[660px]'
+                            : 'grid-cols-2 sm:grid-cols-4 gap-3 print:gap-x-[6mm] print:gap-y-[8mm] max-w-[620px] sm:max-w-[660px]'
+                        } justify-center w-full mx-auto`}
                       >
                         {sheetItems.map((ei) => {
                           const book = ei.book;
@@ -744,8 +820,12 @@ export const LabelPrintGenerator: React.FC<LabelPrintGeneratorProps> = ({
                           return (
                             <div
                               key={ei.item.id}
-                              className={`sbth-spine-label ${spineOrientation === 'PORTRAIT' ? 'portrait' : ''} border-2 border-black rounded-none overflow-hidden bg-white text-black flex flex-col justify-between shadow-xs mx-auto ${
-                                spineOrientation === 'LANDSCAPE'
+                              className={`sbth-spine-label ${spineSize === '68x38' ? 'size-68x38' : ''} ${spineOrientation === 'PORTRAIT' ? 'portrait' : ''} border-2 border-black rounded-none overflow-hidden bg-white text-black flex flex-col justify-between shadow-xs mx-auto ${
+                                spineSize === '68x38'
+                                  ? spineOrientation === 'LANDSCAPE'
+                                    ? 'w-full max-w-[240px] h-[145px] print:w-[68mm] print:h-[38mm] print:max-h-[38mm]'
+                                    : 'w-full max-w-[140px] h-[255px] print:w-[38mm] print:h-[68mm] print:max-h-[68mm]'
+                                  : spineOrientation === 'LANDSCAPE'
                                   ? 'w-full max-w-[280px] h-[155px] print:w-[74mm] print:h-[40mm] print:max-h-[40mm]'
                                   : 'w-full max-w-[160px] h-[280px] print:w-[40mm] print:h-[74mm] print:max-h-[74mm]'
                               }`}
@@ -755,7 +835,7 @@ export const LabelPrintGenerator: React.FC<LabelPrintGeneratorProps> = ({
                                 <img
                                   src="/logo_sbth.png"
                                   alt="Logo SBTH"
-                                  className="h-5 w-5 print:h-[6.5mm] print:w-[6.5mm] object-contain shrink-0"
+                                  className="h-5 w-5 print:h-[6mm] print:w-[6mm] object-contain shrink-0"
                                   onError={(e) => { (e.target as HTMLElement).style.display = 'none'; }}
                                 />
                                 <div className="flex-1 text-center min-w-0">
@@ -781,7 +861,15 @@ export const LabelPrintGenerator: React.FC<LabelPrintGeneratorProps> = ({
                               {spineOrientation === 'LANDSCAPE' ? (
                                 <div className="flex-1 flex items-center justify-center p-1 min-h-0 bg-white">
                                   {/* Kotak Call Number 4-Baris Presisi Siku 90 Derajat */}
-                                  <div className={`${spineBoxWidth === 'FULL' ? 'w-full' : 'w-[38mm]'} h-full max-h-[25mm] border-2 border-black rounded-none flex flex-col justify-stretch divide-y-2 divide-black font-mono text-center bg-white`}>
+                                  <div
+                                    className={`${
+                                      spineBoxWidth === 'FULL'
+                                        ? 'w-full'
+                                        : spineSize === '68x38'
+                                        ? 'w-[34mm]'
+                                        : 'w-[38mm]'
+                                    } h-full max-h-[25mm] border-2 border-black rounded-none flex flex-col justify-stretch divide-y-2 divide-black font-mono text-center bg-white`}
+                                  >
                                     <div className="flex-1 flex items-center justify-center font-black text-xs print:text-[9.5pt] text-black tracking-widest leading-none">
                                       {customShelfCode || spine.shelfCode}
                                     </div>
@@ -797,9 +885,13 @@ export const LabelPrintGenerator: React.FC<LabelPrintGeneratorProps> = ({
                                   </div>
                                 </div>
                               ) : (
-                                // Mode Potret (4 x 7.4 cm): Kotak Call Number 4-Baris Vertikal Siku 90°
+                                // Mode Potret: Kotak Call Number 4-Baris Vertikal Siku 90°
                                 <div className="flex-1 flex flex-col justify-center p-1.5 min-h-0 bg-white">
-                                  <div className="w-full h-full min-h-[52mm] border-2 border-black rounded-none flex flex-col justify-stretch divide-y-2 divide-black font-mono text-center bg-white">
+                                  <div
+                                    className={`w-full h-full ${
+                                      spineSize === '68x38' ? 'min-h-[46mm]' : 'min-h-[52mm]'
+                                    } border-2 border-black rounded-none flex flex-col justify-stretch divide-y-2 divide-black font-mono text-center bg-white`}
+                                  >
                                     <div className="flex-1 flex items-center justify-center font-black text-base print:text-[13pt] text-black tracking-widest leading-none">
                                       {customShelfCode || spine.shelfCode}
                                     </div>

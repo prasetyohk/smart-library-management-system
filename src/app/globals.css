@@ -197,14 +197,80 @@ h1, h2, h3, .font-display {
 
   /* ======================================================== */
   /* 2. PUNGGUNG BUKU SBTH (74 x 40 mm Lanskap): 2 Kolom x 6 Baris = 12 */
+  /* ======================================================== */
+  /* 2A. PUNGGUNG BUKU SBTH HEMAT (68 x 38 mm): 3 Kolom x 7 Baris = 21 */
+  /* Lebar: 3x68mm = 204mm -> Padding kiri/kanan = 3mm (204 + 6 = 210mm) */
+  /* Tinggi: 7x38mm = 266mm -> Padding atas/bawah = 15.5mm (266 + 31 = 297mm) */
+  /* Efisiensi: 100% Kertas A4 terpakai tanpa sisa terbuang!   */
+  /* ======================================================== */
+  .sbth-spine-sheet.size-68x38 {
+    padding: 15.5mm 3mm !important;
+  }
+
+  .sbth-spine-grid.size-68x38 {
+    display: grid !important;
+    grid-template-columns: repeat(3, 68mm) !important;
+    grid-auto-rows: 38mm !important;
+    column-gap: 0 !important;
+    row-gap: 0 !important;
+    justify-content: center !important;
+    align-content: start !important;
+    width: 204mm !important;
+    height: 266mm !important;
+    box-sizing: border-box !important;
+  }
+
+  .sbth-spine-label.size-68x38 {
+    width: 68mm !important;
+    height: 38mm !important;
+    max-height: 38mm !important;
+    box-sizing: border-box !important;
+    page-break-inside: avoid !important;
+    break-inside: avoid !important;
+    border: 1pt solid #000000 !important;
+    border-radius: 0 !important;
+    overflow: hidden !important;
+    margin: 0 !important;
+    padding: 0.6mm !important;
+    background: #ffffff !important;
+    color: #000000 !important;
+  }
+
+  .sbth-spine-sheet.size-68x38.portrait {
+    padding: 12.5mm 10mm !important;
+  }
+
+  .sbth-spine-grid.size-68x38.portrait {
+    grid-template-columns: repeat(5, 38mm) !important;
+    grid-auto-rows: 68mm !important;
+    column-gap: 0 !important;
+    row-gap: 0 !important;
+    justify-content: center !important;
+    align-content: start !important;
+    width: 190mm !important;
+    height: 272mm !important;
+    box-sizing: border-box !important;
+  }
+
+  .sbth-spine-label.size-68x38.portrait {
+    width: 38mm !important;
+    height: 68mm !important;
+    max-height: 68mm !important;
+    border-radius: 0 !important;
+  }
+
+  /* ======================================================== */
+  /* 2B. PUNGGUNG BUKU SBTH KLASIK (74 x 40 mm): 2 Kolom x 6 Baris = 12 */
   /* Lebar: 2x74mm + 6mm gap = 154mm -> Padding kiri/kanan = 28mm */
   /* Tinggi: 6x40mm + 5x5mm gap = 265mm -> Padding atas/bawah = 16mm */
   /* ======================================================== */
-  .sbth-spine-sheet {
+  .sbth-spine-sheet.size-74x40,
+  .sbth-spine-sheet:not(.size-68x38) {
     padding: 16mm 28mm !important;
   }
 
-  .sbth-spine-grid {
+  .sbth-spine-grid.size-74x40,
+  .sbth-spine-grid:not(.size-68x38) {
     display: grid !important;
     grid-template-columns: repeat(2, 74mm) !important;
     grid-auto-rows: 40mm !important;
@@ -217,14 +283,15 @@ h1, h2, h3, .font-display {
     box-sizing: border-box !important;
   }
 
-  .sbth-spine-label {
+  .sbth-spine-label.size-74x40,
+  .sbth-spine-label:not(.size-68x38) {
     width: 74mm !important;
     height: 40mm !important;
     max-height: 40mm !important;
     box-sizing: border-box !important;
     page-break-inside: avoid !important;
     break-inside: avoid !important;
-    border: 1.2pt solid #000000 !important; /* Garis batas potong manual tegas siku 90 derajat */
+    border: 1.2pt solid #000000 !important;
     border-radius: 0 !important;
     overflow: hidden !important;
     margin: 0 !important;
@@ -233,16 +300,13 @@ h1, h2, h3, .font-display {
     color: #000000 !important;
   }
 
-  /* ======================================================== */
-  /* 2B. PUNGGUNG BUKU SBTH POTRET (40 x 74 mm): 4 Kolom x 3 Baris = 12 */
-  /* Lebar: 4x40mm + 3x6mm gap = 178mm -> Padding kiri/kanan = 16mm */
-  /* Tinggi: 3x74mm + 2x8mm gap = 238mm -> Padding atas/bawah = 29.5mm */
-  /* ======================================================== */
-  .sbth-spine-sheet.portrait {
+  .sbth-spine-sheet.size-74x40.portrait,
+  .sbth-spine-sheet:not(.size-68x38).portrait {
     padding: 29.5mm 16mm !important;
   }
 
-  .sbth-spine-grid.portrait {
+  .sbth-spine-grid.size-74x40.portrait,
+  .sbth-spine-grid:not(.size-68x38).portrait {
     grid-template-columns: repeat(4, 40mm) !important;
     grid-auto-rows: 74mm !important;
     column-gap: 6mm !important;
@@ -254,7 +318,8 @@ h1, h2, h3, .font-display {
     box-sizing: border-box !important;
   }
 
-  .sbth-spine-label.portrait {
+  .sbth-spine-label.size-74x40.portrait,
+  .sbth-spine-label:not(.size-68x38).portrait {
     width: 40mm !important;
     height: 74mm !important;
     max-height: 74mm !important;
