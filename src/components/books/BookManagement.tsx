@@ -52,7 +52,7 @@ import {
 } from '@/lib/constants';
 import { libraryStore } from '@/lib/storage';
 import { soundFx } from '@/lib/sound';
-import { DICTIONARY } from '@/lib/i18n';
+import { DICTIONARY, getDdcShortNameByCode } from '@/lib/i18n';
 import { PageHeader } from '@/components/common/PageHeader';
 import { SmartBookCover } from '@/components/common/SmartBookCover';
 import { EditBookModal } from './EditBookModal';
@@ -633,18 +633,25 @@ export const BookManagement: React.FC<BookManagementProps> = ({
         {/* Kiri: Info Jumlah & Pilihan Limit 10 / 20 / 50 / 100 */}
         <div className="flex flex-wrap items-center gap-3 text-xs">
           <div className="text-text font-medium">
-            Menampilkan{' '}
-            <span className="font-bold text-amber-500 font-mono">
-              {totalBooks === 0 ? 0 : startIndex + 1}–{endIndex}
-            </span>{' '}
-            dari <span className="font-bold font-mono text-text">{totalBooks}</span> Judul Buku
+            {t.showingBooksPagination
+              ?.replace('{start}', String(totalBooks === 0 ? 0 : startIndex + 1))
+              .replace('{end}', String(endIndex))
+              .replace('{total}', String(totalBooks)) || (
+              <>
+                Menampilkan{' '}
+                <span className="font-bold text-amber-500 font-mono">
+                  {totalBooks === 0 ? 0 : startIndex + 1}–{endIndex}
+                </span>{' '}
+                dari <span className="font-bold font-mono text-text">{totalBooks}</span> Judul Buku
+              </>
+            )}
           </div>
 
           <div className="h-4 w-[1px] bg-border hidden sm:block" />
 
           {/* Selector Batas Tampilan: 10 / 20 / 50 / 100 */}
           <div className="flex items-center gap-1.5 text-text-muted">
-            <span className="text-[11px] font-medium hidden md:inline">Tampilkan:</span>
+            <span className="text-[11px] font-medium hidden md:inline">{t.showPerPage || 'Tampilkan'}:</span>
             <div className="flex items-center bg-surface-2 p-0.5 rounded-xl border border-border">
               {[10, 20, 50, 100].map((limit) => (
                 <button
@@ -852,7 +859,7 @@ export const BookManagement: React.FC<BookManagementProps> = ({
           }`}
         >
           <BookOpen className="h-4 w-4" />
-          <span>Katalog Koleksi Aktif ({books.length})</span>
+          <span>{t.activeCatalogTab || 'Katalog Koleksi Aktif'} ({books.length})</span>
         </button>
 
         <button
@@ -868,7 +875,7 @@ export const BookManagement: React.FC<BookManagementProps> = ({
           }`}
         >
           <Tag className="h-4 w-4 text-amber-500" />
-          <span>Belum Cetak Label ({unprintedCount})</span>
+          <span>{t.unprintedTab || 'Belum Cetak Label'} ({unprintedCount})</span>
           {unprintedCount > 0 && (
             <span className="h-2 w-2 rounded-full bg-amber-500 animate-pulse" />
           )}
@@ -884,7 +891,7 @@ export const BookManagement: React.FC<BookManagementProps> = ({
           }`}
         >
           <Trash2 className="h-4 w-4 text-rose-500" />
-          <span>Pemusnahan Buku / Afkir ({disposedCount})</span>
+          <span>{t.disposedTab || 'Pemusnahan Buku / Afkir'} ({disposedCount})</span>
         </button>
       </div>
 
@@ -894,11 +901,8 @@ export const BookManagement: React.FC<BookManagementProps> = ({
           <div className="flex items-center gap-2.5 text-amber-500 font-semibold">
             <AlertTriangle className="h-4 w-4 shrink-0" />
             <span>
-              {language === 'zh'
-                ? `提醒：尚有 ${unprintedCount} 本实体图书尚未打印或贴上条形码书标！`
-                : language === 'en'
-                ? `Notice: There are ${unprintedCount} book copies that do not have printed barcode labels affixed yet.`
-                : `Perhatian: Terdapat ${unprintedCount} eksemplar buku yang belum dicetak atau belum ditempel stiker barcode fisik!`}
+              {t.unprintedBanner?.replace('{count}', String(unprintedCount)) ||
+                `Perhatian: Terdapat ${unprintedCount} eksemplar buku yang belum dicetak atau belum ditempel stiker barcode fisik!`}
             </span>
           </div>
 
@@ -912,7 +916,7 @@ export const BookManagement: React.FC<BookManagementProps> = ({
           >
             <Printer className="h-3.5 w-3.5" />
             <span>
-              {language === 'zh' ? '立即打印待贴标' : language === 'en' ? 'Print Missing Labels' : 'Cetak Label Sekarang'}
+              {t.printMissingBtn || 'Cetak Label Sekarang'}
             </span>
           </button>
         </div>
@@ -1387,7 +1391,7 @@ export const BookManagement: React.FC<BookManagementProps> = ({
               title="Klik untuk ON/OFF fitur setting Rak & Baris (Default: OFF, SBTH menyusun buku murni berdasarkan kategori e-DDC)"
             >
               <MapPin className="h-3.5 w-3.5" />
-              <span>Setting Rak: <strong className={isShelfFeatureEnabled ? 'text-amber-500 font-extrabold' : 'text-text-muted'}>{isShelfFeatureEnabled ? 'ON' : 'OFF'}</strong></span>
+              <span>{t.shelfSettingToggle || 'Setting Rak:'} <strong className={isShelfFeatureEnabled ? 'text-amber-500 font-extrabold' : 'text-text-muted'}>{isShelfFeatureEnabled ? 'ON' : 'OFF'}</strong></span>
             </button>
 
             {isShelfFeatureEnabled && (
@@ -1457,14 +1461,14 @@ export const BookManagement: React.FC<BookManagementProps> = ({
         <div className="space-y-1">
           <div className="flex items-center justify-between gap-2">
             <span className="text-[10px] font-bold uppercase tracking-wider text-text-muted">
-              Kategori e-DDC Dewey Decimal:
+              {t.ddcCategoriesLabel || 'Kategori e-DDC Dewey Decimal:'}
             </span>
             <button
               type="button"
               onClick={() => setIsCategoryWrap((w) => !w)}
               className="text-[10px] text-amber-500 hover:text-amber-600 font-semibold px-2 py-0.5 rounded-md hover:bg-surface-2 transition cursor-pointer"
             >
-              {isCategoryWrap ? '↔️ Mode 1 Baris Geser' : '↕️ Tampilkan Semua (Wrap)'}
+              {isCategoryWrap ? (t.scroll1Line || '↔️ Mode 1 Baris Geser') : (t.wrapView || '↕️ Tampilkan Semua (Wrap)')}
             </button>
           </div>
 
@@ -1500,7 +1504,7 @@ export const BookManagement: React.FC<BookManagementProps> = ({
                   className="h-2 w-2 rounded-full shrink-0 shadow-2xs"
                   style={{ backgroundColor: cat.colorHex }}
                 />
-                <span>{cat.shortName}</span>
+                <span>{getDdcShortNameByCode(cat.ddcCode || '', language) || cat.shortName}</span>
               </button>
             ))}
           </div>
@@ -1508,14 +1512,14 @@ export const BookManagement: React.FC<BookManagementProps> = ({
 
         {/* Physical Status Filter Pills (Semua, Tersedia, Dipinjam, Rusak, Hilang, Dimusnahkan) */}
         <div className="flex items-center gap-1.5 overflow-x-auto pt-2 border-t border-border/60 text-xs font-semibold">
-          <span className="text-[11px] text-text-muted mr-1 shrink-0">Filter Status:</span>
+          <span className="text-[11px] text-text-muted mr-1 shrink-0">{t.statusFilterLabel || 'Filter Status:'}</span>
           {[
-            { id: 'ALL', label: 'Semua Status' },
-            { id: 'AVAILABLE', label: 'Tersedia di Rak' },
-            { id: 'BORROWED', label: 'Sedang Dipinjam' },
-            { id: 'DAMAGED', label: 'Perbaikan / Rusak' },
-            { id: 'LOST', label: 'Buku Hilang' },
-            { id: 'DISPOSED', label: 'Dimusnahkan' },
+            { id: 'ALL', label: t.statusAll || 'Semua Status' },
+            { id: 'AVAILABLE', label: t.statusAvailableRack || 'Tersedia di Rak' },
+            { id: 'BORROWED', label: t.statusBorrowedTag || 'Sedang Dipinjam' },
+            { id: 'DAMAGED', label: t.statusRepairTag || 'Perbaikan / Rusak' },
+            { id: 'LOST', label: t.statusLostTag || 'Buku Hilang' },
+            { id: 'DISPOSED', label: t.statusDisposedTag || 'Dimusnahkan' },
           ].map((st) => (
             <button
               key={st.id}
@@ -1546,7 +1550,7 @@ export const BookManagement: React.FC<BookManagementProps> = ({
             }`}
           >
             <CheckSquare className={`h-4 w-4 ${isAllVisibleSelected ? 'text-slate-950' : 'text-amber-500'}`} />
-            <span>Pilih Semua ({filteredBooks.length} Judul • {allFilteredItemIds.length} Eks)</span>
+            <span>{t.selectAll || 'Pilih Semua'} ({filteredBooks.length} Judul • {allFilteredItemIds.length} Eks)</span>
           </button>
 
           {(selectedBookIds.length > 0 || selectedItemIds.length > 0) && (
@@ -1582,8 +1586,8 @@ export const BookManagement: React.FC<BookManagementProps> = ({
             <Sparkles className="h-3.5 w-3.5 text-amber-500" />
             <span>
               {selectedBookIds.length > 0
-                ? `⚡ Sinkronkan Punggung (${selectedBookIds.length})`
-                : '⚡ Sinkronkan Punggung Koleksi'}
+                ? `⚡ ${t.syncSpinesBtn || 'Sinkronkan Punggung'} (${selectedBookIds.length})`
+                : `⚡ ${t.syncSpinesBtn || 'Sinkronkan Punggung Koleksi'}`}
             </span>
           </button>
 
@@ -1677,14 +1681,14 @@ export const BookManagement: React.FC<BookManagementProps> = ({
                       )}
                     </button>
                   </th>
-                  <th className="py-3 px-4">No & Judul Buku</th>
-                  <th className="py-3 px-3">Kategori</th>
-                  <th className="py-3 px-3">ISBN & Eksemplar</th>
-                  {isShelfFeatureEnabled && <th className="py-3 px-3">Posisi Rak</th>}
-                  {isShelfFeatureEnabled && isShelfRowEnabled && <th className="py-3 px-3">Baris</th>}
-                  <th className="py-3 px-3">Kondisi / Status</th>
-                  <th className="py-3 px-3 text-right">Nilai Aset</th>
-                  <th className="py-3 px-4 text-right">Aksi</th>
+                  <th className="py-3 px-4">{t.colBookTitle || 'No & Judul Buku'}</th>
+                  <th className="py-3 px-3">{t.colCategory || 'Kategori'}</th>
+                  <th className="py-3 px-3">{t.colIsbnCopies || 'ISBN & Eksemplar'}</th>
+                  {isShelfFeatureEnabled && <th className="py-3 px-3">{language === 'zh' ? '书架位置' : language === 'en' ? 'Shelf Position' : 'Posisi Rak'}</th>}
+                  {isShelfFeatureEnabled && isShelfRowEnabled && <th className="py-3 px-3">{language === 'zh' ? '层/行' : language === 'en' ? 'Row' : 'Baris'}</th>}
+                  <th className="py-3 px-3">{t.colCondition || 'Kondisi / Status'}</th>
+                  <th className="py-3 px-3 text-right">{t.colAssetValue || 'Nilai Aset'}</th>
+                  <th className="py-3 px-4 text-right">{t.colActions || 'Aksi'}</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-border">
@@ -1734,13 +1738,13 @@ export const BookManagement: React.FC<BookManagementProps> = ({
                             </div>
                             <div className="text-[10px] text-amber-600 dark:text-amber-400 font-semibold mt-0.5 flex items-center gap-1">
                               <Clock className="h-2.5 w-2.5 shrink-0" />
-                              <span>Diinput: {formatDateTimeIndo(book.createdAt)}</span>
+                              <span>{t.inputted || 'Diinput'}: {formatDateTimeIndo(book.createdAt)}</span>
                             </div>
 
                             {/* Standar Punggung Buku SBTH 4-Baris Badge */}
                             <div className="mt-1 flex flex-wrap items-center gap-1">
                               <span className="text-[9px] font-bold text-text-muted uppercase tracking-wider">
-                                Punggung:
+                                {t.spineLabel || 'Punggung'}:
                               </span>
                               <span
                                 className="font-mono text-[10px] px-1.5 py-0.2 rounded bg-amber-500/15 border border-amber-500/30 text-amber-500 font-bold"
@@ -1779,20 +1783,20 @@ export const BookManagement: React.FC<BookManagementProps> = ({
                           style={{ backgroundColor: `${cat.colorHex}20`, color: cat.colorHex }}
                         >
                           <span className="h-1.5 w-1.5 rounded-full" style={{ backgroundColor: cat.colorHex }} />
-                          {cat.shortName}
+                          {getDdcShortNameByCode(cat.ddcCode || '', language) || cat.shortName}
                         </span>
                       </td>
                       <td className="py-3 px-3 whitespace-nowrap font-mono text-[11px] text-text-muted">
                         <div>{book.isbn}</div>
                         <div className="flex items-center gap-1.5 mt-0.5">
-                          <span className="text-[10px] text-amber-500 font-sans font-semibold">{items.length} Eks</span>
+                          <span className="text-[10px] text-amber-500 font-sans font-semibold">{items.length} {t.copiesShort || 'Eks'}</span>
                           {items.some(i => !i.labelPrinted) ? (
                             <span className="text-[9px] px-1 py-0.2 rounded bg-amber-500/15 text-amber-500 font-bold" title="Ada eksemplar belum dicap/dicetak">
-                              {items.filter(i => !i.labelPrinted).length} Belum
+                              {items.filter(i => !i.labelPrinted).length} {t.unprintedShort || 'Belum'}
                             </span>
                           ) : (
                             <span className="text-[9px] px-1 py-0.2 rounded bg-emerald-500/15 text-emerald-500 font-bold" title="Semua eksemplar sudah dicap/dicetak">
-                              ✓ Dicap
+                              ✓ {t.affixedShort || 'Dicap'}
                             </span>
                           )}
                         </div>
@@ -1873,21 +1877,21 @@ export const BookManagement: React.FC<BookManagementProps> = ({
                       <td className="py-3 px-3 whitespace-nowrap">
                         <div className="flex flex-wrap items-center gap-1 text-[10px]">
                           <span className="px-1.5 py-0.5 rounded bg-emerald-500/15 text-emerald-500 font-bold">
-                            {available} Ada
+                            {available} {t.availableShort || 'Ada'}
                           </span>
                           {borrowed > 0 && (
                             <span className="px-1.5 py-0.5 rounded bg-amber-500/15 text-amber-500 font-bold">
-                              {borrowed} Pinjam
+                              {borrowed} {t.borrowedShort || 'Pinjam'}
                             </span>
                           )}
                           {(damaged > 0 || inRepair > 0) && (
                             <span className="px-1.5 py-0.5 rounded bg-rose-500/15 text-rose-500 font-bold">
-                              {damaged + inRepair} Rusak
+                              {damaged + inRepair} {t.repairShort || 'Rusak'}
                             </span>
                           )}
                           {lost > 0 && (
                             <span className="px-1.5 py-0.5 rounded bg-purple-500/15 text-purple-500 font-bold">
-                              {lost} Hilang
+                              {lost} {language === 'zh' ? '丢失' : language === 'en' ? 'Lost' : 'Hilang'}
                             </span>
                           )}
                         </div>
@@ -2006,18 +2010,18 @@ export const BookManagement: React.FC<BookManagementProps> = ({
                           className="text-[10px] font-bold px-2 py-0.5 rounded-md uppercase"
                           style={{ backgroundColor: `${cat.colorHex}20`, color: cat.colorHex }}
                         >
-                          {cat.name}
+                          {getDdcShortNameByCode(cat.ddcCode || '', language) || cat.name}
                         </span>
                         <span className="text-[11px] font-mono text-text-muted">
                           ISBN: {book.isbn}
                         </span>
                         <span className="inline-flex items-center gap-1 text-[10px] text-amber-600 dark:text-amber-400 font-semibold bg-amber-500/10 px-2 py-0.5 rounded-md border border-amber-500/20">
                           <Clock className="h-2.5 w-2.5" />
-                          <span>Input: {formatDateTimeIndo(book.createdAt)}</span>
+                          <span>{t.inputted || 'Input'}: {formatDateTimeIndo(book.createdAt)}</span>
                         </span>
                         {unprintedInBook > 0 && (
                           <span className="text-[10px] font-semibold px-2 py-0.5 rounded-md bg-amber-500/15 text-amber-500 border border-amber-500/30">
-                            {unprintedInBook} Belum Cetak Label
+                            {unprintedInBook} {language === 'zh' ? '未打印标签' : language === 'en' ? 'Unprinted Labels' : 'Belum Cetak Label'}
                           </span>
                         )}
                       </div>
@@ -2029,7 +2033,7 @@ export const BookManagement: React.FC<BookManagementProps> = ({
                       {/* Standar Punggung Buku SBTH 4-Baris Badge */}
                       <div className="mt-1 flex flex-wrap items-center gap-1">
                         <span className="text-[9px] font-bold text-text-muted uppercase tracking-wider">
-                          Punggung:
+                          {t.spineLabel || 'Punggung'}:
                         </span>
                         <span
                           className="font-mono text-[10px] px-1.5 py-0.2 rounded bg-amber-500/15 border border-amber-500/30 text-amber-500 font-bold"
@@ -2138,31 +2142,31 @@ export const BookManagement: React.FC<BookManagementProps> = ({
                   <div className="flex flex-wrap items-center gap-2 w-full sm:w-auto justify-start sm:justify-end">
                     <div className="flex flex-wrap items-center gap-1.5 text-xs">
                       <span className="px-2.5 py-1 rounded-md bg-emerald-500/10 text-emerald-500 border border-emerald-500/20 text-[11px] font-medium">
-                        {available} Ada di Rak
+                        {available} {t.statusAvailableRack || 'Ada di Rak'}
                       </span>
                       {borrowed > 0 && (
                         <span className="px-2.5 py-1 rounded-md bg-amber-500/10 text-amber-500 border border-amber-500/20 text-[11px] font-medium">
-                          {borrowed} Dipinjam
+                          {borrowed} {t.statusBorrowedTag || 'Dipinjam'}
                         </span>
                       )}
                       {inRepair > 0 && (
                         <span className="px-2.5 py-1 rounded-md bg-sky-500/10 text-sky-500 border border-sky-500/20 text-[11px] font-medium">
-                          {inRepair} Perbaikan
+                          {inRepair} {t.statusRepairTag || 'Perbaikan'}
                         </span>
                       )}
                       {damaged > 0 && (
                         <span className="px-2.5 py-1 rounded-md bg-rose-500/10 text-rose-500 border border-rose-500/20 text-[11px] font-medium">
-                          {damaged} Rusak
+                          {damaged} {t.repairShort || 'Rusak'}
                         </span>
                       )}
                       {lost > 0 && (
                         <span className="px-2.5 py-1 rounded-md bg-purple-500/10 text-purple-500 border border-purple-500/20 text-[11px] font-medium">
-                          {lost} Hilang
+                          {lost} {t.statusLostTag || 'Hilang'}
                         </span>
                       )}
                       {disposed > 0 && (
                         <span className="px-2.5 py-1 rounded-md bg-slate-500/10 text-slate-400 border border-slate-500/20 text-[11px] font-medium">
-                          {disposed} Dimusnahkan
+                          {disposed} {t.statusDisposedTag || 'Dimusnahkan'}
                         </span>
                       )}
                     </div>
@@ -2188,7 +2192,7 @@ export const BookManagement: React.FC<BookManagementProps> = ({
                         title="Tambah Eksemplar Fisik"
                       >
                         <Plus className="h-3.5 w-3.5 text-emerald-500" />
-                        <span>Eksemplar</span>
+                        <span>{t.copiesShort || 'Eksemplar'}</span>
                       </button>
 
                       {unprintedInBook > 0 && (

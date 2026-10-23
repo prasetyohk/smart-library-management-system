@@ -23,15 +23,17 @@ import {
   X,
 } from 'lucide-react';
 import confetti from 'canvas-confetti';
-import { Member, BookItem, Book, Loan } from '@/types';
+import { Member, BookItem, Book, Loan, Language } from '@/types';
 import { CATEGORIES } from '@/lib/constants';
 import { libraryStore } from '@/lib/storage';
 import { soundFx } from '@/lib/sound';
+import { DICTIONARY } from '@/lib/i18n';
 import { PageHeader } from '@/components/common/PageHeader';
 import { Avatar } from '@/components/common/Avatar';
 import { SmartBookCover } from '@/components/common/SmartBookCover';
 
 interface CirculationDeskProps {
+  language?: Language;
   onOpenScannerCamera?: (title: string) => void;
   scannedCode?: string;
   onClearScannedCode?: () => void;
@@ -39,11 +41,13 @@ interface CirculationDeskProps {
 }
 
 export const CirculationDesk: React.FC<CirculationDeskProps> = ({
+  language = 'id',
   onOpenScannerCamera,
   scannedCode,
   onClearScannedCode,
   initialSubTab,
 }) => {
+  const t = DICTIONARY[language] || DICTIONARY.id;
   const [isFinanceEnabled, setIsFinanceEnabled] = useState<boolean>(() => libraryStore.getFinanceModuleEnabled());
   const [activeTab, setActiveTab] = useState<'BORROW' | 'RETURN' | 'RENEW' | 'OVERDUE' | 'INSPECT'>('BORROW');
 
@@ -407,8 +411,8 @@ export const CirculationDesk: React.FC<CirculationDeskProps> = ({
       {/* 1. Page Header: Uniform Pattern */}
       <PageHeader
         icon={<RotateCcw className="h-5 w-5" />}
-        title="Sirkulasi & Pinjam-Kembali"
-        subtitle="Alur cepat scan barcode untuk peminjaman, pengembalian kilat, dan tagihan buku terlambat"
+        title={t.circulationTitle}
+        subtitle={t.circulationSubtitle}
       />
 
       {/* 2. Segmented Control Tabs (Underline/Pill Style, Rose badge for overdue) */}
@@ -423,7 +427,7 @@ export const CirculationDesk: React.FC<CirculationDeskProps> = ({
           }`}
         >
           <BookCheck className="h-4 w-4" />
-          <span>Peminjaman Baru</span>
+          <span>{t.newLoan}</span>
         </button>
 
         <button
@@ -436,7 +440,7 @@ export const CirculationDesk: React.FC<CirculationDeskProps> = ({
           }`}
         >
           <RotateCcw className="h-4 w-4" />
-          <span>Pengembalian Kilat</span>
+          <span>{t.expressReturn}</span>
         </button>
 
         <button
@@ -449,7 +453,7 @@ export const CirculationDesk: React.FC<CirculationDeskProps> = ({
           }`}
         >
           <Clock className="h-4 w-4" />
-          <span>Perpanjangan Pinjam</span>
+          <span>{t.renewLoan}</span>
         </button>
 
         {isFinanceEnabled && (
@@ -463,7 +467,7 @@ export const CirculationDesk: React.FC<CirculationDeskProps> = ({
             }`}
           >
             <Clock className="h-4 w-4" />
-            <span>Buku Terlambat & Denda</span>
+            <span>{t.overdueAndFines}</span>
             {overdueLoans.length > 0 && (
               <span className="px-2 py-0.5 rounded-full bg-rose-500 text-white font-bold text-[10px]">
                 {overdueLoans.length}
@@ -482,7 +486,7 @@ export const CirculationDesk: React.FC<CirculationDeskProps> = ({
           }`}
         >
           <History className="h-4 w-4" />
-          <span>Cek Riwayat Buku</span>
+          <span>{t.checkHistory}</span>
         </button>
       </div>
 
@@ -502,7 +506,7 @@ export const CirculationDesk: React.FC<CirculationDeskProps> = ({
                 {selectedMember ? '✓' : '1'}
               </span>
               <span className={`text-xs font-semibold ${selectedMember ? 'text-emerald-500' : 'text-text'}`}>
-                Pilih Siswa
+                {t.step1SelectMemberShort}
               </span>
             </div>
 
@@ -523,7 +527,7 @@ export const CirculationDesk: React.FC<CirculationDeskProps> = ({
                 2
               </span>
               <span className={`text-xs font-semibold ${selectedMember ? 'text-text' : 'text-text-muted'}`}>
-                Scan Buku
+                {t.step2ScanBookShort}
               </span>
             </div>
           </div>
@@ -537,9 +541,9 @@ export const CirculationDesk: React.FC<CirculationDeskProps> = ({
                     <span className="flex h-6 w-6 items-center justify-center rounded-full bg-amber-500 text-slate-950 text-xs font-bold">
                       1
                     </span>
-                    <span>Pilih Siswa / Anggota</span>
+                    <span>{t.step1SelectMember}</span>
                   </h3>
-                  <span className="text-[11px] text-text-muted">Scan kartu / cari nama</span>
+                  <span className="text-[11px] text-text-muted">{t.step1Sub}</span>
                 </div>
 
                 {/* Selected Student Card */}
@@ -550,7 +554,7 @@ export const CirculationDesk: React.FC<CirculationDeskProps> = ({
                       onClick={() => setSelectedMember(null)}
                       className="absolute top-3 right-3 text-xs text-text-muted hover:text-amber-500 font-semibold transition"
                     >
-                      Ganti Siswa
+                      {t.changeStudent}
                     </button>
 
                     <div className="flex items-center gap-3.5">
@@ -568,14 +572,14 @@ export const CirculationDesk: React.FC<CirculationDeskProps> = ({
                           {selectedMember.name}
                         </h4>
                         <p className="text-xs text-text-muted">
-                          {selectedMember.classGroup} • Kuota: {selectedMember.maxLoanLimit} Buku
+                          {selectedMember.classGroup} • {selectedMember.maxLoanLimit} {t.booksUnit}
                         </p>
                       </div>
                     </div>
 
                     <div className="pt-2 border-t border-border flex items-center justify-between text-xs text-text-muted">
                       <span>
-                        Wali / Kontak: <strong className="text-text">{selectedMember.parentName}</strong>
+                        {t.parentContact}: <strong className="text-text">{selectedMember.parentName}</strong>
                       </span>
                       {selectedMember.parentPhone && (
                         <span className="text-[11px] text-emerald-500 font-mono flex items-center gap-1">
@@ -594,7 +598,7 @@ export const CirculationDesk: React.FC<CirculationDeskProps> = ({
                         type="text"
                         value={memberSearch}
                         onChange={(e) => setMemberSearch(e.target.value)}
-                        placeholder="Cari nama siswa, username, atau kelas..."
+                        placeholder={t.searchMemberPlaceholder}
                         className="w-full rounded-xl border border-border bg-surface-2 pl-9 pr-3 py-1.5 text-xs text-text placeholder-text-muted focus:outline-hidden focus:ring-1 focus:ring-amber-500"
                       />
                     </div>
@@ -641,10 +645,10 @@ export const CirculationDesk: React.FC<CirculationDeskProps> = ({
                     <span className="flex h-6 w-6 items-center justify-center rounded-full bg-amber-500 text-slate-950 text-xs font-bold">
                       2
                     </span>
-                    <span>Scan Barcode Buku</span>
+                    <span>{t.step2ScanBook}</span>
                   </h3>
                   <span className="text-xs font-semibold text-text-muted">
-                    Keranjang ({cartBarcodes.length} / {selectedMember?.maxLoanLimit || 2} Buku)
+                    {t.cartLabel} ({cartBarcodes.length} / {selectedMember?.maxLoanLimit || 2} {t.booksUnit})
                   </span>
                 </div>
 
@@ -665,7 +669,7 @@ export const CirculationDesk: React.FC<CirculationDeskProps> = ({
                           }
                         }
                       }}
-                      placeholder="Scan atau ketik barcode slip buku (misal: 0143 atau SBTH-B-00101)..."
+                      placeholder={t.scanBookPlaceholder}
                       className="w-full rounded-xl border border-border bg-surface-2 pl-10 pr-3 py-2 text-xs font-mono text-text placeholder-text-muted focus:outline-hidden focus:ring-1 focus:ring-amber-500"
                     />
                   </div>
@@ -679,7 +683,7 @@ export const CirculationDesk: React.FC<CirculationDeskProps> = ({
                     }}
                     className="px-4 py-2 rounded-xl bg-surface-2 border border-border hover:bg-surface text-text text-xs font-semibold transition"
                   >
-                    Tambah
+                    {t.addBtn}
                   </button>
                 </div>
 
@@ -688,10 +692,10 @@ export const CirculationDesk: React.FC<CirculationDeskProps> = ({
                   <div className="rounded-2xl border-2 border-dashed border-border p-8 text-center text-text-muted space-y-2 bg-surface-2/40">
                     <Barcode className="h-10 w-10 mx-auto text-text-muted opacity-40 animate-pulse" />
                     <p className="text-xs font-semibold text-text">
-                      Belum ada buku di keranjang peminjaman
+                      {t.emptyCartTitle}
                     </p>
                     <p className="text-[11px] text-text-muted">
-                      Arahkan USB Barcode Scanner ke stiker barcode 4-digit di slip dalam buku (atau ketik nomor daftar)
+                      {t.emptyCartDesc}
                     </p>
                   </div>
                 ) : (
@@ -743,16 +747,16 @@ export const CirculationDesk: React.FC<CirculationDeskProps> = ({
                 {/* Duration and Confirm Checkout */}
                 <div className="pt-4 border-t border-border flex flex-col sm:flex-row items-center justify-between gap-3">
                   <div className="flex items-center gap-2 text-xs">
-                    <span className="text-text-muted font-medium">Durasi Pinjam:</span>
+                    <span className="text-text-muted font-medium">{t.loanDurationLabel}</span>
                     <select
                       value={loanDurationDays}
                       onChange={(e) => setLoanDurationDays(parseInt(e.target.value, 10))}
                       className="rounded-xl border border-border bg-surface-2 px-3 py-1.5 text-xs font-semibold text-text outline-hidden cursor-pointer"
                     >
-                      <option value={3}>⚡ 3 Hari (Pinjaman Kilat)</option>
-                      <option value={7}>📅 1 Minggu (7 Hari - Siswa Standar)</option>
-                      <option value={14}>📚 2 Minggu (14 Hari - Guru / Tugas)</option>
-                      <option value={30}>🏫 1 Bulan (30 Hari - Pojok Baca Kelas)</option>
+                      <option value={3}>{t.duration3Days}</option>
+                      <option value={7}>{t.duration7Days}</option>
+                      <option value={14}>{t.duration14Days}</option>
+                      <option value={30}>{t.duration30Days}</option>
                     </select>
                   </div>
 
@@ -763,7 +767,7 @@ export const CirculationDesk: React.FC<CirculationDeskProps> = ({
                     className="w-full sm:w-auto px-6 py-2.5 rounded-xl bg-amber-500 hover:bg-amber-600 disabled:opacity-50 disabled:cursor-not-allowed text-slate-950 font-bold text-xs shadow-xs flex items-center justify-center gap-2 transition active:scale-95"
                   >
                     <Sparkles className="h-4 w-4" />
-                    <span>Konfirmasi Peminjaman ({cartBarcodes.length} Buku)</span>
+                    <span>{t.confirmLoan} ({cartBarcodes.length} {t.booksUnit})</span>
                   </button>
                 </div>
               </div>

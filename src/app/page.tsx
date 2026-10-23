@@ -456,7 +456,7 @@ export default function Home() {
                     </span>
                     <span className="inline-flex items-center gap-1 px-1.5 py-0.2 rounded-md bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 border border-emerald-500/30 text-[10px] font-semibold mt-0.5">
                       <span className="h-1.5 w-1.5 rounded-full bg-emerald-500 animate-pulse"></span>
-                      Pustakawan
+                      {t.librarian}
                     </span>
                   </div>
                 )}
@@ -487,7 +487,7 @@ export default function Home() {
                 </span>
                 {!isSidebarCollapsed && (
                   <span className="text-[11px] font-medium text-emerald-600 dark:text-emerald-400">
-                    Scanner USB Siap
+                    {t.scannerReady}
                   </span>
                 )}
               </div>
@@ -502,7 +502,7 @@ export default function Home() {
                   }`}
                   title="Simulasi Tes Barcode"
                 >
-                  Tes Scan
+                  {t.testScan}
                 </button>
               )}
             </div>
@@ -510,7 +510,7 @@ export default function Home() {
             {/* 1.3 Barcode Simulation Drawer */}
             {!isSidebarCollapsed && showSimulator && (
               <div className="p-2 border-b border-border/80 bg-surface-2/60 text-[10px] space-y-1 animate-in fade-in">
-                <span className="text-text-muted font-medium block">Simulasi Scan Cepat:</span>
+                <span className="text-text-muted font-medium block">{t.quickScanSim}</span>
                 <div className="grid grid-cols-2 gap-1">
                   <button
                     type="button"
@@ -554,7 +554,7 @@ export default function Home() {
               <div>
                 {!isSidebarCollapsed && (
                   <p className="px-2 text-[10px] font-bold uppercase tracking-wider text-text-muted mb-1">
-                    Navigasi Utama
+                    {t.mainNav}
                   </p>
                 )}
                 <nav className="space-y-0.5">
@@ -620,7 +620,7 @@ export default function Home() {
               <div>
                 {!isSidebarCollapsed && (
                   <p className="px-2 text-[10px] font-bold uppercase tracking-wider text-text-muted mb-1">
-                    Modul & Alat
+                    {t.modulesTools}
                   </p>
                 )}
                 <div className="space-y-0.5">
@@ -633,7 +633,7 @@ export default function Home() {
                     title="Cetak Label Barcode & Nomor Panggil (Tom & Jerry 103 / Thermal)"
                   >
                     <Printer className="h-4 w-4 text-emerald-500 shrink-0" />
-                    {!isSidebarCollapsed && <span>Cetak Label Barcode</span>}
+                    {!isSidebarCollapsed && <span>{t.printSpineLabels}</span>}
                   </button>
 
                   <button
@@ -645,7 +645,7 @@ export default function Home() {
                     title="Impor / Ekspor Excel Database"
                   >
                     <FileSpreadsheet className="h-4 w-4 text-emerald-500 shrink-0" />
-                    {!isSidebarCollapsed && <span>Modul Excel Data</span>}
+                    {!isSidebarCollapsed && <span>{t.excelModule}</span>}
                   </button>
 
                   <button
@@ -657,7 +657,7 @@ export default function Home() {
                     title="Pusat WhatsApp Notifikasi & Reminder"
                   >
                     <MessageSquare className="h-4 w-4 text-emerald-500 shrink-0" />
-                    {!isSidebarCollapsed && <span>WhatsApp Center</span>}
+                    {!isSidebarCollapsed && <span>{t.whatsAppCenter}</span>}
                   </button>
 
                   {isFinanceEnabled && (
@@ -670,7 +670,7 @@ export default function Home() {
                       title="Kas Perpustakaan & Denda"
                     >
                       <Coins className="h-4 w-4 text-amber-500 shrink-0" />
-                      {!isSidebarCollapsed && <span>Kas & Denda</span>}
+                      {!isSidebarCollapsed && <span>{language === 'zh' ? '财务与罚款' : language === 'en' ? 'Cash & Fines' : 'Kas & Denda'}</span>}
                     </button>
                   )}
 
@@ -683,7 +683,7 @@ export default function Home() {
                     title="Analisis & Statistik Koleksi"
                   >
                     <BarChart3 className="h-4 w-4 text-indigo-500 shrink-0" />
-                    {!isSidebarCollapsed && <span>Analitik Koleksi</span>}
+                    {!isSidebarCollapsed && <span>{t.collectionAnalytics}</span>}
                   </button>
 
                   <button
@@ -695,7 +695,7 @@ export default function Home() {
                     title="Telegram Bot & Backup Otomatis"
                   >
                     <Bot className="h-4 w-4 text-sky-500 shrink-0" />
-                    {!isSidebarCollapsed && <span>Telegram & Backup</span>}
+                    {!isSidebarCollapsed && <span>{t.telegramBackup}</span>}
                   </button>
 
                   <button
@@ -707,7 +707,7 @@ export default function Home() {
                     title="Log Riwayat & Audit Sistem"
                   >
                     <History className="h-4 w-4 text-purple-500 shrink-0" />
-                    {!isSidebarCollapsed && <span>Audit & Riwayat</span>}
+                    {!isSidebarCollapsed && <span>{t.auditHistory}</span>}
                   </button>
                 </div>
               </div>
@@ -716,7 +716,7 @@ export default function Home() {
               <div>
                 {!isSidebarCollapsed && (
                   <p className="px-2 text-[10px] font-bold uppercase tracking-wider text-text-muted mb-1.5">
-                    Pengaturan Tampilan
+                    {t.displaySettings}
                   </p>
                 )}
 
@@ -727,10 +727,10 @@ export default function Home() {
                       <div className="flex items-center justify-between text-[11px] font-medium text-text-muted">
                         <span className="flex items-center gap-1.5">
                           <Type className="h-3.5 w-3.5 text-amber-500" />
-                          <span>Ukuran Font:</span>
+                          <span>{t.fontSizeLabel}</span>
                         </span>
                         <span className="font-semibold text-text text-[10px] uppercase">
-                          {fontSize === 'normal' ? 'Normal (16px)' : fontSize === 'large' ? 'Besar (18px)' : 'Ekstra (20px)'}
+                          {fontSize === 'normal' ? t.fontSizeNormal : fontSize === 'large' ? t.fontSizeLarge : t.fontSizeXLarge}
                         </span>
                       </div>
                       <div className="grid grid-cols-3 gap-1 bg-surface p-1 rounded-lg border border-border">
@@ -742,7 +742,7 @@ export default function Home() {
                               ? 'bg-amber-500 text-slate-950 shadow-xs'
                               : 'text-text-muted hover:text-text hover:bg-surface-2'
                           }`}
-                          title="Ukuran Standar (16px)"
+                          title={`${t.fontSizeNormal} (16px)`}
                         >
                           A-
                         </button>
@@ -754,7 +754,7 @@ export default function Home() {
                               ? 'bg-amber-500 text-slate-950 shadow-xs'
                               : 'text-text-muted hover:text-text hover:bg-surface-2'
                           }`}
-                          title="Ukuran Besar (18px) - Lebih Nyaman Dibaca"
+                          title={`${t.fontSizeLarge} (18px)`}
                         >
                           A
                         </button>
@@ -766,7 +766,7 @@ export default function Home() {
                               ? 'bg-amber-500 text-slate-950 shadow-xs'
                               : 'text-text-muted hover:text-text hover:bg-surface-2'
                           }`}
-                          title="Ukuran Ekstra Besar (20px)"
+                          title={`${t.fontSizeXLarge} (20px)`}
                         >
                           A+
                         </button>
@@ -780,7 +780,7 @@ export default function Home() {
                         handleFontSizeChange(nextSize);
                       }}
                       className="h-8 w-8 rounded-lg bg-surface border border-border hover:bg-surface-2 flex items-center justify-center text-amber-500 font-bold text-xs cursor-pointer"
-                      title={`Ganti Ukuran Font: Saat ini ${fontSize}. Klik untuk ubah.`}
+                      title={`${t.fontSizeLabel}: ${fontSize}`}
                     >
                       A+
                     </button>
@@ -794,7 +794,7 @@ export default function Home() {
                     type="button"
                     onClick={toggleTheme}
                     className="h-8 rounded-lg border border-border bg-surface hover:bg-surface-2 text-text flex items-center justify-center transition cursor-pointer"
-                    title={theme === 'dark' ? 'Ganti ke Mode Terang' : 'Ganti ke Mode Gelap'}
+                    title={theme === 'dark' ? t.themeToggleLight : t.themeToggleDark}
                   >
                     {theme === 'dark' ? <Sun className="h-4 w-4 text-amber-400" /> : <Moon className="h-4 w-4 text-slate-600" />}
                   </button>
@@ -804,7 +804,7 @@ export default function Home() {
                     type="button"
                     onClick={toggleSound}
                     className="h-8 rounded-lg border border-border bg-surface hover:bg-surface-2 text-text flex items-center justify-center transition cursor-pointer"
-                    title={isSoundOn ? 'Suara Feedback Aktif' : 'Suara Dimatikan'}
+                    title={isSoundOn ? t.soundOn : t.soundOff}
                   >
                     {isSoundOn ? <Volume2 className="h-4 w-4 text-amber-400" /> : <VolumeX className="h-4 w-4 text-text-muted" />}
                   </button>
@@ -814,7 +814,7 @@ export default function Home() {
                     type="button"
                     onClick={() => setIsShortcutHelpOpen(true)}
                     className="h-8 rounded-lg border border-border bg-surface hover:bg-surface-2 text-amber-500 flex items-center justify-center transition cursor-pointer font-bold text-xs"
-                    title="Panduan Pintasan Keyboard Pustakawan (F1)"
+                    title={t.keyboardShortcuts}
                   >
                     <Keyboard className="h-4 w-4" />
                   </button>
@@ -824,7 +824,7 @@ export default function Home() {
                     type="button"
                     onClick={() => setIsAdminAuthOpen(true)}
                     className="h-8 rounded-lg border border-border bg-surface hover:bg-surface-2 text-text-muted hover:text-text flex items-center justify-center transition cursor-pointer"
-                    title="Pengaturan Sistem & Profil Sekolah"
+                    title={t.systemSettings}
                   >
                     <Settings className="h-4 w-4" />
                   </button>
@@ -848,13 +848,13 @@ export default function Home() {
                 title="Beralih ke Mode Siswa (Layar Penuh Anak TK)"
               >
                 <Monitor className="h-4 w-4 shrink-0" />
-                {!isSidebarCollapsed && <span>Mode Siswa (Kiosk)</span>}
+                {!isSidebarCollapsed && <span>{t.studentModeKiosk}</span>}
               </button>
 
               {!isSidebarCollapsed && (
                 <div className="text-[10px] text-text-muted text-center flex items-center justify-between px-1">
                   <span>v1.0.0 Standalone</span>
-                  <span className="text-emerald-500 font-medium">● Offline 100%</span>
+                  <span className="text-emerald-500 font-medium">{t.offlineStatus}</span>
                 </div>
               )}
             </div>
@@ -999,6 +999,7 @@ export default function Home() {
 
               {activeTab === 'CIRCULATION' && (
                 <CirculationDesk
+                  language={language}
                   scannedCode={activeCirculationScan}
                   onClearScannedCode={() => setActiveCirculationScan('')}
                   initialSubTab={circulationSubTab}
@@ -1033,7 +1034,7 @@ export default function Home() {
               <div className="max-w-7xl mx-auto px-4 sm:px-6 flex flex-col md:flex-row items-center justify-between gap-3 text-center md:text-left">
                 <div>
                   <p className="font-bold text-text">
-                    © 2026 {schoolProfile.name} — Sistem Informasi Perpustakaan Digital
+                    © 2026 {schoolProfile.name} — {t.digitalLibrarySystem}
                   </p>
                   <p className="text-[11px] text-text-muted">
                     {schoolProfile.tagline} • {schoolProfile.address} • 📞 {schoolProfile.phone}
@@ -1045,7 +1046,7 @@ export default function Home() {
                     onClick={() => setIsDevCreditOpen(true)}
                     className="text-amber-500 font-semibold hover:underline cursor-pointer"
                   >
-                    Profil Pengembang
+                    {t.developerProfile}
                   </button>
                   <span>•</span>
                   <button
@@ -1058,7 +1059,7 @@ export default function Home() {
                     }}
                     className="text-text-muted hover:text-rose-500 transition cursor-pointer"
                   >
-                    Reset Data Demo
+                    {t.resetDemoData}
                   </button>
                 </div>
               </div>

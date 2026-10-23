@@ -41,7 +41,7 @@ import {
 import { Book, CategoryId, AgeGroup, Category, SchoolProfile, WishlistNotification, Language, LibraryNewsArticle, Reservation } from '@/types';
 import { libraryStore } from '@/lib/storage';
 import { soundFx } from '@/lib/sound';
-import { DICTIONARY } from '@/lib/i18n';
+import { DICTIONARY, getDdcShortNameByCode } from '@/lib/i18n';
 import { generateSlimsCallNumber } from '@/lib/constants';
 import { SmartBookCover } from '@/components/common/SmartBookCover';
 
@@ -67,7 +67,7 @@ export const KidsVisualOpac: React.FC<KidsVisualOpacProps> = ({
   const [mounted, setMounted] = useState<boolean>(false);
   const [lang, setLang] = useState<Language>(language || 'id');
   const activeLang = language || lang;
-  const t = DICTIONARY[mounted ? activeLang : 'id'] || DICTIONARY.id;
+  const t = DICTIONARY[activeLang] || DICTIONARY.id;
 
   const [categories, setCategories] = useState<Category[]>([]);
   const [selectedCategory, setSelectedCategory] = useState<CategoryId | 'ALL'>('ALL');
@@ -521,13 +521,13 @@ export const KidsVisualOpac: React.FC<KidsVisualOpacProps> = ({
                   className="h-11 px-5 rounded-xl bg-amber-500 hover:bg-amber-600 active:scale-95 text-slate-950 font-bold text-xs flex items-center gap-1.5 shadow-md transition shrink-0"
                 >
                   <Search className="h-4 w-4" />
-                  <span className="hidden sm:inline">Cari Buku</span>
+                  <span className="hidden sm:inline">{t.searchBtn || 'Cari Buku'}</span>
                 </button>
               </div>
 
               {/* Quick Search Chips (Children Topics) */}
               <div className="flex flex-wrap items-center gap-2 mt-3 pt-1">
-                <span className="text-[11px] font-semibold text-white/80">Cari Cepat:</span>
+                <span className="text-[11px] font-semibold text-white/80">{t.categoryFilterQuick || 'Cari Cepat:'}</span>
                 {[
                   { label: t.chipAnimals, query: 'hewan' },
                   { label: t.chipDinos, query: 'dino' },
@@ -553,40 +553,40 @@ export const KidsVisualOpac: React.FC<KidsVisualOpacProps> = ({
                 <div className="p-2 rounded-xl bg-black/20 backdrop-blur-md border border-white/15">
                   <div className="flex items-center gap-1.5 text-white/80 text-[10px] font-semibold">
                     <BookOpen className="h-3 w-3 text-amber-200" />
-                    <span>Total Koleksi</span>
+                    <span>{t.statTotalCollection || 'Total Koleksi'}</span>
                   </div>
                   <div className="text-sm sm:text-base font-bold font-display text-white mt-0.5">
-                    {totalTitles} <span className="text-[10px] font-normal text-white/70">Judul</span>
+                    {totalTitles} <span className="text-[10px] font-normal text-white/70">{t.statTitles || 'Judul'}</span>
                   </div>
                 </div>
 
                 <div className="p-2 rounded-xl bg-black/20 backdrop-blur-md border border-white/15">
                   <div className="flex items-center gap-1.5 text-emerald-200 text-[10px] font-semibold">
                     <CheckCircle className="h-3 w-3 text-emerald-300" />
-                    <span>Tersedia di Rak</span>
+                    <span>{t.statAvailable || 'Tersedia di Rak'}</span>
                   </div>
                   <div className="text-sm sm:text-base font-bold font-display text-emerald-300 mt-0.5">
-                    {availableCopies} <span className="text-[10px] font-normal text-white/70">Buku</span>
+                    {availableCopies} <span className="text-[10px] font-normal text-white/70">{t.statBooksUnit || 'Buku'}</span>
                   </div>
                 </div>
 
                 <div className="p-2 rounded-xl bg-black/20 backdrop-blur-md border border-white/15">
                   <div className="flex items-center gap-1.5 text-amber-200 text-[10px] font-semibold">
                     <Clock className="h-3 w-3 text-amber-300" />
-                    <span>Sedang Dipinjam</span>
+                    <span>{t.statBorrowed || 'Sedang Dipinjam'}</span>
                   </div>
                   <div className="text-sm sm:text-base font-bold font-display text-amber-300 mt-0.5">
-                    {borrowedCopies} <span className="text-[10px] font-normal text-white/70">Buku</span>
+                    {borrowedCopies} <span className="text-[10px] font-normal text-white/70">{t.statBooksUnit || 'Buku'}</span>
                   </div>
                 </div>
 
                 <div className="p-2 rounded-xl bg-black/20 backdrop-blur-md border border-white/15">
                   <div className="flex items-center gap-1.5 text-sky-200 text-[10px] font-semibold">
                     <Users className="h-3 w-3 text-sky-300" />
-                    <span>Anggota Aktif</span>
+                    <span>{t.statActiveMembers || 'Anggota Aktif'}</span>
                   </div>
                   <div className="text-sm sm:text-base font-bold font-display text-white mt-0.5">
-                    {activeMembers} <span className="text-[10px] font-normal text-white/70">Siswa & Guru</span>
+                    {activeMembers} <span className="text-[10px] font-normal text-white/70">{t.statStudentsTeachers || 'Siswa & Guru'}</span>
                   </div>
                 </div>
               </div>
@@ -779,17 +779,17 @@ export const KidsVisualOpac: React.FC<KidsVisualOpacProps> = ({
                   <div className="flex flex-wrap items-center gap-2">
                     {currentArticle.isPinned && (
                       <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-amber-500/20 text-amber-500 border border-amber-500/40 text-[9px] font-extrabold uppercase tracking-wider">
-                        📌 Disematkan
+                        📌 {t.pinnedAnnouncement || 'Disematkan'}
                       </span>
                     )}
                     <span className="text-[10px] font-bold uppercase tracking-wider text-amber-500">
                       {currentArticle.category === 'HOLIDAY'
-                        ? 'Libur / Tutup'
+                        ? (activeLang === 'zh' ? '放假 / 闭馆' : activeLang === 'en' ? 'Holiday / Closed' : 'Libur / Tutup')
                         : currentArticle.category === 'STOCK_OPNAME'
                         ? 'Stock Opname'
                         : currentArticle.category === 'EVENT'
-                        ? 'Agenda / Event'
-                        : 'Pengumuman Resmi'}
+                        ? (activeLang === 'zh' ? '日程 / 活动' : activeLang === 'en' ? 'Event / Agenda' : 'Agenda / Event')
+                        : (t.officialAnnouncement || 'Pengumuman Resmi')}
                     </span>
                     <span className="text-[10px] text-text-muted">• {currentArticle.publishedDate}</span>
                   </div>
@@ -810,7 +810,7 @@ export const KidsVisualOpac: React.FC<KidsVisualOpacProps> = ({
                         setActiveNewsIndex((prev) => (prev - 1 + activeNews.length) % activeNews.length);
                       }}
                       className="p-1 rounded-lg text-text-muted hover:text-text hover:bg-surface transition cursor-pointer"
-                      title="Pengumuman Sebelumnya"
+                      title={activeLang === 'zh' ? '上一条' : activeLang === 'en' ? 'Previous Announcement' : 'Pengumuman Sebelumnya'}
                     >
                       <ChevronLeft className="h-3.5 w-3.5" />
                     </button>
@@ -824,7 +824,7 @@ export const KidsVisualOpac: React.FC<KidsVisualOpacProps> = ({
                         setActiveNewsIndex((prev) => (prev + 1) % activeNews.length);
                       }}
                       className="p-1 rounded-lg text-text-muted hover:text-text hover:bg-surface transition cursor-pointer"
-                      title="Pengumuman Berikutnya"
+                      title={activeLang === 'zh' ? '下一条' : activeLang === 'en' ? 'Next Announcement' : 'Pengumuman Berikutnya'}
                     >
                       <ChevronRight className="h-3.5 w-3.5" />
                     </button>
@@ -839,7 +839,7 @@ export const KidsVisualOpac: React.FC<KidsVisualOpacProps> = ({
                   }}
                   className="px-3 py-1.5 rounded-xl bg-amber-500 hover:bg-amber-600 text-slate-950 font-bold text-xs flex items-center gap-1.5 shadow-xs transition cursor-pointer active:scale-95"
                 >
-                  <span>Baca Info</span>
+                  <span>{t.readInfo || 'Baca Info'}</span>
                   <ChevronRightCircle className="h-3.5 w-3.5" />
                 </button>
               </div>
@@ -900,7 +900,7 @@ export const KidsVisualOpac: React.FC<KidsVisualOpacProps> = ({
             type="button"
             className="px-3.5 py-1.5 rounded-xl bg-surface border border-border text-xs font-bold text-amber-500 flex items-center gap-1.5 shadow-2xs group-hover:bg-amber-500 group-hover:text-slate-950 transition"
           >
-            <span>Buka Sorotan</span>
+            <span>{activeLang === 'zh' ? '展开精选' : activeLang === 'en' ? 'Open Highlights' : 'Buka Sorotan'}</span>
             <ChevronDown className="h-4 w-4" />
           </button>
         </div>
@@ -924,7 +924,7 @@ export const KidsVisualOpac: React.FC<KidsVisualOpacProps> = ({
                 }`}
               >
                 <Sparkles className="h-3.5 w-3.5" />
-                <span>Baru Masuk ({newArrivals.length})</span>
+                <span>{t.newArrivals || 'Baru Masuk'} ({newArrivals.length})</span>
               </button>
 
               <button
@@ -940,7 +940,7 @@ export const KidsVisualOpac: React.FC<KidsVisualOpacProps> = ({
                 }`}
               >
                 <Award className="h-3.5 w-3.5" />
-                <span>Paling Favorit 🔥</span>
+                <span>{t.mostFavorite || 'Paling Favorit'} 🔥</span>
               </button>
 
               <button
@@ -956,7 +956,7 @@ export const KidsVisualOpac: React.FC<KidsVisualOpacProps> = ({
                 }`}
               >
                 <Users className="h-3.5 w-3.5" />
-                <span>Sesuai Usia 👶</span>
+                <span>{t.ageAppropriate || 'Sesuai Usia'} 👶</span>
               </button>
             </div>
 
@@ -967,7 +967,7 @@ export const KidsVisualOpac: React.FC<KidsVisualOpacProps> = ({
                   type="button"
                   onClick={() => scrollCarousel('left')}
                   className="h-8 w-8 rounded-xl bg-surface-2 border border-border hover:bg-surface text-text flex items-center justify-center transition active:scale-95 shadow-2xs"
-                  title="Geser ke kiri"
+                  title={activeLang === 'zh' ? '向左滑动' : activeLang === 'en' ? 'Scroll left' : 'Geser ke kiri'}
                 >
                   <ChevronLeft className="h-4 w-4" />
                 </button>
@@ -975,7 +975,7 @@ export const KidsVisualOpac: React.FC<KidsVisualOpacProps> = ({
                   type="button"
                   onClick={() => scrollCarousel('right')}
                   className="h-8 w-8 rounded-xl bg-surface-2 border border-border hover:bg-surface text-text flex items-center justify-center transition active:scale-95 shadow-2xs"
-                  title="Geser ke kanan"
+                  title={activeLang === 'zh' ? '向右滑动' : activeLang === 'en' ? 'Scroll right' : 'Geser ke kanan'}
                 >
                   <ChevronRight className="h-4 w-4" />
                 </button>
@@ -988,9 +988,9 @@ export const KidsVisualOpac: React.FC<KidsVisualOpacProps> = ({
                   soundFx.playScanBeep();
                 }}
                 className="px-3 py-1.5 rounded-xl bg-surface-2 border border-border hover:border-amber-500/50 text-xs font-bold text-text-muted hover:text-text flex items-center gap-1 transition shadow-2xs"
-                title="Sembunyikan sorotan agar katalog langsung terlihat"
+                title={activeLang === 'zh' ? '折叠精选区' : activeLang === 'en' ? 'Hide highlights' : 'Sembunyikan sorotan agar katalog langsung terlihat'}
               >
-                <span>Sembunyikan</span>
+                <span>{t.hide || 'Sembunyikan'}</span>
                 <ChevronUp className="h-3.5 w-3.5 text-amber-500" />
               </button>
             </div>
@@ -999,11 +999,11 @@ export const KidsVisualOpac: React.FC<KidsVisualOpacProps> = ({
           {/* Sub-Age Switcher if AGE tab active */}
           {activeHighlightTab === 'AGE' && (
             <div className="flex items-center gap-2 pt-1">
-              <span className="text-[11px] font-semibold text-text-muted">Pilih Jenjang:</span>
+              <span className="text-[11px] font-semibold text-text-muted">{activeLang === 'zh' ? '选择年级:' : activeLang === 'en' ? 'Select Grade:' : 'Pilih Jenjang:'}</span>
               {[
-                { id: 'PLAYGROUP', label: '👶 Toddler / KB (2-3 th)' },
-                { id: 'TK_A', label: '🧒 TK-A (4-5 th)' },
-                { id: 'TK_B', label: '👦 TK-B (5-6 th)' },
+                { id: 'PLAYGROUP', label: activeLang === 'zh' ? '👶 托儿所 / 幼幼班 (2-3 岁)' : activeLang === 'en' ? '👶 Toddler / Playgroup (2-3 yo)' : '👶 Toddler / KB (2-3 th)' },
+                { id: 'TK_A', label: activeLang === 'zh' ? '🧒 幼小班 TK-A (4-5 岁)' : activeLang === 'en' ? '🧒 Kindergarten A (4-5 yo)' : '🧒 TK-A (4-5 th)' },
+                { id: 'TK_B', label: activeLang === 'zh' ? '👦 幼大班 TK-B (5-6 岁)' : activeLang === 'en' ? '👦 Kindergarten B (5-6 yo)' : '👦 TK-B (5-6 th)' },
               ].map((tab) => (
                 <button
                   key={tab.id}
@@ -1173,7 +1173,7 @@ export const KidsVisualOpac: React.FC<KidsVisualOpacProps> = ({
         <div className="flex items-center justify-between">
           <span className="text-xs font-bold text-text flex items-center gap-1.5">
             <Tag className="h-3.5 w-3.5 text-amber-500" />
-            <span>Kategori Rak Buku (Filter Cepat):</span>
+            <span>{t.categoryFilterQuick || 'Kategori Rak Buku (Filter Cepat):'}</span>
           </span>
           {selectedCategory !== 'ALL' && (
             <button
@@ -1184,7 +1184,7 @@ export const KidsVisualOpac: React.FC<KidsVisualOpacProps> = ({
               }}
               className="text-xs text-amber-500 hover:underline font-semibold"
             >
-              Reset ke Semua Rak
+              {activeLang === 'zh' ? '重置为所有书架' : activeLang === 'en' ? 'Reset to All Shelves' : 'Reset ke Semua Rak'}
             </button>
           )}
         </div>
@@ -1202,7 +1202,7 @@ export const KidsVisualOpac: React.FC<KidsVisualOpacProps> = ({
                 : 'bg-surface hover:bg-surface-2 border-border text-text'
             }`}
           >
-            <span>🌈 Semua Rak</span>
+            <span>🌈 {t.allShelves || 'Semua Rak'}</span>
             <span className={`text-[10px] px-1.5 py-0.2 rounded-full ${selectedCategory === 'ALL' ? 'bg-black/20 text-slate-950' : 'bg-surface-2 text-text-muted'}`}>
               {books.length}
             </span>
@@ -1231,7 +1231,7 @@ export const KidsVisualOpac: React.FC<KidsVisualOpacProps> = ({
                 }}
               >
                 <span>{getCategoryEmoji(cat.id)}</span>
-                <span>{cat.name}</span>
+                <span>{getDdcShortNameByCode(cat.ddcCode || '', activeLang) || cat.name}</span>
                 <span className={`text-[10px] px-1.5 py-0.2 rounded-full ${isSelected ? 'bg-black/20 text-slate-950' : 'bg-surface-2 text-text-muted'}`}>
                   {count}
                 </span>
@@ -1255,7 +1255,7 @@ export const KidsVisualOpac: React.FC<KidsVisualOpacProps> = ({
                 {t.exploreAll}
               </h2>
               <p className="text-xs text-text-muted">
-                Pilih filter dan temukan buku cerita kesukaan dari seluruh koleksi
+                {t.exploreAllSubtitle || 'Pilih filter dan temukan buku cerita kesukaan dari seluruh koleksi'}
               </p>
             </div>
           </div>
@@ -1269,14 +1269,14 @@ export const KidsVisualOpac: React.FC<KidsVisualOpacProps> = ({
                 soundFx.playScanBeep();
               }}
               className="rounded-xl border border-border bg-surface-2 px-3 py-1.5 text-xs font-semibold text-text outline-hidden focus:border-amber-500 transition cursor-pointer"
-              title="Urutkan Koleksi Buku"
+              title={activeLang === 'zh' ? '藏书排序' : activeLang === 'en' ? 'Sort Collections' : 'Urutkan Koleksi Buku'}
             >
-              <option value="NEWEST">Terbaru Ditambahkan</option>
-              <option value="TITLE_ASC">Judul A - Z</option>
-              <option value="TITLE_DESC">Judul Z - A</option>
-              <option value="MOST_BORROWED">Paling Sering Dipinjam 🔥</option>
-              <option value="YEAR_DESC">Tahun Terbit (Terbaru)</option>
-              <option value="PAGES_DESC">Halaman Terbanyak</option>
+              <option value="NEWEST">{t.sortRecentlyAdded || 'Terbaru Ditambahkan'}</option>
+              <option value="TITLE_ASC">{t.sortTitleAZ || 'Judul A - Z'}</option>
+              <option value="TITLE_DESC">{t.sortTitleZA || 'Judul Z - A'}</option>
+              <option value="MOST_BORROWED">{t.sortMostBorrowed || 'Paling Sering Dipinjam 🔥'}</option>
+              <option value="YEAR_DESC">{t.sortYearNewest || 'Tahun Terbit (Terbaru)'}</option>
+              <option value="PAGES_DESC">{t.sortMostPages || 'Halaman Terbanyak'}</option>
             </select>
 
             {/* View Mode Toggle: Grid vs List */}
@@ -1293,10 +1293,10 @@ export const KidsVisualOpac: React.FC<KidsVisualOpacProps> = ({
                     ? 'bg-amber-500 text-slate-950 shadow-xs'
                     : 'text-text-muted hover:text-text'
                 }`}
-                title="Tampilan Grid Sampul Buku"
+                title={activeLang === 'zh' ? '网格视图' : activeLang === 'en' ? 'Grid view' : 'Tampilan Grid Sampul Buku'}
               >
                 <LayoutGrid className="h-3.5 w-3.5" />
-                <span className="hidden sm:inline">Grid</span>
+                <span className="hidden sm:inline">{t.viewGrid || 'Grid'}</span>
               </button>
               <button
                 type="button"
@@ -1311,15 +1311,19 @@ export const KidsVisualOpac: React.FC<KidsVisualOpacProps> = ({
                     ? 'bg-amber-500 text-slate-950 shadow-xs'
                     : 'text-text-muted hover:text-text'
                 }`}
-                title="Tampilan Mode Daftar List Ringkas (Auto-minimize sorotan atas)"
+                title={activeLang === 'zh' ? '列表视图' : activeLang === 'en' ? 'List view' : 'Tampilan Mode Daftar List Ringkas (Auto-minimize sorotan atas)'}
               >
                 <List className="h-3.5 w-3.5" />
-                <span className="hidden sm:inline">Daftar List</span>
+                <span className="hidden sm:inline">{t.viewList || 'Daftar List'}</span>
               </button>
             </div>
 
             <div className="text-xs text-text-muted">
-              Menampilkan <strong className="text-text">{sortedFilteredBooks.length}</strong> dari {books.length} buku
+              {activeLang === 'zh'
+                ? <>显示全部 <strong className="text-text">{books.length}</strong> 本中的 <strong className="text-text">{sortedFilteredBooks.length}</strong> 本</>
+                : activeLang === 'en'
+                ? <>Showing <strong className="text-text">{sortedFilteredBooks.length}</strong> of {books.length} books</>
+                : <>Menampilkan <strong className="text-text">{sortedFilteredBooks.length}</strong> dari {books.length} buku</>}
             </div>
           </div>
         </div>
@@ -1329,7 +1333,7 @@ export const KidsVisualOpac: React.FC<KidsVisualOpacProps> = ({
           <div className="flex items-center justify-between px-3 py-2 rounded-xl bg-surface-2 border border-border text-xs">
             <span className="text-text-muted text-[11px] flex items-center gap-1.5">
               <Sparkles className="h-3.5 w-3.5 text-amber-500" />
-              <span>Sorotan atas sedang diminimalkan agar katalog buku lebih dekat ke pencarian.</span>
+              <span>{activeLang === 'zh' ? '精选区已折叠，以便更快浏览书籍目录。' : activeLang === 'en' ? 'Top highlights are minimized so the catalog is closer to search.' : 'Sorotan atas sedang diminimalkan agar katalog buku lebih dekat ke pencarian.'}</span>
             </span>
             <button
               type="button"
@@ -1339,7 +1343,7 @@ export const KidsVisualOpac: React.FC<KidsVisualOpacProps> = ({
               }}
               className="text-amber-500 hover:text-amber-400 font-bold text-xs flex items-center gap-1 hover:underline cursor-pointer"
             >
-              <span>Buka Kembali Sorotan</span>
+              <span>{activeLang === 'zh' ? '重新打开精选' : activeLang === 'en' ? 'Reopen Highlights' : 'Buka Kembali Sorotan'}</span>
               <ChevronDown className="h-3.5 w-3.5" />
             </button>
           </div>
@@ -1350,7 +1354,7 @@ export const KidsVisualOpac: React.FC<KidsVisualOpacProps> = ({
           <div className="flex flex-wrap items-center justify-between gap-3 text-xs">
             {/* Filter Pills (Semua / Sering Dipinjam / Jarang Dipinjam / Buku Impian) */}
             <div className="flex flex-wrap items-center gap-1.5 font-semibold">
-              <span className="text-text-muted text-[11px] mr-1">Filter:</span>
+              <span className="text-text-muted text-[11px] mr-1">{t.filterLabel || 'Filter:'}</span>
 
               <button
                 type="button"
@@ -1361,7 +1365,7 @@ export const KidsVisualOpac: React.FC<KidsVisualOpacProps> = ({
                     : 'bg-surface-2 text-text-muted hover:text-text'
                 }`}
               >
-                Semua ({books.length})
+                {t.filterAll || 'Semua'} ({books.length})
               </button>
 
               <button
@@ -1374,7 +1378,7 @@ export const KidsVisualOpac: React.FC<KidsVisualOpacProps> = ({
                 }`}
               >
                 <Flame className="h-3.5 w-3.5 text-amber-500" />
-                <span>Sering Dipinjam</span>
+                <span>{t.filterFreqBorrowed || 'Sering Dipinjam'}</span>
               </button>
 
               <button
@@ -1387,7 +1391,7 @@ export const KidsVisualOpac: React.FC<KidsVisualOpacProps> = ({
                 }`}
               >
                 <TrendingDown className="h-3.5 w-3.5 text-sky-500" />
-                <span>Jarang Dipinjam</span>
+                <span>{t.filterRareBorrowed || 'Jarang Dipinjam'}</span>
               </button>
 
               <button
@@ -1400,7 +1404,7 @@ export const KidsVisualOpac: React.FC<KidsVisualOpacProps> = ({
                 }`}
               >
                 <Heart className="h-3.5 w-3.5 text-rose-500 fill-rose-500" />
-                <span>Buku Impianku ({wishlist.length})</span>
+                <span>{t.filterWishlist || 'Buku Impianku'} ({wishlist.length})</span>
               </button>
             </div>
 
@@ -1413,10 +1417,10 @@ export const KidsVisualOpac: React.FC<KidsVisualOpacProps> = ({
                   onChange={(e) => setSelectedYear(e.target.value)}
                   className="bg-transparent border-none outline-hidden text-text cursor-pointer font-medium"
                 >
-                  <option value="ALL">Semua Tahun</option>
+                  <option value="ALL">{t.filterAllYears || 'Semua Tahun'}</option>
                   {availableYears.map((yr) => (
                     <option key={yr} value={yr} className="bg-surface text-text">
-                      Tahun {yr}
+                      {activeLang === 'zh' ? `${yr}年` : activeLang === 'en' ? `Year ${yr}` : `Tahun ${yr}`}
                     </option>
                   ))}
                 </select>
@@ -1427,10 +1431,10 @@ export const KidsVisualOpac: React.FC<KidsVisualOpacProps> = ({
                 onChange={(e) => setSelectedAge(e.target.value as any)}
                 className="bg-surface-2 text-text text-xs font-medium px-3 py-1.5 rounded-xl border border-border outline-hidden cursor-pointer"
               >
-                <option value="ALL">Semua Usia / Kelas</option>
-                <option value="PLAYGROUP">Playgroup (2-3 th)</option>
-                <option value="TK_A">TK-A (4-5 th)</option>
-                <option value="TK_B">TK-B (5-6 th)</option>
+                <option value="ALL">{t.filterAllAgesClasses || 'Semua Usia / Kelas'}</option>
+                <option value="PLAYGROUP">{activeLang === 'zh' ? '托儿所 (2-3 岁)' : activeLang === 'en' ? 'Playgroup (2-3 yo)' : 'Playgroup (2-3 th)'}</option>
+                <option value="TK_A">{activeLang === 'zh' ? '幼小班 TK-A (4-5 岁)' : activeLang === 'en' ? 'TK-A (4-5 yo)' : 'TK-A (4-5 th)'}</option>
+                <option value="TK_B">{activeLang === 'zh' ? '幼大班 TK-B (5-6 岁)' : activeLang === 'en' ? 'TK-B (5-6 yo)' : 'TK-B (5-6 th)'}</option>
               </select>
 
               {(selectedCategory !== 'ALL' ||
@@ -1744,7 +1748,11 @@ export const KidsVisualOpac: React.FC<KidsVisualOpacProps> = ({
         {filteredBooks.length > 0 && (
           <div className="pt-6 pb-2 flex flex-col sm:flex-row items-center justify-between gap-3 border-t border-border/80 text-xs text-text-muted">
             <span className="font-medium">
-              Menampilkan <span className="font-bold text-text">{filteredBooks.length}</span> judul buku dari total <span className="font-bold text-text">{books.length}</span> koleksi perpustakaan SBTH.
+              {activeLang === 'zh'
+                ? <>显示全部 <span className="font-bold text-text">{books.length}</span> 馆藏中的 <span className="font-bold text-text">{filteredBooks.length}</span> 本书。</>
+                : activeLang === 'en'
+                ? <>Showing <span className="font-bold text-text">{filteredBooks.length}</span> book titles out of <span className="font-bold text-text">{books.length}</span> total SBTH library collections.</>
+                : <>Menampilkan <span className="font-bold text-text">{filteredBooks.length}</span> judul buku dari total <span className="font-bold text-text">{books.length}</span> koleksi perpustakaan SBTH.</>}
             </span>
             <button
               type="button"
@@ -1752,7 +1760,7 @@ export const KidsVisualOpac: React.FC<KidsVisualOpacProps> = ({
               className="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-surface-2 hover:bg-surface border border-border hover:border-amber-500/50 text-text font-bold text-xs transition cursor-pointer active:scale-95 shadow-2xs"
             >
               <ArrowUp className="h-4 w-4 text-amber-500" />
-              <span>Kembali ke Puncak Katalog ⬆️</span>
+              <span>{t.backToCatalogTop || 'Kembali ke Puncak Katalog ⬆️'}</span>
             </button>
           </div>
         )}
@@ -2187,12 +2195,12 @@ export const KidsVisualOpac: React.FC<KidsVisualOpacProps> = ({
           type="button"
           onClick={scrollToTop}
           className="fixed bottom-6 right-6 z-60 flex items-center gap-2.5 px-4 py-2.5 rounded-full bg-linear-to-r from-amber-500 to-orange-500 hover:from-amber-600 hover:to-orange-600 active:scale-95 text-slate-950 font-extrabold text-xs shadow-2xl shadow-amber-500/50 border-2 border-amber-300 transition-all cursor-pointer animate-in fade-in slide-in-from-bottom-4 group select-none"
-          title="Kembali ke Atas Halaman"
+          title={t.backToTop || 'Kembali ke Atas Halaman'}
         >
           <div className="flex h-5 w-5 items-center justify-center rounded-full bg-slate-950/20 group-hover:-translate-y-0.5 transition-transform">
             <ArrowUp className="h-3.5 w-3.5 text-slate-950 stroke-[3]" />
           </div>
-          <span>Kembali ke Atas</span>
+          <span>{t.backToTop || 'Kembali ke Atas'}</span>
         </button>
       )}
     </div>
