@@ -425,14 +425,14 @@ export default function Home() {
   return (
     <div className="min-h-screen bg-slate-50 dark:bg-slate-950 text-slate-900 dark:text-slate-100 flex flex-col font-sans">
       {appMode === 'PUSTAKAWAN' ? (
-        <div className="flex-1 flex min-h-screen overflow-x-hidden">
+        <div className="flex-1 flex min-h-screen overflow-x-clip">
           {/* ======================================================== */}
           {/* 1. MODERN LEFT SIDEBAR (MODE PERPUSTAKAWAN)               */}
           {/* Sembunyikan total jika Portal Siswa sedang aktif agar bersih */}
           {/* ======================================================== */}
           {!isStudentPortalOpen && (
             <aside
-              className={`print:hidden flex flex-col shrink-0 border-r border-border bg-surface transition-all duration-300 z-30 select-none ${
+              className={`print:hidden sticky top-0 h-screen max-h-screen self-start overflow-hidden flex flex-col shrink-0 border-r border-border bg-surface transition-all duration-300 z-30 select-none ${
                 isSidebarCollapsed ? 'w-20' : 'w-64'
               }`}
             >
@@ -864,7 +864,7 @@ export default function Home() {
           {/* ======================================================== */}
           {/* 2. MAIN WORKSPACE & TOP BAR                              */}
           {/* ======================================================== */}
-          <div className="flex-1 flex flex-col min-w-0 overflow-y-auto">
+          <div className="flex-1 flex flex-col min-w-0">
             {/* Top Bar (Clean & Slim 54px) */}
             <header className="print:hidden sticky top-0 z-20 h-14 bg-surface/90 backdrop-blur-md border-b border-border px-4 sm:px-6 flex items-center justify-between gap-3 shadow-xs">
               {/* Left: Active Tab Title & Breadcrumb */}

@@ -9,6 +9,11 @@ import {
   Layers,
   ChevronDown,
   ChevronUp,
+  ChevronLeft,
+  ChevronRight,
+  ChevronsLeft,
+  ChevronsRight,
+  ArrowUp,
   Wrench,
   AlertTriangle,
   Trash2,
@@ -112,6 +117,55 @@ export const BookManagement: React.FC<BookManagementProps> = ({
     }
     return 'CARDS';
   });
+
+  // Paginasi & Batas Item per Tampilan (10 / 20 / 50 / 100)
+  const [itemsPerPage, setItemsPerPage] = useState<number>(() => {
+    if (typeof window !== 'undefined') {
+      const saved = localStorage.getItem('sbth_books_per_page');
+      if (saved && ['10', '20', '50', '100'].includes(saved)) {
+        return Number(saved);
+      }
+    }
+    return 20; // default 20 buku per view
+  });
+  const [currentPage, setCurrentPage] = useState<number>(1);
+  const [showBackToTop, setShowBackToTop] = useState<boolean>(false);
+
+  // Simpan pilihan batas buku per tampilan
+  React.useEffect(() => {
+    if (typeof window !== 'undefined') {
+      localStorage.setItem('sbth_books_per_page', String(itemsPerPage));
+    }
+  }, [itemsPerPage]);
+
+  // Reset ke halaman 1 saat filter pencarian, kategori, label, rak, status, sort, atau limit berubah
+  React.useEffect(() => {
+    setCurrentPage(1);
+  }, [search, selectedCategory, labelFilter, shelfFilter, statusFilter, sortBy, itemsPerPage, mainTab]);
+
+  // Scroll listener untuk Back to Top floating button
+  React.useEffect(() => {
+    const handleScroll = () => {
+      if (typeof window !== 'undefined') {
+        if (window.scrollY > 250) {
+          setShowBackToTop(true);
+        } else {
+          setShowBackToTop(false);
+        }
+      }
+    };
+    window.addEventListener('scroll', handleScroll, { passive: true });
+    return () => {
+      window.removeEventListener('scroll', handleScroll);
+    };
+  }, []);
+
+  const scrollToTop = () => {
+    if (typeof window !== 'undefined') {
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+      soundFx.playScanBeep();
+    }
+  };
 
   const [selectedBookForCopies, setSelectedBookForCopies] = useState<Book | null>(null);
   const [newCopiesCount, setNewCopiesCount] = useState<number>(1);
@@ -237,6 +291,27 @@ export const BookManagement: React.FC<BookManagementProps> = ({
   };
 
   const handleSelectAllVisible = () => {
+    // Memilih atau membatalkan pilihan buku di halaman yang sedang dilihat
+    const pageBookIds = paginatedBooks.map((b) => b.id);
+    const pageCopyIds = paginatedBooks.flatMap((b) =>
+      allItems.filter((i) => i.bookId === b.id).map((i) => i.id)
+    );
+
+    const isAllPageSelected =
+      pageBookIds.length > 0 &&
+      pageBookIds.every((id) => selectedBookIds.includes(id));
+
+    if (isAllPageSelected) {
+      setSelectedBookIds((prev) => prev.filter((id) => !pageBookIds.includes(id)));
+      setSelectedItemIds((prev) => prev.filter((id) => !pageCopyIds.includes(id)));
+    } else {
+      setSelectedBookIds((prev) => Array.from(new Set([...prev, ...pageBookIds])));
+      setSelectedItemIds((prev) => Array.from(new Set([...prev, ...pageCopyIds])));
+    }
+    soundFx.playScanBeep();
+  };
+
+  const handleSelectAllFiltered = () => {
     const allVisibleBookIds = filteredBooks.map((b) => b.id);
     const allVisibleCopyIds = filteredBooks.flatMap((b) =>
       allItems.filter((i) => i.bookId === b.id).map((i) => i.id)
@@ -374,7 +449,22 @@ export const BookManagement: React.FC<BookManagementProps> = ({
       return new Date(b.createdAt || 0).getTime() - new Date(a.createdAt || 0).getTime();
     });
 
+  // Paginasi Kalkulasi & State
+  const totalBooks = filteredBooks.length;
+  const totalPages = Math.max(1, Math.ceil(totalBooks / itemsPerPage));
+  const safeCurrentPage = Math.min(Math.max(1, currentPage), totalPages);
+  const startIndex = (safeCurrentPage - 1) * itemsPerPage;
+  const endIndex = Math.min(startIndex + itemsPerPage, totalBooks);
+  const paginatedBooks = filteredBooks.slice(startIndex, endIndex);
+
   const allFilteredItemIds = filteredBooks.flatMap((b) => allItems.filter((i) => i.bookId === b.id).map((i) => i.id));
+  const isAllPageSelected =
+    paginatedBooks.length > 0 &&
+    paginatedBooks.every((b) => selectedBookIds.includes(b.id));
+  const isSomePageSelected =
+    !isAllPageSelected &&
+    paginatedBooks.some((b) => selectedBookIds.includes(b.id));
+
   const isAllVisibleSelected =
     filteredBooks.length > 0 &&
     filteredBooks.every((b) => selectedBookIds.includes(b.id));
@@ -468,6 +558,175 @@ export const BookManagement: React.FC<BookManagementProps> = ({
     setDisposeCustomReason('');
     setRefreshTick((r) => r + 1);
     onRefresh?.();
+  };
+
+  // Komponen Paginasi Bersih & Ringkas (Batas 10 / 20 / 50 / 100 per view dan nomor halaman 1 2 3 dst)
+  const renderPaginationBar = (position: 'TOP' | 'BOTTOM') => {
+    if (totalBooks === 0) return null;
+
+    // Nomor halaman pintar (1, 2, ..., N)
+    const getPageNumbers = () => {
+      const delta = 2;
+      const range: (number | string)[] = [];
+      const rangeWithDots: (number | string)[] = [];
+      let l: number | undefined;
+
+      for (let i = 1; i <= totalPages; i++) {
+        if (i === 1 || i === totalPages || (i >= safeCurrentPage - delta && i <= safeCurrentPage + delta)) {
+          range.push(i);
+        }
+      }
+
+      for (const i of range) {
+        if (l) {
+          if (typeof i === 'number' && i - l === 2) {
+            rangeWithDots.push(l + 1);
+          } else if (typeof i === 'number' && i - l !== 1) {
+            rangeWithDots.push('...');
+          }
+        }
+        rangeWithDots.push(i);
+        if (typeof i === 'number') l = i;
+      }
+
+      return rangeWithDots;
+    };
+
+    const handlePageClick = (page: number) => {
+      if (page < 1 || page > totalPages || page === safeCurrentPage) return;
+      setCurrentPage(page);
+      soundFx.playScanBeep();
+      if (position === 'BOTTOM' && typeof window !== 'undefined') {
+        window.scrollTo({ top: 380, behavior: 'smooth' });
+      }
+    };
+
+    return (
+      <div
+        className={`flex flex-col sm:flex-row items-center justify-between gap-3 p-3 sm:px-4 rounded-2xl bg-surface border border-border shadow-2xs ${
+          position === 'TOP' ? 'mb-1' : 'mt-4'
+        }`}
+      >
+        {/* Kiri: Info Jumlah & Pilihan Limit 10 / 20 / 50 / 100 */}
+        <div className="flex flex-wrap items-center gap-3 text-xs">
+          <div className="text-text font-medium">
+            Menampilkan{' '}
+            <span className="font-bold text-amber-500 font-mono">
+              {totalBooks === 0 ? 0 : startIndex + 1}–{endIndex}
+            </span>{' '}
+            dari <span className="font-bold font-mono text-text">{totalBooks}</span> Judul Buku
+          </div>
+
+          <div className="h-4 w-[1px] bg-border hidden sm:block" />
+
+          {/* Selector Batas Tampilan: 10 / 20 / 50 / 100 */}
+          <div className="flex items-center gap-1.5 text-text-muted">
+            <span className="text-[11px] font-medium hidden md:inline">Tampilkan:</span>
+            <div className="flex items-center bg-surface-2 p-0.5 rounded-xl border border-border">
+              {[10, 20, 50, 100].map((limit) => (
+                <button
+                  key={limit}
+                  type="button"
+                  onClick={() => {
+                    if (itemsPerPage !== limit) {
+                      setItemsPerPage(limit);
+                      setCurrentPage(1);
+                      soundFx.playScanBeep();
+                    }
+                  }}
+                  className={`px-2.5 py-1 rounded-lg text-xs font-bold transition cursor-pointer ${
+                    itemsPerPage === limit
+                      ? 'bg-amber-500 text-slate-950 shadow-xs'
+                      : 'text-text-muted hover:text-text hover:bg-surface'
+                  }`}
+                  title={`Batasi ${limit} judul buku per halaman`}
+                >
+                  {limit}
+                </button>
+              ))}
+            </div>
+            <span className="text-[11px] font-medium hidden md:inline">per hal</span>
+          </div>
+        </div>
+
+        {/* Kanan: Navigasi Halaman (Awal, Prev, 1, 2, 3..., Next, Akhir) */}
+        <div className="flex items-center gap-1">
+          {/* Tombol Awal (<<) */}
+          <button
+            type="button"
+            disabled={safeCurrentPage <= 1}
+            onClick={() => handlePageClick(1)}
+            className="p-1.5 rounded-xl border border-border bg-surface-2 text-text-muted hover:text-text hover:bg-surface disabled:opacity-30 disabled:cursor-not-allowed transition cursor-pointer"
+            title="Halaman Pertama (Awal)"
+          >
+            <ChevronsLeft className="h-4 w-4" />
+          </button>
+
+          {/* Tombol Sebelumnya (<) */}
+          <button
+            type="button"
+            disabled={safeCurrentPage <= 1}
+            onClick={() => handlePageClick(safeCurrentPage - 1)}
+            className="p-1.5 rounded-xl border border-border bg-surface-2 text-text-muted hover:text-text hover:bg-surface disabled:opacity-30 disabled:cursor-not-allowed transition cursor-pointer"
+            title="Halaman Sebelumnya"
+          >
+            <ChevronLeft className="h-4 w-4" />
+          </button>
+
+          {/* Angka-angka halaman 1, 2, 3, dst */}
+          <div className="flex items-center gap-1 mx-0.5">
+            {getPageNumbers().map((num, i) => {
+              if (num === '...') {
+                return (
+                  <span key={`dots-${i}`} className="px-1.5 text-xs text-text-muted font-bold select-none">
+                    ...
+                  </span>
+                );
+              }
+              const pageNum = Number(num);
+              const isActive = pageNum === safeCurrentPage;
+              return (
+                <button
+                  key={pageNum}
+                  type="button"
+                  onClick={() => handlePageClick(pageNum)}
+                  className={`min-w-8 h-8 px-2 rounded-xl text-xs font-bold transition cursor-pointer flex items-center justify-center ${
+                    isActive
+                      ? 'bg-amber-500 text-slate-950 shadow-xs border border-amber-400'
+                      : 'border border-border bg-surface-2 text-text-muted hover:text-text hover:bg-surface'
+                  }`}
+                  title={`Ke Halaman ${pageNum}`}
+                >
+                  {pageNum}
+                </button>
+              );
+            })}
+          </div>
+
+          {/* Tombol Selanjutnya (>) */}
+          <button
+            type="button"
+            disabled={safeCurrentPage >= totalPages}
+            onClick={() => handlePageClick(safeCurrentPage + 1)}
+            className="p-1.5 rounded-xl border border-border bg-surface-2 text-text-muted hover:text-text hover:bg-surface disabled:opacity-30 disabled:cursor-not-allowed transition cursor-pointer"
+            title="Halaman Selanjutnya"
+          >
+            <ChevronRight className="h-4 w-4" />
+          </button>
+
+          {/* Tombol Akhir (>>) */}
+          <button
+            type="button"
+            disabled={safeCurrentPage >= totalPages}
+            onClick={() => handlePageClick(totalPages)}
+            className="p-1.5 rounded-xl border border-border bg-surface-2 text-text-muted hover:text-text hover:bg-surface disabled:opacity-30 disabled:cursor-not-allowed transition cursor-pointer"
+            title="Halaman Terakhir (Akhir)"
+          >
+            <ChevronsRight className="h-4 w-4" />
+          </button>
+        </div>
+      </div>
+    );
   };
 
   return (
@@ -1324,6 +1583,9 @@ export const BookManagement: React.FC<BookManagementProps> = ({
         </div>
       </div>
 
+      {/* Paginasi Atas (Top Pagination Bar) */}
+      {renderPaginationBar('TOP')}
+
       {/* 3. Book List Cards / Table / Grid */}
       {viewMode === 'TABLE' ? (
         <div className="rounded-2xl border border-border bg-surface overflow-hidden shadow-xs">
@@ -1335,12 +1597,12 @@ export const BookManagement: React.FC<BookManagementProps> = ({
                     <button
                       type="button"
                       onClick={handleSelectAllVisible}
-                      title={isAllVisibleSelected ? 'Batalkan pilihan semua buku' : `Pilih Semua (${filteredBooks.length} Judul Buku)`}
+                      title={isAllPageSelected ? 'Batalkan pilihan halaman ini' : `Pilih Semua di Halaman Ini (${paginatedBooks.length} Judul Buku)`}
                       className="p-1 rounded-md hover:bg-surface-3 transition cursor-pointer"
                     >
-                      {isAllVisibleSelected ? (
+                      {isAllPageSelected ? (
                         <CheckSquare className="h-4 w-4 text-amber-500" />
-                      ) : isSomeVisibleSelected ? (
+                      ) : isSomePageSelected ? (
                         <div className="h-4 w-4 rounded border-2 border-amber-500 bg-amber-500/20 flex items-center justify-center text-[10px] text-amber-500 font-bold leading-none">-</div>
                       ) : (
                         <Square className="h-4 w-4 text-text-muted hover:text-amber-500" />
@@ -1358,7 +1620,7 @@ export const BookManagement: React.FC<BookManagementProps> = ({
                 </tr>
               </thead>
               <tbody className="divide-y divide-border">
-                {filteredBooks.map((book, idx) => {
+                {paginatedBooks.map((book, idx) => {
                   const items = allItems.filter((i) => i.bookId === book.id);
                   const bookItemIds = items.map((i) => i.id);
                   const isBookSelected = selectedBookIds.includes(book.id) || (bookItemIds.length > 0 && bookItemIds.every((id) => selectedItemIds.includes(id)));
@@ -1391,7 +1653,7 @@ export const BookManagement: React.FC<BookManagementProps> = ({
                       </td>
                       <td className="py-3 px-4">
                         <div className="flex items-center gap-2">
-                          <span className="font-mono text-[11px] text-text-muted w-5 shrink-0">{idx + 1}.</span>
+                          <span className="font-mono text-[11px] text-text-muted w-5 shrink-0">{startIndex + idx + 1}.</span>
                           <div>
                             <div
                               className="font-bold text-text hover:text-amber-500 transition cursor-pointer"
@@ -1619,7 +1881,7 @@ export const BookManagement: React.FC<BookManagementProps> = ({
         </div>
       ) : (
         <div className={viewMode === 'GRID' ? 'grid grid-cols-1 md:grid-cols-2 gap-4' : 'space-y-4'}>
-          {filteredBooks.map((book) => {
+          {paginatedBooks.map((book) => {
             const items = allItems.filter((i) => i.bookId === book.id);
             const available = items.filter((i) => i.status === 'AVAILABLE').length;
             const borrowed = items.filter((i) => i.status === 'BORROWED').length;
@@ -2058,6 +2320,9 @@ export const BookManagement: React.FC<BookManagementProps> = ({
           })}
         </div>
       )}
+
+      {/* Paginasi Bawah (Bottom Pagination Bar) */}
+      {renderPaginationBar('BOTTOM')}
         </>
       )}
 
@@ -2683,6 +2948,19 @@ export const BookManagement: React.FC<BookManagementProps> = ({
             </form>
           </div>
         </div>
+      )}
+
+      {/* Floating Button: Back to Top (Kembali ke Paling Atas) */}
+      {showBackToTop && (
+        <button
+          type="button"
+          onClick={scrollToTop}
+          className="fixed bottom-6 right-6 z-40 px-3.5 py-3 rounded-2xl bg-amber-500 hover:bg-amber-600 active:scale-95 text-slate-950 font-bold shadow-xl shadow-amber-500/25 border border-amber-400 flex items-center gap-2 transition-all duration-300 animate-in fade-in slide-in-from-bottom-4 cursor-pointer group"
+          title="Kembali ke Bagian Atas Halaman (Back to Top)"
+        >
+          <ArrowUp className="h-5 w-5 transition-transform group-hover:-translate-y-1" />
+          <span className="text-xs hidden sm:inline-block font-bold">Ke Atas</span>
+        </button>
       )}
     </div>
   );

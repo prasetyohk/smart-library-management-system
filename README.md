@@ -118,6 +118,12 @@ Portal interaktif khusus siswa untuk melihat buku yang sedang dipinjam, histori 
 - Audit Trail teratribusi: Setiap perubahan dicatat dengan nama pustakawan aktif.
 - Integrasi Backup Otomatis ke Telegram Cloud Bot & WhatsApp Notification Center.
 
+### ⚡ 5. Kenyamanan Navigasi & Paginasi Koleksi Pustakawan
+- **Sidebar Sticky Viewport**: Saat halaman di-scroll ke bawah sejauh apapun, sidebar navigasi kiri tetap diam (*pinned/sticky*) pada layar sehingga pustakawan tetap dapat mengakses menu dan tombol fungsi kapan saja tanpa kehilangan posisi.
+- **Paginasi Fleksibel (10 / 20 / 50 / 100 Buku per View)**: Mencegah scroll terlalu jauh saat mengelola puluhan atau ratusan judul buku, dilengkapi penomoran halaman cerdas (`1`, `2`, `3`, ..., `N`). Preferensi tersimpan otomatis di browser pustakawan.
+- **Dual Pagination Bar (Atas & Bawah)**: Bilah navigasi paginasi tersedia di **bagian atas** dan di **bagian bawah** daftar buku agar pustakawan tidak perlu repot scroll bolak-balik saat berpindah halaman.
+- **Floating Button "Kembali ke Atas" (Back to Top)**: Tombol melayang cerdas dengan *smooth scroll* otomatis yang muncul saat halaman digulir ke bawah, memudahkan pustakawan melompat kembali ke navigasi atas seketika.
+
 ---
 
 ## 🛠️ Panduan Menjalankan Aplikasi di Windows
