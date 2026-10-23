@@ -2240,9 +2240,9 @@ Periode: Minggu ke-2 Oktober 2026
 
   // --- THEME (DARK / LIGHT MODE) ---
   public getTheme(): 'dark' | 'light' {
-    if (!this.isClient()) return 'dark';
+    if (!this.isClient()) return 'light';
     const saved = localStorage.getItem(STORAGE_KEYS.THEME) as 'dark' | 'light' | null;
-    return saved || 'dark';
+    return saved || 'light';
   }
 
   public setTheme(theme: 'dark' | 'light'): void {
