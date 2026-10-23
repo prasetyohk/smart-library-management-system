@@ -156,7 +156,7 @@ h1, h2, h3, .font-display {
     margin: 0 !important;
   }
 
-  /* Label Punggung Fisik SBTH (4 Baris Vertikal) */
+  /* Label Punggung Fisik SBTH (Ukuran Kotak 7.4 x 4 cm untuk Potong Manual) */
   .sbth-spine-sheet {
     box-shadow: none !important;
     border: none !important;
@@ -165,30 +165,47 @@ h1, h2, h3, .font-display {
     width: 100% !important;
   }
 
+  /* Mode Standar Lanskap (74 mm x 40 mm) */
   .sbth-spine-grid {
     display: grid !important;
-    grid-template-columns: repeat(6, 28mm) !important;
-    grid-auto-rows: 44mm !important;
-    column-gap: 4mm !important;
-    row-gap: 4mm !important;
+    grid-template-columns: repeat(2, 74mm) !important;
+    grid-auto-rows: 40mm !important;
+    column-gap: 8mm !important;
+    row-gap: 5mm !important;
     justify-content: center !important;
     align-content: start !important;
   }
 
   .sbth-spine-label {
-    width: 28mm !important;
-    height: 44mm !important;
-    max-height: 44mm !important;
+    width: 74mm !important;
+    height: 40mm !important;
+    max-height: 40mm !important;
     box-sizing: border-box !important;
     page-break-inside: avoid !important;
     break-inside: avoid !important;
-    border: 1pt solid #000000 !important;
+    border: 1pt solid #000000 !important; /* Garis batas potong manual tegas */
     overflow: hidden !important;
     margin: 0 !important;
-    padding: 0 !important;
+    padding: 1.5mm !important;
+    background: #ffffff !important;
+    color: #000000 !important;
   }
 
-  /* Slip Cap Bagian Dalam Buku SBTH (No. Daftar 4 Digit & Tanggal) */
+  /* Opsi Mode Potret (40 mm x 74 mm) */
+  .sbth-spine-grid.portrait {
+    grid-template-columns: repeat(4, 40mm) !important;
+    grid-auto-rows: 74mm !important;
+    column-gap: 5mm !important;
+    row-gap: 5mm !important;
+  }
+
+  .sbth-spine-label.portrait {
+    width: 40mm !important;
+    height: 74mm !important;
+    max-height: 74mm !important;
+  }
+
+  /* Slip Cap Bagian Dalam Buku SBTH (Ukuran Kotak 6 x 2.5 cm untuk Potong Manual) */
   .sbth-slip-sheet {
     box-shadow: none !important;
     border: none !important;
@@ -199,24 +216,26 @@ h1, h2, h3, .font-display {
 
   .sbth-slip-grid {
     display: grid !important;
-    grid-template-columns: repeat(3, 64mm) !important;
-    grid-auto-rows: 36mm !important;
-    column-gap: 4mm !important;
-    row-gap: 3mm !important;
+    grid-template-columns: repeat(3, 60mm) !important;
+    grid-auto-rows: 25mm !important;
+    column-gap: 5mm !important;
+    row-gap: 4mm !important;
     justify-content: center !important;
     align-content: start !important;
   }
 
   .sbth-slip-label {
-    width: 64mm !important;
-    height: 36mm !important;
-    max-height: 36mm !important;
+    width: 60mm !important;
+    height: 25mm !important;
+    max-height: 25mm !important;
     box-sizing: border-box !important;
     page-break-inside: avoid !important;
     break-inside: avoid !important;
-    border: 1pt solid #333333 !important;
+    border: 1pt solid #000000 !important; /* Garis batas potong manual tegas */
     overflow: hidden !important;
     margin: 0 !important;
-    padding: 0 !important;
+    padding: 1mm 1.5mm !important;
+    background: #ffffff !important;
+    color: #000000 !important;
   }
 }

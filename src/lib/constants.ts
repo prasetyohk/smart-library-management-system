@@ -1,79 +1,20 @@
 import { Category, Book, BookItem, Member, Loan } from '@/types';
+import { OFFICIAL_DDC_CATEGORIES, resolveToDdcCategoryId } from './eddc';
 
-export const CATEGORIES: Category[] = [
-  {
-    id: 'cat-alam',
-    name: 'Alam, Binatang & Sains Anak',
-    shortName: 'ALAM',
-    colorHex: '#10B981', // Emerald Green
-    badgeBg: 'bg-emerald-100 dark:bg-emerald-950/50',
-    badgeBorder: 'border-emerald-300 dark:border-emerald-700',
-    badgeText: 'text-emerald-800 dark:text-emerald-300',
-    iconName: 'Leaf',
-    shelfLocation: 'Rak Hijau A (Sains & Alam)',
-    description: 'Buku pengenalan hewan, tumbuhan, tata surya, dan sains sederhana untuk rasa ingin tahu anak.',
-  },
-  {
-    id: 'cat-dongeng',
-    name: 'Dongeng & Cerita Bergambar',
-    shortName: 'DONGENG',
-    colorHex: '#F59E0B', // Amber / Warm Yellow
-    badgeBg: 'bg-amber-100 dark:bg-amber-950/50',
-    badgeBorder: 'border-amber-300 dark:border-amber-700',
-    badgeText: 'text-amber-800 dark:text-amber-300',
-    iconName: 'Star',
-    shelfLocation: 'Rak Kuning B (Dongeng & Fabel)',
-    description: 'Cerita fabel nusantara, dongeng pengantar tidur, dan kisah imajinatif visual anak.',
-  },
-  {
-    id: 'cat-aktivitas',
-    name: 'Belajar Membaca, Berhitung & Aktivitas',
-    shortName: 'AKTIVITAS',
-    colorHex: '#3B82F6', // Blue
-    badgeBg: 'bg-blue-100 dark:bg-blue-950/50',
-    badgeBorder: 'border-blue-300 dark:border-blue-700',
-    badgeText: 'text-blue-800 dark:text-blue-300',
-    iconName: 'BookOpen',
-    shelfLocation: 'Rak Biru C (Aktivitas & Fonik)',
-    description: 'Buku latihan motorik halus, maze, mewarnai, fonik huruf vokal, dan mengenal angka.',
-  },
-  {
-    id: 'cat-karakter',
-    name: 'Budi Pekerti, Agama & Karakter',
-    shortName: 'KARAKTER',
-    colorHex: '#EF4444', // Rose / Red
-    badgeBg: 'bg-rose-100 dark:bg-rose-950/50',
-    badgeBorder: 'border-rose-300 dark:border-rose-700',
-    badgeText: 'text-rose-800 dark:text-rose-300',
-    iconName: 'Heart',
-    shelfLocation: 'Rak Merah D (Karakter & Akhlak)',
-    description: 'Nilai tolong-menolong, antre, adab makan, doa sehari-hari, dan menyayangi sesama teman.',
-  },
-  {
-    id: 'cat-ensiklopedia',
-    name: 'Ensiklopedia & Pengetahuan Cilik',
-    shortName: 'ENSIKLOPEDIA',
-    colorHex: '#8B5CF6', // Purple
-    badgeBg: 'bg-purple-100 dark:bg-purple-950/50',
-    badgeBorder: 'border-purple-300 dark:border-purple-700',
-    badgeText: 'text-purple-800 dark:text-purple-300',
-    iconName: 'Sparkles',
-    shelfLocation: 'Rak Ungu E (Ensiklopedia IPTEK)',
-    description: 'Ensiklopedia flora fauna, luar angkasa, dinosaurus, dan keajaiban bumi untuk anak.',
-  },
-  {
-    id: 'cat-bahasa',
-    name: 'Bahasa Mandarin & English Story',
-    shortName: 'MANDARIN & BHS',
-    colorHex: '#EC4899', // Pink
-    badgeBg: 'bg-pink-100 dark:bg-pink-950/50',
-    badgeBorder: 'border-pink-300 dark:border-pink-700',
-    badgeText: 'text-pink-800 dark:text-pink-300',
-    iconName: 'BookOpen',
-    shelfLocation: 'Rak Pink F (Trilingual SBTH)',
-    description: 'Buku cerita bilingual Mandarin (中文) bergambar pinyin, serta dongeng bahasa Inggris.',
-  },
-];
+// 10 Kategori Utama DDC Standar Perpustakaan SBTH (000 - 900)
+export const CATEGORIES: Category[] = OFFICIAL_DDC_CATEGORIES;
+export const DDC_CATEGORIES = OFFICIAL_DDC_CATEGORIES;
+
+// Helper pencari kategori yang mendukung ID DDC baru maupun ID lama (cat-dongeng, dll)
+export function findCategory(categories: Category[], categoryId?: string): Category {
+  if (!categoryId) return categories[0] || OFFICIAL_DDC_CATEGORIES[0];
+  const direct = categories.find((c) => c.id === categoryId);
+  if (direct) return direct;
+  const targetId = resolveToDdcCategoryId(categoryId);
+  const matched = categories.find((c) => c.id === targetId || c.ddcCode === targetId.replace('ddc-', ''));
+  return matched || categories[0] || OFFICIAL_DDC_CATEGORIES[0];
+}
+
 
 export const INITIAL_BOOKS: Book[] = [
   {
@@ -1433,23 +1374,88 @@ export function deriveCategoryDdc(categoryId?: string, title?: string, customCla
     return customClassification.trim();
   }
   const cleanTitle = (title || '').toLowerCase();
-  if (categoryId === 'cat-alam') return '500';
-  if (categoryId === 'cat-aktivitas') return '372.2';
-  if (categoryId === 'cat-karakter') {
+
+  // DDC 000 - Karya Umum / Ensiklopedia
+  if (categoryId === 'ddc-000' || categoryId === 'cat-ensiklopedia') {
+    if (cleanTitle.includes('ensiklopedia') || cleanTitle.includes('encyclopedia') || cleanTitle.includes('1.111') || cleanTitle.includes('tanya')) return '030';
+    if (cleanTitle.includes('komputer') || cleanTitle.includes('digital')) return '004';
+    return '000';
+  }
+
+  // DDC 100 - Filsafat & Budi Pekerti
+  if (categoryId === 'ddc-100' || categoryId === 'cat-karakter') {
     if (cleanTitle.includes('doa') || cleanTitle.includes('islam') || cleanTitle.includes('sholat') || cleanTitle.includes('tuhan') || cleanTitle.includes('nabi')) {
-      return '200';
+      return '297';
     }
-    return '170';
+    if (cleanTitle.includes('marah') || cleanTitle.includes('takut') || cleanTitle.includes('sedih') || cleanTitle.includes('emosi')) return '150';
+    return '170'; // Etika & Budi Pekerti
   }
-  if (categoryId === 'cat-ensiklopedia') return '030';
-  if (categoryId === 'cat-bahasa') {
+
+  // DDC 200 - Agama & Doa
+  if (categoryId === 'ddc-200') {
+    if (cleanTitle.includes('islam') || cleanTitle.includes('sholat') || cleanTitle.includes('quran') || cleanTitle.includes('nabi') || cleanTitle.includes('rukun islam')) {
+      return '297';
+    }
+    if (cleanTitle.includes('kristen') || cleanTitle.includes('yesus') || cleanTitle.includes('alkitab')) return '230';
+    return '200';
+  }
+
+  // DDC 300 - Ilmu Sosial & Cerita Rakyat / PAUD
+  if (categoryId === 'ddc-300') {
+    if (cleanTitle.includes('fabel') || cleanTitle.includes('dongeng') || cleanTitle.includes('kancil') || cleanTitle.includes('rakyat') || cleanTitle.includes('timun')) return '398.2';
+    if (cleanTitle.includes('tk') || cleanTitle.includes('paud') || cleanTitle.includes('sekolah') || cleanTitle.includes('baca') || cleanTitle.includes('hitung')) return '372.2';
+    return '300';
+  }
+
+  // DDC 400 - Bahasa
+  if (categoryId === 'ddc-400' || categoryId === 'cat-bahasa') {
     if (cleanTitle.includes('english') || cleanTitle.includes('inggris')) return '420';
-    return '495.1';
+    if (cleanTitle.includes('mandarin') || cleanTitle.includes('chinese') || cleanTitle.includes('pinyin') || cleanTitle.includes('中文')) return '495.1';
+    if (cleanTitle.includes('kamus') || cleanTitle.includes('indonesia')) return '499.221';
+    return '400';
   }
-  if (categoryId === 'cat-dongeng') {
-    if (cleanTitle.includes('fabel') || cleanTitle.includes('dongeng') || cleanTitle.includes('kancil')) return '398.2';
-    return '813';
+
+  // DDC 500 - Sains Murni & Alam
+  if (categoryId === 'ddc-500' || categoryId === 'cat-alam') {
+    if (cleanTitle.includes('hewan') || cleanTitle.includes('binatang') || cleanTitle.includes('satwa') || cleanTitle.includes('fauna') || cleanTitle.includes('panda')) return '590';
+    if (cleanTitle.includes('dinosaurus') || cleanTitle.includes('dino') || cleanTitle.includes('fosil')) return '560';
+    if (cleanTitle.includes('tumbuhan') || cleanTitle.includes('tanaman') || cleanTitle.includes('pohon') || cleanTitle.includes('bunga')) return '580';
+    if (cleanTitle.includes('bumi') || cleanTitle.includes('cuaca') || cleanTitle.includes('hujan') || cleanTitle.includes('laut')) return '550';
+    if (cleanTitle.includes('antariksa') || cleanTitle.includes('planet') || cleanTitle.includes('tata surya') || cleanTitle.includes('bintang')) return '520';
+    if (cleanTitle.includes('hitung') || cleanTitle.includes('matematika') || cleanTitle.includes('angka')) return '510';
+    return '500';
   }
+
+  // DDC 600 - Teknologi & Kesehatan
+  if (categoryId === 'ddc-600') {
+    if (cleanTitle.includes('dokter') || cleanTitle.includes('kesehatan') || cleanTitle.includes('tubuh') || cleanTitle.includes('gigi')) return '610';
+    if (cleanTitle.includes('kendaraan') || cleanTitle.includes('mobil') || cleanTitle.includes('pesawat') || cleanTitle.includes('kereta')) return '620';
+    if (cleanTitle.includes('memasak') || cleanTitle.includes('kue') || cleanTitle.includes('makanan')) return '640';
+    return '600';
+  }
+
+  // DDC 700 - Kesenian & Mewarnai
+  if (categoryId === 'ddc-700' || categoryId === 'cat-aktivitas') {
+    if (cleanTitle.includes('mewarnai') || cleanTitle.includes('menggambar') || cleanTitle.includes('lukis')) return '740';
+    if (cleanTitle.includes('lagu') || cleanTitle.includes('musik') || cleanTitle.includes('nyanyi')) return '780';
+    if (cleanTitle.includes('senam') || cleanTitle.includes('olahraga') || cleanTitle.includes('permainan') || cleanTitle.includes('maze')) return '790';
+    return '700';
+  }
+
+  // DDC 800 - Kesusastraan & Fiksi Anak
+  if (categoryId === 'ddc-800' || categoryId === 'cat-dongeng') {
+    if (cleanTitle.includes('fabel') || cleanTitle.includes('kancil') || cleanTitle.includes('rakyat')) return '398.2';
+    return '813'; // Fiksi / Cerpen Anak Indonesia
+  }
+
+  // DDC 900 - Sejarah & Geografi
+  if (categoryId === 'ddc-900') {
+    if (cleanTitle.includes('peta') || cleanTitle.includes('atlas') || cleanTitle.includes('keliling dunia') || cleanTitle.includes('geografi')) return '910';
+    if (cleanTitle.includes('pahlawan') || cleanTitle.includes('tokoh') || cleanTitle.includes('biografi') || cleanTitle.includes('kartini')) return '920';
+    if (cleanTitle.includes('indonesia') && cleanTitle.includes('kemerdekaan')) return '959.8';
+    return '900';
+  }
+
   return '813'; // Default Fiksi/Cerpen Anak SBTH
 }
 

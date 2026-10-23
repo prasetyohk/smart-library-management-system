@@ -18,7 +18,7 @@ import {
   Zap,
 } from 'lucide-react';
 import { Book, BookItem, Category, PrintTemplateType } from '@/types';
-import { CATEGORIES, getSbthSpineCode, getSbthInsideSlipData, formatDateDDMMYYYY } from '@/lib/constants';
+import { CATEGORIES, getSbthSpineCode, getSbthInsideSlipData, formatDateDDMMYYYY, findCategory } from '@/lib/constants';
 import { libraryStore } from '@/lib/storage';
 import { BarcodeSvg } from '@/components/common/BarcodeSvg';
 
@@ -34,6 +34,7 @@ export const LabelPrintGenerator: React.FC<LabelPrintGeneratorProps> = ({
   preSelectedBarcodes = [],
 }) => {
   const [template, setTemplate] = useState<PrintTemplateType>('SPINE_SBTH');
+  const [spineOrientation, setSpineOrientation] = useState<'LANDSCAPE' | 'PORTRAIT'>('LANDSCAPE');
   const [customShelfCode, setCustomShelfCode] = useState<string>('SR');
   const [startOffsetIndex, setStartOffsetIndex] = useState<number>(0); // 0 to 11 (position 1 to 12)
   const [selectedBarcodes, setSelectedBarcodes] = useState<string[]>(preSelectedBarcodes);
@@ -43,19 +44,20 @@ export const LabelPrintGenerator: React.FC<LabelPrintGeneratorProps> = ({
 
   const books = useMemo(() => libraryStore.getBooks(), [isOpen, refreshKey]);
   const allItems = useMemo(() => libraryStore.getBookItems(), [isOpen, refreshKey]);
+  const categories = useMemo(() => libraryStore.getCategories(), [isOpen, refreshKey]);
 
   // Combine items with their parent book metadata
   const enrichedItems = useMemo(() => {
     return allItems.map((item) => {
       const book = books.find((b) => b.id === item.bookId);
-      const cat = CATEGORIES.find((c) => c.id === book?.categoryId) || CATEGORIES[0];
+      const cat = findCategory(categories, book?.categoryId);
       return {
         item,
         book,
         category: cat,
       };
     });
-  }, [allItems, books, refreshKey]);
+  }, [allItems, books, categories, refreshKey]);
 
   const unprintedCount = useMemo(
     () => enrichedItems.filter((ei) => !ei.item.labelPrinted).length,
@@ -254,8 +256,8 @@ export const LabelPrintGenerator: React.FC<LabelPrintGeneratorProps> = ({
                 }`}
               >
                 📏 Punggung SBTH
-                <span className="block text-[9px] font-normal text-slate-400 mt-0.5">
-                  4 Baris (SR / DDC / Pengarang / Judul)
+                <span className="block text-[9px] font-normal text-slate-500 mt-0.5">
+                  7.4 x 4 cm Kotak • KOP & Call No
                 </span>
               </button>
               <button
@@ -268,8 +270,8 @@ export const LabelPrintGenerator: React.FC<LabelPrintGeneratorProps> = ({
                 }`}
               >
                 📑 Slip Dalam Buku
-                <span className="block text-[9px] font-normal text-slate-400 mt-0.5">
-                  No. 4 Digit & Tanggal
+                <span className="block text-[9px] font-normal text-slate-500 mt-0.5">
+                  6 x 2.5 cm Kotak • KOP, No. & Tgl
                 </span>
               </button>
               <button
@@ -338,10 +340,35 @@ export const LabelPrintGenerator: React.FC<LabelPrintGeneratorProps> = ({
             </div>
           ) : template === 'SPINE_SBTH' ? (
             <div className="space-y-1.5 flex flex-col justify-center">
-              <label className="font-bold text-slate-700 dark:text-slate-300 flex items-center justify-between">
-                <span>Kode Rak Punggung (Baris 1):</span>
-                <span className="text-[10px] text-amber-600 font-semibold">Bawaan SBTH: &quot;SR&quot;</span>
-              </label>
+              <div className="flex items-center justify-between">
+                <label className="font-bold text-slate-700 dark:text-slate-300 flex items-center gap-1">
+                  <span>Ukuran 7.4 x 4 cm:</span>
+                </label>
+                <div className="flex items-center gap-1">
+                  <button
+                    type="button"
+                    onClick={() => setSpineOrientation('LANDSCAPE')}
+                    className={`px-2 py-0.5 rounded text-[10px] font-semibold transition ${
+                      spineOrientation === 'LANDSCAPE'
+                        ? 'bg-amber-500 text-white font-bold'
+                        : 'bg-slate-200 dark:bg-slate-800 text-slate-600 dark:text-slate-400'
+                    }`}
+                  >
+                    Lanskap (7.4x4cm)
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setSpineOrientation('PORTRAIT')}
+                    className={`px-2 py-0.5 rounded text-[10px] font-semibold transition ${
+                      spineOrientation === 'PORTRAIT'
+                        ? 'bg-amber-500 text-white font-bold'
+                        : 'bg-slate-200 dark:bg-slate-800 text-slate-600 dark:text-slate-400'
+                    }`}
+                  >
+                    Potret (4x7.4cm)
+                  </button>
+                </div>
+              </div>
               <div className="flex items-center gap-2">
                 <input
                   type="text"
@@ -349,18 +376,18 @@ export const LabelPrintGenerator: React.FC<LabelPrintGeneratorProps> = ({
                   onChange={(e) => setCustomShelfCode(e.target.value.toUpperCase())}
                   placeholder="SR"
                   maxLength={6}
-                  className="w-20 h-9 rounded-xl border border-amber-500/60 bg-white dark:bg-slate-900 px-3 text-center text-xs font-mono font-bold text-amber-500 outline-hidden focus:ring-1 focus:ring-amber-500"
+                  className="w-16 h-8 rounded-lg border border-amber-500/60 bg-white dark:bg-slate-900 px-2 text-center text-xs font-mono font-bold text-amber-500 outline-hidden focus:ring-1 focus:ring-amber-500"
                 />
-                <p className="text-[11px] text-slate-500 dark:text-slate-400 leading-tight">
-                  Format vertikal 4 baris: <strong>[Rak: {customShelfCode || 'SR'}]</strong> ➔ <strong>[DDC]</strong> ➔ <strong>[Pengarang]</strong> ➔ <strong>[Judul]</strong>
+                <p className="text-[10px] text-slate-500 dark:text-slate-400 leading-tight">
+                  Kode Rak: <strong>[{customShelfCode || 'SR'}]</strong> • KOP resmi SBTH & Barcode lengkap.
                 </p>
               </div>
             </div>
           ) : template === 'SLIP_DALAM_SBTH' ? (
-            <div className="flex items-center p-3 text-xs text-blue-700 dark:text-blue-300 bg-blue-50 dark:bg-blue-950/40 rounded-xl border border-blue-200 dark:border-blue-800 gap-2.5">
+            <div className="flex items-center p-2.5 text-xs text-blue-700 dark:text-blue-300 bg-blue-50 dark:bg-blue-950/40 rounded-xl border border-blue-200 dark:border-blue-800 gap-2">
               <span className="text-xl">📑</span>
-              <p className="leading-tight">
-                <strong>Format Slip Dalam SBTH:</strong> Mencetak cap No. Daftar (4 digit angka, e.g. <code>0101</code>) dan Tanggal (<code>DD/MM/TTTT</code>) persis seperti fisik buku sekolah.
+              <p className="leading-tight text-[11px]">
+                <strong>Slip Dalam 6 x 2.5 cm Kotak:</strong> Dilengkapi KOP resmi SBTH (Logo di kiri, Teks di tengah), No. Daftar 4 Digit (contoh: <code>0101</code>) & Tanggal (<code>DD/MM/TTTT</code>) untuk potong manual.
               </p>
             </div>
           ) : (
@@ -545,26 +572,34 @@ export const LabelPrintGenerator: React.FC<LabelPrintGeneratorProps> = ({
               </div>
             )}
 
-            {/* TEMPLATE C: LABEL PUNGGUNG RAK SBTH (4 BARIS VERTIKAL) */}
+            {/* TEMPLATE C: LABEL PUNGGUNG RAK SBTH (7.4 x 4 CM KOTAK POTONG MANUAL) */}
             {template === 'SPINE_SBTH' && (
               <div className="sbth-spine-sheet bg-white text-black p-4 rounded-xl shadow-lg border border-slate-300 mx-auto">
                 <div className="print:hidden mb-4 p-3 bg-amber-50 dark:bg-amber-950/40 rounded-2xl border border-amber-200 dark:border-amber-800 text-xs text-amber-900 dark:text-amber-200 flex flex-col sm:flex-row sm:items-center justify-between gap-2">
                   <div className="flex items-center gap-2">
                     <span className="text-lg">📏</span>
                     <div>
-                      <strong>Standar Label Punggung Buku Fisik SBTH (4 Baris Vertikal):</strong>
+                      <strong>Standar Label Punggung Buku Fisik SBTH (7.4 x 4 cm Kotak Potong Manual):</strong>
                       <p className="text-[11px] text-amber-800/80 dark:text-amber-300/80">
-                        Format stiker samping punggung buku pas dengan buku yang sudah ada di rak perpustakaan sekolah.
+                        Dilengkapi KOP resmi SBTH (Logo kiri, teks tengah), strip warna DDC, kotak 4 baris, & barcode untuk dipotong manual.
                       </p>
                     </div>
                   </div>
-                  <div className="flex items-center gap-2 font-mono text-xs shrink-0 bg-white dark:bg-slate-900 px-3 py-1.5 rounded-xl border border-amber-300">
-                    <span className="text-slate-600 dark:text-slate-400">Kode Rak:</span>
-                    <strong className="text-amber-600 dark:text-amber-400 text-sm">{customShelfCode || 'SR'}</strong>
+                  <div className="flex items-center gap-2">
+                    <span className="font-mono text-xs bg-white dark:bg-slate-900 px-2.5 py-1 rounded-lg border border-amber-300">
+                      Ukuran: <strong>7.4 x 4 cm</strong>
+                    </span>
+                    <button
+                      type="button"
+                      onClick={() => setSpineOrientation(o => o === 'LANDSCAPE' ? 'PORTRAIT' : 'LANDSCAPE')}
+                      className="px-2.5 py-1 rounded-lg bg-amber-500/20 text-amber-800 dark:text-amber-300 border border-amber-500/40 font-semibold text-[11px] hover:bg-amber-500/30 transition cursor-pointer"
+                    >
+                      {spineOrientation === 'LANDSCAPE' ? '🔄 Ganti ke Potret (4 x 7.4 cm)' : '🔄 Ganti ke Lanskap (7.4 x 4 cm)'}
+                    </button>
                   </div>
                 </div>
 
-                <div className="sbth-spine-grid grid grid-cols-2 sm:grid-cols-4 md:grid-cols-6 gap-3 print:gap-[4mm] justify-center">
+                <div className={`sbth-spine-grid ${spineOrientation === 'PORTRAIT' ? 'portrait' : ''} grid gap-3 print:gap-[5mm] justify-center`}>
                   {itemsToPrint.map((ei) => {
                     const book = ei.book;
                     const cat = ei.category;
@@ -581,44 +616,94 @@ export const LabelPrintGenerator: React.FC<LabelPrintGeneratorProps> = ({
                     return (
                       <div
                         key={ei.item.id}
-                        className="sbth-spine-label border-2 border-slate-900 rounded-lg overflow-hidden bg-white text-black flex flex-col justify-between p-1 w-[120px] h-[180px] print:w-[28mm] print:h-[44mm] print:shadow-none shadow-xs mx-auto text-center"
+                        className={`sbth-spine-label ${spineOrientation === 'PORTRAIT' ? 'portrait' : ''} border-2 border-black rounded-lg print:rounded-none overflow-hidden bg-white text-black flex flex-col justify-between shadow-xs mx-auto ${
+                          spineOrientation === 'LANDSCAPE'
+                            ? 'w-[280px] h-[155px] print:w-[74mm] print:h-[40mm] print:max-h-[40mm]'
+                            : 'w-[160px] h-[280px] print:w-[40mm] print:h-[74mm] print:max-h-[74mm]'
+                        }`}
                       >
-                        {/* Header Mini Warna Rak */}
+                        {/* 1. KOP RESMI SBTH (Logo di kiri, Teks di tengah) */}
+                        <div className="flex items-center gap-1.5 border-b border-black pb-0.5 px-1 shrink-0 bg-white">
+                          <img
+                            src="/logo_sbth.png"
+                            alt="Logo SBTH"
+                            className="h-5 w-5 print:h-[6.5mm] print:w-[6.5mm] object-contain shrink-0"
+                            onError={(e) => { (e.target as HTMLElement).style.display = 'none'; }}
+                          />
+                          <div className="flex-1 text-center min-w-0">
+                            <div className="text-[8.5px] print:text-[6.5pt] font-black uppercase tracking-tight text-black leading-tight">
+                              PERPUSTAKAAN KB-TK BHAKTI TUNAS HARAPAN
+                            </div>
+                            <div className="text-[7px] print:text-[5pt] text-slate-700 leading-tight">
+                              Jl. Jendral Sudirman No 68 A Magelang
+                            </div>
+                          </div>
+                        </div>
+
+                        {/* 2. STRIP WARNA KATEGORI DDC */}
                         <div
-                          className="h-3 rounded-xs text-[8px] font-bold text-white flex items-center justify-center uppercase tracking-wider shrink-0"
+                          className="h-3.5 print:h-[3.2mm] px-1.5 flex items-center justify-between text-white font-bold text-[8px] print:text-[5.5pt] uppercase tracking-wider shrink-0"
                           style={{ backgroundColor: cat.colorHex }}
                         >
-                          {cat.shortName}
+                          <span className="truncate max-w-[80%]">[{cat.ddcCode || spine.ddc}] {cat.shortName}</span>
+                          <span className="font-mono text-[7px] print:text-[5pt] opacity-90 shrink-0">#{ei.item.copyNumber}</span>
                         </div>
 
-                        {/* Kotak 4 Baris Fisik SBTH */}
-                        <div className="flex-1 flex flex-col justify-center divide-y divide-black/80 my-1 font-mono">
-                          {/* Baris 1: Kode Rak (e.g. SR) */}
-                          <div className="py-1 flex items-center justify-center font-extrabold text-sm sm:text-base tracking-widest text-slate-950">
-                            {spine.shelfCode}
-                          </div>
+                        {/* 3. KONTEN LABEL */}
+                        {spineOrientation === 'LANDSCAPE' ? (
+                          <div className="flex-1 flex items-stretch gap-1.5 p-1 min-h-0">
+                            {/* Kotak Call Number 4-Baris Vertikal */}
+                            <div className="w-[24mm] shrink-0 border border-black rounded-xs flex flex-col justify-center divide-y divide-black font-mono text-center bg-slate-50">
+                              <div className="py-0.5 font-extrabold text-[10px] print:text-[8pt] text-black tracking-widest leading-none">{customShelfCode || spine.shelfCode}</div>
+                              <div className="py-0.5 font-extrabold text-[10px] print:text-[8pt] text-black tracking-wider leading-none">{spine.ddc}</div>
+                              <div className="py-0.5 font-extrabold text-[10px] print:text-[8pt] text-black tracking-widest uppercase leading-none">{spine.authorCode}</div>
+                              <div className="py-0.5 font-bold text-[10px] print:text-[8pt] text-black lowercase leading-none">{spine.titleCode}</div>
+                            </div>
 
-                          {/* Baris 2: Nomor DDC (e.g. 813 / 220) */}
-                          <div className="py-1 flex items-center justify-center font-extrabold text-sm sm:text-base tracking-wider text-slate-950">
-                            {spine.ddc}
+                            {/* Barcode & Info Buku */}
+                            <div className="flex-1 flex flex-col justify-between items-center text-center min-w-0 py-0.5">
+                              <div className="w-full flex items-center justify-center scale-90 sm:scale-95 origin-center">
+                                <BarcodeSvg
+                                  value={ei.item.itemBarcode}
+                                  width={1.0}
+                                  height={22}
+                                  fontSize={8}
+                                  textMargin={1}
+                                />
+                              </div>
+                              <div className="w-full">
+                                <p className="text-[8px] print:text-[6pt] font-bold text-black leading-tight line-clamp-1">
+                                  {book?.title || 'Buku Cerita SBTH'}
+                                </p>
+                                <p className="text-[7px] print:text-[5pt] font-mono text-slate-600 truncate mt-0.5">
+                                  No: {ei.item.itemBarcode} • Copy #{ei.item.copyNumber}
+                                </p>
+                              </div>
+                            </div>
                           </div>
-
-                          {/* Baris 3: 3 Huruf Pengarang (e.g. KID / JUL) */}
-                          <div className="py-1 flex items-center justify-center font-extrabold text-sm sm:text-base tracking-widest text-slate-950 uppercase">
-                            {spine.authorCode}
+                        ) : (
+                          // Mode Potret (4 x 7.4 cm)
+                          <div className="flex-1 flex flex-col justify-between p-1 min-h-0">
+                            <div className="border border-black rounded-xs flex flex-col justify-center divide-y divide-black font-mono text-center bg-slate-50 my-1">
+                              <div className="py-1 font-extrabold text-xs print:text-[9pt] text-black tracking-widest">{customShelfCode || spine.shelfCode}</div>
+                              <div className="py-1 font-extrabold text-xs print:text-[9pt] text-black tracking-wider">{spine.ddc}</div>
+                              <div className="py-1 font-extrabold text-xs print:text-[9pt] text-black tracking-widest uppercase">{spine.authorCode}</div>
+                              <div className="py-1 font-bold text-xs print:text-[9pt] text-black lowercase">{spine.titleCode}</div>
+                            </div>
+                            <div className="flex flex-col items-center justify-center text-center">
+                              <BarcodeSvg
+                                value={ei.item.itemBarcode}
+                                width={0.9}
+                                height={20}
+                                fontSize={7.5}
+                                textMargin={1}
+                              />
+                              <p className="text-[7.5px] print:text-[5.5pt] font-bold text-black line-clamp-1 mt-0.5">
+                                {book?.title}
+                              </p>
+                            </div>
                           </div>
-
-                          {/* Baris 4: 1 Huruf Kecil Judul (e.g. m / t) */}
-                          <div className="py-1 flex items-center justify-center font-bold text-sm sm:text-base text-slate-950 lowercase">
-                            {spine.titleCode}
-                          </div>
-                        </div>
-
-                        {/* Footer Eksemplar */}
-                        <div className="border-t border-slate-300 pt-0.5 text-[8px] text-slate-600 flex items-center justify-between px-0.5 shrink-0 font-sans">
-                          <span>SBTH</span>
-                          <span>#{ei.item.copyNumber}</span>
-                        </div>
+                        )}
                       </div>
                     );
                   })}
@@ -626,17 +711,22 @@ export const LabelPrintGenerator: React.FC<LabelPrintGeneratorProps> = ({
               </div>
             )}
 
-            {/* TEMPLATE D: SLIP CAP BAGIAN DALAM BUKU SBTH (NO. DAFTAR 4 DIGIT & TANGGAL) */}
+            {/* TEMPLATE D: SLIP CAP BAGIAN DALAM BUKU SBTH (6 x 2.5 CM KOTAK POTONG MANUAL) */}
             {template === 'SLIP_DALAM_SBTH' && (
               <div className="sbth-slip-sheet bg-white text-black p-4 rounded-xl shadow-lg border border-slate-300 mx-auto">
-                <div className="print:hidden mb-4 p-3 bg-blue-50 dark:bg-blue-950/40 rounded-2xl border border-blue-200 dark:border-blue-800 text-xs text-blue-900 dark:text-blue-200 flex items-center gap-2.5">
-                  <span className="text-xl">📑</span>
-                  <div>
-                    <strong>Slip Cap Bagian Dalam Buku Fisik SBTH:</strong>
-                    <p className="text-[11px] text-blue-800/80 dark:text-blue-300/80">
-                      Berisi No. Daftar 4 Digit (contoh: <code>0101</code>) dan Tanggal (<code>DD/MM/TTTT</code>) untuk ditempel pada halaman dalam buku sesuai buku fisik SBTH yang sudah ada.
-                    </p>
+                <div className="print:hidden mb-4 p-3 bg-blue-50 dark:bg-blue-950/40 rounded-2xl border border-blue-200 dark:border-blue-800 text-xs text-blue-900 dark:text-blue-200 flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+                  <div className="flex items-center gap-2">
+                    <span className="text-xl">📑</span>
+                    <div>
+                      <strong>Slip Cap Bagian Dalam Buku Fisik SBTH (Ukuran 6 x 2.5 cm Kotak Potong Manual):</strong>
+                      <p className="text-[11px] text-blue-800/80 dark:text-blue-300/80">
+                        Dilengkapi KOP resmi SBTH (Logo di kiri, Tulisan di tengah), No. Daftar 4 Digit (contoh: <code>0101</code>) dan Tanggal (<code>DD/MM/TTTT</code>) dengan garis kotak potong manual.
+                      </p>
+                    </div>
                   </div>
+                  <span className="font-mono text-xs bg-white dark:bg-slate-900 px-3 py-1 rounded-lg border border-blue-300 shrink-0">
+                    Ukuran: <strong>6 x 2.5 cm</strong>
+                  </span>
                 </div>
 
                 <div className="sbth-slip-grid grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3 print:gap-[4mm] justify-center">
@@ -647,34 +737,42 @@ export const LabelPrintGenerator: React.FC<LabelPrintGeneratorProps> = ({
                     return (
                       <div
                         key={ei.item.id}
-                        className="sbth-slip-label border border-slate-400 rounded-lg overflow-hidden bg-white text-black p-3 w-full sm:w-[240px] h-[140px] print:w-[64mm] print:h-[36mm] print:shadow-none shadow-xs mx-auto flex flex-col justify-between"
+                        className="sbth-slip-label border border-black print:border-[1pt] print:border-black rounded-lg print:rounded-none overflow-hidden bg-white text-black p-1.5 w-full sm:w-[240px] h-[120px] print:w-[60mm] print:h-[25mm] print:max-h-[25mm] print:shadow-none shadow-xs mx-auto flex flex-col justify-between"
                       >
-                        {/* Kop Cap Perpustakaan */}
-                        <div className="text-center border-b border-black pb-1">
-                          <span className="text-[10px] font-extrabold uppercase tracking-tight block leading-tight">
-                            PERPUSTAKAAN KB-TK SBTH
-                          </span>
-                          <span className="text-[8px] text-slate-600 block leading-none">
-                            Bhakti Tunas Harapan Magelang
-                          </span>
-                        </div>
-
-                        {/* Isi No Daftar 4 Digit & Tanggal DD/MM/YYYY */}
-                        <div className="my-1.5 space-y-1 font-mono text-xs">
-                          <div className="flex items-center justify-between border border-black/40 px-2 py-0.5 rounded bg-slate-50">
-                            <span className="font-semibold text-slate-700 text-[10px]">No. Daftar :</span>
-                            <span className="font-black text-sm text-slate-950 tracking-widest">{slip.accessionNumber}</span>
-                          </div>
-                          <div className="flex items-center justify-between border border-black/40 px-2 py-0.5 rounded bg-slate-50">
-                            <span className="font-semibold text-slate-700 text-[10px]">Tanggal    :</span>
-                            <span className="font-bold text-xs text-slate-950">{slip.dateStr}</span>
+                        {/* 1. KOP Resmi SBTH (Logo di kiri, Teks di tengah) */}
+                        <div className="flex items-center gap-1.5 border-b border-black pb-0.5 px-0.5 shrink-0 bg-white">
+                          <img
+                            src="/logo_sbth.png"
+                            alt="Logo SBTH"
+                            className="h-4 w-4 print:h-[5mm] print:w-[5mm] object-contain shrink-0"
+                            onError={(e) => { (e.target as HTMLElement).style.display = 'none'; }}
+                          />
+                          <div className="flex-1 text-center min-w-0">
+                            <span className="text-[8px] print:text-[6pt] font-black uppercase tracking-tight block leading-tight text-black">
+                              PERPUSTAKAAN KB-TK BHAKTI TUNAS HARAPAN
+                            </span>
+                            <span className="text-[6.5px] print:text-[4.5pt] text-slate-700 block leading-none mt-0.5">
+                              Jl. Jendral Sudirman No 68 A Magelang
+                            </span>
                           </div>
                         </div>
 
-                        {/* Info Judul & Eksemplar & ISBN */}
-                        <div className="border-t border-slate-200 pt-0.5 flex items-center justify-between text-[8px] text-slate-500 font-sans">
-                          <span className="truncate max-w-[130px] font-medium text-slate-700">{book?.title}</span>
-                          <span className="font-mono text-[7.5px] text-slate-600">ISBN: {book?.isbn || '-'}</span>
+                        {/* 2. Isi No Daftar 4 Digit & Tanggal DD/MM/YYYY */}
+                        <div className="my-0.5 space-y-0.5 font-mono text-[9px] print:text-[6.5pt]">
+                          <div className="flex items-center justify-between border border-black/60 px-1.5 py-0.5 rounded-xs bg-slate-50">
+                            <span className="font-semibold text-slate-800 text-[8px] print:text-[5.5pt]">No. Daftar :</span>
+                            <span className="font-black text-[10px] print:text-[7.5pt] text-black tracking-widest">{slip.accessionNumber}</span>
+                          </div>
+                          <div className="flex items-center justify-between border border-black/60 px-1.5 py-0.5 rounded-xs bg-slate-50">
+                            <span className="font-semibold text-slate-800 text-[8px] print:text-[5.5pt]">Tanggal :</span>
+                            <span className="font-bold text-[9px] print:text-[6.5pt] text-black">{slip.dateStr}</span>
+                          </div>
+                        </div>
+
+                        {/* 3. Info Judul & Eksemplar */}
+                        <div className="border-t border-slate-300 pt-0.5 flex items-center justify-between text-[7.5px] print:text-[5pt] text-slate-600 font-sans leading-none shrink-0">
+                          <span className="truncate max-w-[130px] font-medium text-slate-900">{book?.title || 'Buku Cerita SBTH'}</span>
+                          <span className="font-mono text-[7px] print:text-[4.5pt]">ISBN: {book?.isbn || '-'}</span>
                           <span>Copy #{ei.item.copyNumber}</span>
                         </div>
                       </div>

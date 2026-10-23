@@ -34,6 +34,7 @@ import {
 import { libraryStore } from '@/lib/storage';
 import { soundFx } from '@/lib/sound';
 import { SmartBookCover } from '@/components/common/SmartBookCover';
+import { matchDdcCategory } from '@/lib/eddc';
 
 interface ScanIsbnModalProps {
   isOpen: boolean;
@@ -276,20 +277,17 @@ export const ScanIsbnModal: React.FC<ScanIsbnModalProps> = ({
     if (meta.bookLanguage) setBookLanguage(meta.bookLanguage);
     if (meta.physicalFormat) setPhysicalFormat(meta.physicalFormat);
 
-    // Auto-detect category suggestion based on title keywords
-    const lower = (meta.title + ' ' + (meta.synopsis || '')).toLowerCase();
-    if (lower.includes('ensiklopedia') || lower.includes('almanac') || lower.includes('1.111') || lower.includes('hiupedia') || lower.includes('antariksa') || lower.includes('sejarah')) {
-      setCategoryId('cat-ensiklopedia');
-    } else if (lower.includes('hewan') || lower.includes('alam') || lower.includes('binatang') || lower.includes('dinosaurus') || lower.includes('tumbuhan') || lower.includes('geographic') || lower.includes('sains') || lower.includes('science') || lower.includes('survival') || lower.includes('fauna')) {
-      setCategoryId('cat-alam');
-    } else if (lower.includes('dongeng') || lower.includes('cerita') || lower.includes('fabel') || lower.includes('kancil') || lower.includes('putri')) {
-      setCategoryId('cat-dongeng');
-    } else if (lower.includes('baca') || lower.includes('hitung') || lower.includes('warna') || lower.includes('aktivitas') || lower.includes('angka') || lower.includes('huruf')) {
-      setCategoryId('cat-aktivitas');
-    } else if (lower.includes('jujur') || lower.includes('doa') || lower.includes('adab') || lower.includes('hebat') || lower.includes('karakter') || lower.includes('sopan')) {
-      setCategoryId('cat-karakter');
-    } else if (meta.bookLanguage === 'en' || lower.includes('english') || lower.includes('mandarin') || lower.includes('bilingual')) {
-      setCategoryId('cat-bahasa');
+    // Auto-detect DDC category & classification code based on title, synopsis, publisher, language
+    const ddcMatch = matchDdcCategory(
+      meta.title,
+      meta.synopsis || '',
+      meta.publisher || '',
+      '',
+      meta.bookLanguage || 'id'
+    );
+    setCategoryId(ddcMatch.categoryId as CategoryId);
+    if (!isSpineManualEdited && ddcMatch.ddcCode) {
+      setClassification(ddcMatch.ddcCode);
     }
   };
 

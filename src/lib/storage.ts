@@ -59,7 +59,9 @@ import {
   deriveCategoryDdc,
   deriveAuthorCode,
   deriveTitleCode,
+  findCategory,
 } from './constants';
+import { resolveToDdcCategoryId } from './eddc';
 import * as XLSX from 'xlsx';
 
 const STORAGE_KEYS = {
@@ -2092,8 +2094,17 @@ Periode: Minggu ke-2 Oktober 2026
       return CATEGORIES;
     }
     try {
-      const parsed = JSON.parse(raw);
-      return Array.isArray(parsed) && parsed.length > 0 ? parsed : CATEGORIES;
+      const parsed: Category[] = JSON.parse(raw);
+      if (Array.isArray(parsed) && parsed.length > 0) {
+        // Jika belum ada kategori DDC atau masih format lama 6 kategori tanpa ddcCode, upgrade otomatis
+        const hasDdc = parsed.some((c) => c.ddcCode || c.id.startsWith('ddc-'));
+        if (!hasDdc) {
+          this.saveCategories(CATEGORIES);
+          return CATEGORIES;
+        }
+        return parsed;
+      }
+      return CATEGORIES;
     } catch {
       return CATEGORIES;
     }
@@ -2104,11 +2115,60 @@ Periode: Minggu ke-2 Oktober 2026
     localStorage.setItem(STORAGE_KEYS.CATEGORIES, JSON.stringify(categories));
   }
 
+  public resetToDdcCategories(): Category[] {
+    this.saveCategories(CATEGORIES);
+    return CATEGORIES;
+  }
+
+  // Sinkronkan seluruh koleksi buku yang ada ke format standar DDC seragam
+  public syncAllBooksToDdc(): { updatedCount: number; details: string[] } {
+    const books = this.getBooks();
+    const categories = this.getCategories();
+    let updatedCount = 0;
+    const details: string[] = [];
+
+    const updatedBooks = books.map((b) => {
+      const targetCatId = resolveToDdcCategoryId(b.categoryId);
+      const cat = findCategory(categories, targetCatId);
+      const spine = getSbthSpineCode(
+        b.title,
+        b.author,
+        targetCatId,
+        b.shelfCode || cat.shelfCode || 'SR',
+        b.classification,
+        b.authorCode,
+        b.titleCode
+      );
+
+      const isChanged = b.categoryId !== targetCatId || !b.classification || b.classification !== spine.ddc;
+      if (isChanged) {
+        updatedCount++;
+        details.push(`• "${b.title}" ➔ [${spine.ddc}] ${cat.shortName}`);
+        return {
+          ...b,
+          categoryId: targetCatId,
+          classification: spine.ddc,
+          shelfCode: spine.shelfCode,
+          authorCode: spine.authorCode,
+          titleCode: spine.titleCode,
+          callNumber: `${spine.ddc} ${spine.authorCode} ${spine.titleCode}`,
+        };
+      }
+      return b;
+    });
+
+    if (updatedCount > 0) {
+      this.saveBooks(updatedBooks);
+    }
+    return { updatedCount, details };
+  }
+
   public addCategory(cat: Partial<Category> & { name: string }): Category {
     const list = this.getCategories();
-    const newId = cat.id || `cat-${Date.now().toString(36)}`;
+    const newId = cat.id || `ddc-custom-${Date.now().toString(36)}`;
     const newCat: Category = {
       id: newId,
+      ddcCode: cat.ddcCode || (newId.startsWith('ddc-') ? newId.replace('ddc-', '') : '800'),
       name: cat.name,
       shortName: cat.shortName || cat.name.slice(0, 10).toUpperCase(),
       colorHex: cat.colorHex || '#10B981',

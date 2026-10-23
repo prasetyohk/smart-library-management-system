@@ -31,6 +31,7 @@ export interface Category {
   shelfLocation: string;
   description: string;
   shelfCode?: string; // Kode Rak Punggung SBTH (Default "SR", atau "AG", "SN", dll.)
+  ddcCode?: string;   // Kode DDC Utama (e.g. "000", "100", "200", ..., "900")
 }
 
 export interface Book {
