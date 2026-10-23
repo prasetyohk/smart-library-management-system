@@ -63,6 +63,7 @@ import { DEFAULT_SCHOOL_PROFILE } from '@/lib/constants';
 import { DICTIONARY } from '@/lib/i18n';
 
 export default function Home() {
+  const [mounted, setMounted] = useState<boolean>(false);
   const [activeTab, setActiveTab] = useState<
     'OPAC' | 'CIRCULATION' | 'BOOKS' | 'MEMBERS'
   >('CIRCULATION');
@@ -154,6 +155,7 @@ export default function Home() {
   }, []);
 
   useEffect(() => {
+    setMounted(true);
     const d = new Date();
     setCurrentDateStr(
       d.toLocaleDateString(language === 'zh' ? 'zh-CN' : language === 'en' ? 'en-US' : 'id-ID', {
@@ -421,6 +423,22 @@ export default function Home() {
   const handleCameraScanResult = (code: string) => {
     simulateScan(code);
   };
+
+  if (!mounted) {
+    return (
+      <div className="h-screen w-screen flex flex-col items-center justify-center bg-slate-950 text-white font-sans select-none">
+        <div className="flex flex-col items-center gap-4 animate-in fade-in duration-300">
+          <div className="h-20 w-20 rounded-3xl bg-amber-500/20 border border-amber-500/40 p-2 shadow-xl flex items-center justify-center animate-pulse">
+            <img src="/logo_sbth.png" alt="Logo SBTH" className="h-14 w-14 object-contain" />
+          </div>
+          <div className="text-center">
+            <h1 className="text-base font-extrabold tracking-tight">SISTEM PERPUSTAKAAN DIGITAL SBTH</h1>
+            <p className="text-xs text-amber-500 font-medium mt-1">Be Smart, Be Kind • Memuat Sistem...</p>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="h-screen max-h-screen overflow-hidden bg-slate-50 dark:bg-slate-950 text-slate-900 dark:text-slate-100 flex flex-col font-sans">

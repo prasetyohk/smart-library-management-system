@@ -1591,40 +1591,44 @@ export const BookManagement: React.FC<BookManagementProps> = ({
             </span>
           </button>
 
-          {selectedItemIds.length > 0 && isShelfFeatureEnabled && (
+          {(selectedItemIds.length > 0 || selectedBookIds.length > 0) && (
             <>
-              <span className="text-xs font-semibold text-text whitespace-nowrap">Pindah ke:</span>
-              <select
-                value={bulkShelfTarget}
-                onChange={(e) => setBulkShelfTarget(e.target.value)}
-                className="px-2.5 py-1.5 rounded-xl bg-surface-2 border border-border text-xs text-text font-semibold outline-hidden cursor-pointer max-w-[210px] truncate"
-              >
-                <option value="" className="bg-surface text-text">-- Pilih Posisi Rak --</option>
-                {shelves.map((sh) => (
-                  <option
-                    key={sh.id}
-                    value={isShelfRowEnabled ? `${sh.name} - Baris 1` : sh.name}
-                    className="bg-surface text-text"
+              {isShelfFeatureEnabled && (
+                <>
+                  <span className="text-xs font-semibold text-text whitespace-nowrap">Pindah ke:</span>
+                  <select
+                    value={bulkShelfTarget}
+                    onChange={(e) => setBulkShelfTarget(e.target.value)}
+                    className="px-2.5 py-1.5 rounded-xl bg-surface-2 border border-border text-xs text-text font-semibold outline-hidden cursor-pointer max-w-[210px] truncate"
                   >
-                    {sh.name} {isShelfRowEnabled ? '- Baris 1' : ''} ({sh.categoryName || sh.code})
-                  </option>
-                ))}
-                {uniqueShelves.map((sh) => (
-                  <option key={sh} value={sh} className="bg-surface text-text">
-                    {sh}
-                  </option>
-                ))}
-              </select>
-              <button
-                type="button"
-                disabled={!bulkShelfTarget}
-                onClick={handleApplyBulkShelf}
-                className="px-3 py-1.5 rounded-xl bg-amber-500 hover:bg-amber-600 disabled:opacity-50 text-slate-950 font-bold text-xs flex items-center gap-1.5 transition cursor-pointer shrink-0"
-                title="Terapkan lokasi rak ke semua eksemplar terpilih"
-              >
-                <Check className="h-4 w-4" />
-                <span>Pindah ({selectedItemIds.length})</span>
-              </button>
+                    <option value="" className="bg-surface text-text">-- Pilih Posisi Rak --</option>
+                    {shelves.map((sh) => (
+                      <option
+                        key={sh.id}
+                        value={isShelfRowEnabled ? `${sh.name} - Baris 1` : sh.name}
+                        className="bg-surface text-text"
+                      >
+                        {sh.name} {isShelfRowEnabled ? '- Baris 1' : ''} ({sh.categoryName || sh.code})
+                      </option>
+                    ))}
+                    {uniqueShelves.map((sh) => (
+                      <option key={sh} value={sh} className="bg-surface text-text">
+                        {sh}
+                      </option>
+                    ))}
+                  </select>
+                  <button
+                    type="button"
+                    disabled={!bulkShelfTarget}
+                    onClick={handleApplyBulkShelf}
+                    className="px-3 py-1.5 rounded-xl bg-amber-500 hover:bg-amber-600 disabled:opacity-50 text-slate-950 font-bold text-xs flex items-center gap-1.5 transition cursor-pointer shrink-0"
+                    title="Terapkan lokasi rak ke semua eksemplar terpilih"
+                  >
+                    <Check className="h-4 w-4" />
+                    <span>Pindah ({selectedItemIds.length})</span>
+                  </button>
+                </>
+              )}
 
               <button
                 type="button"
@@ -1633,22 +1637,26 @@ export const BookManagement: React.FC<BookManagementProps> = ({
                 title="Tandai terpilih sudah dicap stempel / ditulis nomor daftar manual (tanpa printer)"
               >
                 <CheckSquare className="h-3.5 w-3.5" />
-                <span>Tandai Dicap ({selectedItemIds.length})</span>
+                <span>Tandai Dicap ({selectedItemIds.length > 0 ? selectedItemIds.length : allItems.filter((i) => selectedBookIds.includes(i.bookId)).length})</span>
               </button>
 
               <button
                 type="button"
                 onClick={() => {
                   const barcodes = allItems
-                    .filter((i) => selectedItemIds.includes(i.id))
+                    .filter((i) => selectedItemIds.includes(i.id) || selectedBookIds.includes(i.bookId))
                     .map((i) => i.itemBarcode);
+                  if (barcodes.length === 0) {
+                    alert('Tidak ada eksemplar fisik pada buku yang dipilih.');
+                    return;
+                  }
                   onOpenLabelPrinter(barcodes);
                 }}
                 className="px-3 py-1.5 rounded-xl bg-sky-500 hover:bg-sky-600 text-white text-xs font-bold flex items-center gap-1.5 transition cursor-pointer shadow-xs"
                 title="Cetak stiker barcode untuk eksemplar terpilih (bisa cetak kapan saja)"
               >
                 <Printer className="h-3.5 w-3.5" />
-                <span>Cetak Barcode ({selectedItemIds.length})</span>
+                <span>Cetak Barcode ({selectedItemIds.length > 0 ? selectedItemIds.length : allItems.filter((i) => selectedBookIds.includes(i.bookId)).length})</span>
               </button>
             </>
           )}
@@ -1938,7 +1946,14 @@ export const BookManagement: React.FC<BookManagementProps> = ({
                           )}
                           <button
                             type="button"
-                            onClick={() => onOpenLabelPrinter(items.map((i) => i.itemBarcode))}
+                            onClick={() => {
+                              const bcs = items.map((i) => i.itemBarcode);
+                              if (bcs.length === 0) {
+                                alert(`Buku "${book.title}" belum memiliki eksemplar fisik. Silakan tambahkan eksemplar terlebih dahulu menggunakan tombol (+).`);
+                                return;
+                              }
+                              onOpenLabelPrinter(bcs);
+                            }}
                             className="p-1.5 rounded-lg border border-border hover:bg-surface-2 text-text-muted hover:text-text transition cursor-pointer"
                             title="Cetak Label Barcode (tetap bisa dicetak kapan saja)"
                           >
@@ -2227,7 +2242,14 @@ export const BookManagement: React.FC<BookManagementProps> = ({
 
                       <button
                         type="button"
-                        onClick={() => onOpenLabelPrinter(items.map((i) => i.itemBarcode))}
+                        onClick={() => {
+                          const bcs = items.map((i) => i.itemBarcode);
+                          if (bcs.length === 0) {
+                            alert(`Buku "${book.title}" belum memiliki eksemplar fisik. Silakan tambahkan eksemplar terlebih dahulu.`);
+                            return;
+                          }
+                          onOpenLabelPrinter(bcs);
+                        }}
                         className="px-3 py-1.5 rounded-lg border border-border bg-surface hover:bg-surface-2 text-text text-xs font-medium flex items-center gap-1 transition cursor-pointer"
                         title="Cetak label untuk semua eksemplar judul buku ini (bisa dicetak kapan saja)"
                       >
