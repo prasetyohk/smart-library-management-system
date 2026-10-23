@@ -22,6 +22,16 @@ import { CATEGORIES, getSbthSpineCode, getSbthInsideSlipData, formatDateDDMMYYYY
 import { libraryStore } from '@/lib/storage';
 import { BarcodeSvg } from '@/components/common/BarcodeSvg';
 
+// Helper membagi array stiker ke dalam lembaran fisik A4 (N-up Grid Imposition)
+function chunkArray<T>(arr: T[], size: number): T[][] {
+  if (!arr || arr.length === 0) return [];
+  const chunks: T[][] = [];
+  for (let i = 0; i < arr.length; i += size) {
+    chunks.push(arr.slice(i, i + size));
+  }
+  return chunks;
+}
+
 interface LabelPrintGeneratorProps {
   isOpen: boolean;
   onClose: () => void;
@@ -190,37 +200,26 @@ export const LabelPrintGenerator: React.FC<LabelPrintGeneratorProps> = ({
     }
   };
 
-  if (!isOpen) return null;
-
-  // Helper membagi array stiker ke dalam lembaran fisik A4 (N-up Grid Imposition)
-  function chunkArray<T>(arr: T[], size: number): T[][] {
-    if (!arr || arr.length === 0) return [];
-    const chunks: T[][] = [];
-    for (let i = 0; i < arr.length; i += size) {
-      chunks.push(arr.slice(i, i + size));
-    }
-    return chunks;
-  }
-
   // Selected items to print
-  const itemsToPrint = enrichedItems.filter((ei) =>
-    selectedBarcodes.includes(ei.item.itemBarcode)
-  );
+  const itemsToPrint = useMemo(() => {
+    return enrichedItems.filter((ei) =>
+      selectedBarcodes.includes(ei.item.itemBarcode)
+    );
+  }, [enrichedItems, selectedBarcodes]);
 
   // For Tom & Jerry 103 (12 stickers per sheet: 3 columns x 4 rows)
-  // We can insert blank spacers before the first sticker according to startOffsetIndex
-  const tj103Slots: Array<{ itemInfo?: (typeof enrichedItems)[0]; isSpacer?: boolean; slotIndex: number }> = [];
-
-  if (template === 'TJ_103') {
-    // Fill spacers
-    for (let i = 0; i < startOffsetIndex; i++) {
-      tj103Slots.push({ isSpacer: true, slotIndex: i + 1 });
+  const tj103Slots = useMemo(() => {
+    const slots: Array<{ itemInfo?: (typeof enrichedItems)[0]; isSpacer?: boolean; slotIndex: number }> = [];
+    if (template === 'TJ_103') {
+      for (let i = 0; i < startOffsetIndex; i++) {
+        slots.push({ isSpacer: true, slotIndex: i + 1 });
+      }
+      itemsToPrint.forEach((ei, idx) => {
+        slots.push({ itemInfo: ei, slotIndex: startOffsetIndex + idx + 1 });
+      });
     }
-    // Fill actual items
-    itemsToPrint.forEach((ei, idx) => {
-      tj103Slots.push({ itemInfo: ei, slotIndex: startOffsetIndex + idx + 1 });
-    });
-  }
+    return slots;
+  }, [template, startOffsetIndex, itemsToPrint]);
 
   // Pembagian lembaran A4 (N-up Grid Imposition):
   // 1. Slip Dalam Buku: 3 kolom x 10 baris = 30 label per lembar A4 (60x25 mm)
@@ -239,6 +238,8 @@ export const LabelPrintGenerator: React.FC<LabelPrintGeneratorProps> = ({
     if (template === 'TJ_103') return tj103Sheets.length;
     return itemsToPrint.length;
   }, [template, slipSheets.length, spineSheets.length, tj103Sheets.length, itemsToPrint.length]);
+
+  if (!isOpen) return null;
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-xs p-4 overflow-y-auto animate-in fade-in">
