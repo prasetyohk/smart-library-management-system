@@ -96,17 +96,19 @@ h1, h2, h3, .font-display {
 }
 
 /* Print Stylesheet for Tom & Jerry 103, Spine Labels, Slips, and Thermal Rolls */
+/* N-up Grid Imposition (3x10 untuk Slip Dalam, 2x6 untuk Punggung Lanskap, 4x3 untuk Punggung Potret) */
 @media print {
   @page {
     size: A4 portrait;
-    margin: 5mm;
+    margin: 0;
   }
 
-  body {
+  html, body {
     background: #ffffff !important;
     color: #000000 !important;
     margin: 0 !important;
     padding: 0 !important;
+    width: 210mm !important;
     -webkit-print-color-adjust: exact !important;
     print-color-adjust: exact !important;
   }
@@ -127,12 +129,145 @@ h1, h2, h3, .font-display {
     border-radius: 0 !important;
   }
 
-  .tj103-sheet {
-    box-shadow: none !important;
-    border: none !important;
-    padding: 0 !important;
+  /* Kontainer Lembar A4 (N-up Grid Imposition Paged Media) */
+  .a4-print-sheet {
+    width: 210mm !important;
+    height: 297mm !important;
+    min-height: 297mm !important;
+    max-height: 297mm !important;
     margin: 0 auto !important;
-    width: 100% !important;
+    box-sizing: border-box !important;
+    overflow: hidden !important;
+    background: #ffffff !important;
+    page-break-after: always !important;
+    break-after: page !important;
+    page-break-inside: avoid !important;
+    break-inside: avoid !important;
+    display: flex !important;
+    flex-direction: column !important;
+    justify-content: flex-start !important;
+    align-items: center !important;
+    border: none !important;
+    box-shadow: none !important;
+  }
+
+  .a4-print-sheet:last-of-type,
+  .a4-print-sheet:last-child {
+    page-break-after: avoid !important;
+    break-after: avoid !important;
+  }
+
+  /* ======================================================== */
+  /* 1. SLIP DALAM BUKU (60 x 25 mm): 3 Kolom x 10 Baris = 30 */
+  /* Lebar: 3x60mm + 2x3mm gap = 186mm -> Padding kiri/kanan = 12mm */
+  /* Tinggi: 10x25mm + 9x2mm gap = 268mm -> Padding atas/bawah = 14.5mm */
+  /* ======================================================== */
+  .sbth-slip-sheet {
+    padding: 14.5mm 12mm !important;
+  }
+
+  .sbth-slip-grid {
+    display: grid !important;
+    grid-template-columns: repeat(3, 60mm) !important;
+    grid-auto-rows: 25mm !important;
+    column-gap: 3mm !important;
+    row-gap: 2mm !important;
+    justify-content: center !important;
+    align-content: start !important;
+    width: 186mm !important;
+    height: 268mm !important;
+    box-sizing: border-box !important;
+  }
+
+  .sbth-slip-label {
+    width: 60mm !important;
+    height: 25mm !important;
+    max-height: 25mm !important;
+    box-sizing: border-box !important;
+    page-break-inside: avoid !important;
+    break-inside: avoid !important;
+    border: 1pt solid #000000 !important; /* Garis batas potong manual tegas siku 90 derajat */
+    border-radius: 0 !important;
+    overflow: hidden !important;
+    margin: 0 !important;
+    padding: 1mm 1.5mm !important;
+    background: #ffffff !important;
+    color: #000000 !important;
+  }
+
+  /* ======================================================== */
+  /* 2. PUNGGUNG BUKU SBTH (74 x 40 mm Lanskap): 2 Kolom x 6 Baris = 12 */
+  /* Lebar: 2x74mm + 6mm gap = 154mm -> Padding kiri/kanan = 28mm */
+  /* Tinggi: 6x40mm + 5x5mm gap = 265mm -> Padding atas/bawah = 16mm */
+  /* ======================================================== */
+  .sbth-spine-sheet {
+    padding: 16mm 28mm !important;
+  }
+
+  .sbth-spine-grid {
+    display: grid !important;
+    grid-template-columns: repeat(2, 74mm) !important;
+    grid-auto-rows: 40mm !important;
+    column-gap: 6mm !important;
+    row-gap: 5mm !important;
+    justify-content: center !important;
+    align-content: start !important;
+    width: 154mm !important;
+    height: 265mm !important;
+    box-sizing: border-box !important;
+  }
+
+  .sbth-spine-label {
+    width: 74mm !important;
+    height: 40mm !important;
+    max-height: 40mm !important;
+    box-sizing: border-box !important;
+    page-break-inside: avoid !important;
+    break-inside: avoid !important;
+    border: 1.2pt solid #000000 !important; /* Garis batas potong manual tegas siku 90 derajat */
+    border-radius: 0 !important;
+    overflow: hidden !important;
+    margin: 0 !important;
+    padding: 0.8mm !important;
+    background: #ffffff !important;
+    color: #000000 !important;
+  }
+
+  /* ======================================================== */
+  /* 2B. PUNGGUNG BUKU SBTH POTRET (40 x 74 mm): 4 Kolom x 3 Baris = 12 */
+  /* Lebar: 4x40mm + 3x6mm gap = 178mm -> Padding kiri/kanan = 16mm */
+  /* Tinggi: 3x74mm + 2x8mm gap = 238mm -> Padding atas/bawah = 29.5mm */
+  /* ======================================================== */
+  .sbth-spine-sheet.portrait {
+    padding: 29.5mm 16mm !important;
+  }
+
+  .sbth-spine-grid.portrait {
+    grid-template-columns: repeat(4, 40mm) !important;
+    grid-auto-rows: 74mm !important;
+    column-gap: 6mm !important;
+    row-gap: 8mm !important;
+    justify-content: center !important;
+    align-content: start !important;
+    width: 178mm !important;
+    height: 238mm !important;
+    box-sizing: border-box !important;
+  }
+
+  .sbth-spine-label.portrait {
+    width: 40mm !important;
+    height: 74mm !important;
+    max-height: 74mm !important;
+    border-radius: 0 !important;
+  }
+
+  /* ======================================================== */
+  /* 3. TOM & JERRY 103 (64 x 32 mm): 3 Kolom x 4 Baris = 12   */
+  /* Lebar: 3x64mm + 2x3mm gap = 198mm -> Padding kiri/kanan = 6mm */
+  /* Tinggi: 4x32mm + 3x2.5mm gap = 135.5mm -> Padding atas/bawah = 15mm */
+  /* ======================================================== */
+  .tj103-sheet {
+    padding: 15mm 6mm !important;
   }
 
   .tj103-grid {
@@ -159,6 +294,9 @@ h1, h2, h3, .font-display {
     padding: 0 !important;
   }
 
+  /* ======================================================== */
+  /* 4. THERMAL ROLL (40 x 30 mm)                             */
+  /* ======================================================== */
   .thermal-label {
     width: 40mm !important;
     height: 30mm !important;
@@ -170,93 +308,5 @@ h1, h2, h3, .font-display {
     border: 1pt solid #000000 !important;
     border-radius: 0 !important;
     margin: 0 !important;
-  }
-
-  /* Label Punggung Fisik SBTH (Ukuran Kotak 7.4 x 4 cm untuk Potong Manual) */
-  .sbth-spine-sheet {
-    box-shadow: none !important;
-    border: none !important;
-    padding: 0 !important;
-    margin: 0 auto !important;
-    width: 100% !important;
-  }
-
-  /* Mode Standar Lanskap (74 mm x 40 mm): 2 kolom x 6-7 baris efisien di kertas A4 */
-  .sbth-spine-grid {
-    display: grid !important;
-    grid-template-columns: repeat(2, 74mm) !important;
-    grid-auto-rows: 40mm !important;
-    column-gap: 4mm !important;
-    row-gap: 3mm !important;
-    justify-content: center !important;
-    align-content: start !important;
-  }
-
-  .sbth-spine-label {
-    width: 74mm !important;
-    height: 40mm !important;
-    max-height: 40mm !important;
-    box-sizing: border-box !important;
-    page-break-inside: avoid !important;
-    break-inside: avoid !important;
-    border: 1.2pt solid #000000 !important; /* Garis batas potong manual tegas siku 90 derajat */
-    border-radius: 0 !important;
-    overflow: hidden !important;
-    margin: 0 !important;
-    padding: 0.8mm !important;
-    background: #ffffff !important;
-    color: #000000 !important;
-  }
-
-  /* Opsi Mode Potret (40 mm x 74 mm): 4 kolom x 3 baris efisien di kertas A4 */
-  .sbth-spine-grid.portrait {
-    grid-template-columns: repeat(4, 40mm) !important;
-    grid-auto-rows: 74mm !important;
-    column-gap: 4mm !important;
-    row-gap: 4mm !important;
-    justify-content: center !important;
-    align-content: start !important;
-  }
-
-  .sbth-spine-label.portrait {
-    width: 40mm !important;
-    height: 74mm !important;
-    max-height: 74mm !important;
-    border-radius: 0 !important;
-  }
-
-  /* Slip Cap Bagian Dalam Buku SBTH (Ukuran Kotak 6 x 2.5 cm untuk Potong Manual) */
-  .sbth-slip-sheet {
-    box-shadow: none !important;
-    border: none !important;
-    padding: 0 !important;
-    margin: 0 auto !important;
-    width: 100% !important;
-  }
-
-  .sbth-slip-grid {
-    display: grid !important;
-    grid-template-columns: repeat(3, 60mm) !important;
-    grid-auto-rows: 25mm !important;
-    column-gap: 4mm !important;
-    row-gap: 3mm !important;
-    justify-content: center !important;
-    align-content: start !important;
-  }
-
-  .sbth-slip-label {
-    width: 60mm !important;
-    height: 25mm !important;
-    max-height: 25mm !important;
-    box-sizing: border-box !important;
-    page-break-inside: avoid !important;
-    break-inside: avoid !important;
-    border: 1pt solid #000000 !important; /* Garis batas potong manual tegas siku 90 derajat */
-    border-radius: 0 !important;
-    overflow: hidden !important;
-    margin: 0 !important;
-    padding: 1mm 1.5mm !important;
-    background: #ffffff !important;
-    color: #000000 !important;
   }
 }
