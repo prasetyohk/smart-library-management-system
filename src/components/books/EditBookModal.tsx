@@ -71,6 +71,7 @@ export const EditBookModal: React.FC<EditBookModalProps> = ({
   const [ageGroup, setAgeGroup] = useState<AgeGroup>(book.ageGroup || 'TK_A');
   const [synopsis, setSynopsis] = useState(book.synopsis || '');
   const [shelfLocation, setShelfLocation] = useState(book.shelfLocation || '');
+  const isShelfFeatureEnabled = libraryStore.isShelfFeatureEnabled();
   const isShelfRowEnabled = libraryStore.isShelfRowFeatureEnabled();
   const shelves = libraryStore.getShelves();
   const parsedShelf = parseShelfLocation(shelfLocation);
@@ -398,7 +399,7 @@ export const EditBookModal: React.FC<EditBookModalProps> = ({
             }`}
           >
             <Layers className="h-4 w-4" />
-            <span>Kelola Eksemplar & Posisi Rak ({items.length})</span>
+            <span>{isShelfFeatureEnabled ? `Kelola Eksemplar & Posisi Rak (${items.length})` : `Kelola Eksemplar (${items.length})`}</span>
           </button>
         </div>
 
@@ -548,74 +549,76 @@ export const EditBookModal: React.FC<EditBookModalProps> = ({
                   </select>
                 </div>
 
-                <div className="space-y-1.5">
-                  <label className="text-xs font-semibold text-text flex items-center justify-between">
-                    <span>Posisi Rak Default di Sistem:</span>
-                    <span className="text-[10px] text-amber-500 font-normal">
-                      Fitur Baris: {isShelfRowEnabled ? 'ON' : 'OFF'}
-                    </span>
-                  </label>
-                  <div className={`grid grid-cols-1 ${isShelfRowEnabled ? 'sm:grid-cols-2' : ''} gap-2`}>
-                    <div>
-                      <select
-                        value={shelves.some((s) => s.name === parsedShelf.shelfName) ? parsedShelf.shelfName : ''}
-                        onChange={(e) => {
-                          const val = e.target.value;
-                          setShelfLocation(combineShelfLocation(val, parsedShelf.rowName, isShelfRowEnabled));
-                        }}
-                        className="w-full rounded-xl border border-border bg-surface-2 px-3 py-2 text-xs text-text focus:border-amber-500 outline-hidden font-semibold"
-                      >
-                        <option value="">-- Pilih Rak Tersedia --</option>
-                        {shelves.map((s) => (
-                          <option key={s.id} value={s.name}>
-                            {s.name} ({s.code})
-                          </option>
-                        ))}
-                      </select>
-                      <input
-                        type="text"
-                        value={parsedShelf.shelfName}
-                        onChange={(e) => {
-                          const val = e.target.value;
-                          setShelfLocation(combineShelfLocation(val, parsedShelf.rowName, isShelfRowEnabled));
-                        }}
-                        placeholder="Atau ketik nama rak..."
-                        className="w-full mt-1.5 rounded-xl border border-border bg-surface-2 px-3 py-1.5 text-xs text-text focus:border-amber-500 outline-hidden"
-                      />
-                    </div>
-
-                    {isShelfRowEnabled && (
+                {isShelfFeatureEnabled && (
+                  <div className="space-y-1.5">
+                    <label className="text-xs font-semibold text-text flex items-center justify-between">
+                      <span>Posisi Rak Default di Sistem:</span>
+                      <span className="text-[10px] text-amber-500 font-normal">
+                        Fitur Baris: {isShelfRowEnabled ? 'ON' : 'OFF'}
+                      </span>
+                    </label>
+                    <div className={`grid grid-cols-1 ${isShelfRowEnabled ? 'sm:grid-cols-2' : ''} gap-2`}>
                       <div>
                         <select
-                          value={parsedShelf.rowName || ''}
+                          value={shelves.some((s) => s.name === parsedShelf.shelfName) ? parsedShelf.shelfName : ''}
                           onChange={(e) => {
                             const val = e.target.value;
-                            setShelfLocation(combineShelfLocation(parsedShelf.shelfName || 'Rak Utama', val, true));
+                            setShelfLocation(combineShelfLocation(val, parsedShelf.rowName, isShelfRowEnabled));
                           }}
-                          className="w-full rounded-xl border border-border bg-surface-2 px-3 py-2 text-xs text-sky-600 dark:text-sky-400 font-semibold focus:border-amber-500 outline-hidden"
+                          className="w-full rounded-xl border border-border bg-surface-2 px-3 py-2 text-xs text-text focus:border-amber-500 outline-hidden font-semibold"
                         >
-                          <option value="">- Tanpa Baris -</option>
-                          {DEFAULT_SHELF_ROWS.map((r) => (
-                            <option key={r} value={r}>
-                              {r}
+                          <option value="">-- Pilih Rak Tersedia --</option>
+                          {shelves.map((s) => (
+                            <option key={s.id} value={s.name}>
+                              {s.name} ({s.code})
                             </option>
                           ))}
-                          {parsedShelf.rowName && !DEFAULT_SHELF_ROWS.includes(parsedShelf.rowName) && (
-                            <option value={parsedShelf.rowName}>
-                              {parsedShelf.rowName}
-                            </option>
-                          )}
                         </select>
-                        <span className="text-[10px] text-text-muted mt-1 block">
-                          Tingkat/sap rak ({parsedShelf.rowName || 'Tanpa Baris'})
-                        </span>
+                        <input
+                          type="text"
+                          value={parsedShelf.shelfName}
+                          onChange={(e) => {
+                            const val = e.target.value;
+                            setShelfLocation(combineShelfLocation(val, parsedShelf.rowName, isShelfRowEnabled));
+                          }}
+                          placeholder="Atau ketik nama rak..."
+                          className="w-full mt-1.5 rounded-xl border border-border bg-surface-2 px-3 py-1.5 text-xs text-text focus:border-amber-500 outline-hidden"
+                        />
                       </div>
-                    )}
+
+                      {isShelfRowEnabled && (
+                        <div>
+                          <select
+                            value={parsedShelf.rowName || ''}
+                            onChange={(e) => {
+                              const val = e.target.value;
+                              setShelfLocation(combineShelfLocation(parsedShelf.shelfName || 'Rak Utama', val, true));
+                            }}
+                            className="w-full rounded-xl border border-border bg-surface-2 px-3 py-2 text-xs text-sky-600 dark:text-sky-400 font-semibold focus:border-amber-500 outline-hidden"
+                          >
+                            <option value="">- Tanpa Baris -</option>
+                            {DEFAULT_SHELF_ROWS.map((r) => (
+                              <option key={r} value={r}>
+                                {r}
+                              </option>
+                            ))}
+                            {parsedShelf.rowName && !DEFAULT_SHELF_ROWS.includes(parsedShelf.rowName) && (
+                              <option value={parsedShelf.rowName}>
+                                {parsedShelf.rowName}
+                              </option>
+                            )}
+                          </select>
+                          <span className="text-[10px] text-text-muted mt-1 block">
+                            Tingkat/sap rak ({parsedShelf.rowName || 'Tanpa Baris'})
+                          </span>
+                        </div>
+                      )}
+                    </div>
+                    <span className="text-[10px] text-text-muted block">
+                      {shelfLocation ? `Lokasi tersimpan: "${shelfLocation}"` : 'Disimpan di database. Jika buku berpindah rak, tidak perlu cetak ulang label!'}
+                    </span>
                   </div>
-                  <span className="text-[10px] text-text-muted block">
-                    {shelfLocation ? `Lokasi tersimpan: "${shelfLocation}"` : 'Disimpan di database. Jika buku berpindah rak, tidak perlu cetak ulang label!'}
-                  </span>
-                </div>
+                )}
               </div>
 
               {/* Standar Punggung Buku Fisik SBTH (4 Baris Vertikal) */}
@@ -906,17 +909,19 @@ export const EditBookModal: React.FC<EditBookModalProps> = ({
                   <span className="font-bold text-amber-600 dark:text-amber-400 block text-xs">
                     Tambah 1 Eksemplar Fisik Baru
                   </span>
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                    <div>
-                      <label className="text-[11px] text-text-muted block mb-1">Posisi Rak:</label>
-                      <input
-                        type="text"
-                        value={newCopyShelf}
-                        onChange={(e) => setNewCopyShelf(e.target.value)}
-                        placeholder="Contoh: Rak A - Baris 1"
-                        className="w-full rounded-xl border border-border bg-surface px-3 py-1.5 text-xs text-text outline-hidden"
-                      />
-                    </div>
+                  <div className={`grid grid-cols-1 ${isShelfFeatureEnabled ? 'sm:grid-cols-2' : ''} gap-3`}>
+                    {isShelfFeatureEnabled && (
+                      <div>
+                        <label className="text-[11px] text-text-muted block mb-1">Posisi Rak:</label>
+                        <input
+                          type="text"
+                          value={newCopyShelf}
+                          onChange={(e) => setNewCopyShelf(e.target.value)}
+                          placeholder="Contoh: Rak A - Baris 1"
+                          className="w-full rounded-xl border border-border bg-surface px-3 py-1.5 text-xs text-text outline-hidden"
+                        />
+                      </div>
+                    )}
                     <div>
                       <label className="text-[11px] text-text-muted block mb-1">Nilai Buku (Rp):</label>
                       <input
@@ -992,11 +997,15 @@ export const EditBookModal: React.FC<EditBookModalProps> = ({
                         </div>
 
                         <div className="text-[11px] text-text-muted flex flex-wrap items-center gap-3">
-                          <span className="flex items-center gap-1">
-                            <MapPin className="h-3 w-3 text-amber-500" />
-                            {item.shelfLocation || shelfLocation || 'Rak Belum Diset'}
-                          </span>
-                          <span>•</span>
+                          {isShelfFeatureEnabled && (
+                            <>
+                              <span className="flex items-center gap-1">
+                                <MapPin className="h-3 w-3 text-amber-500" />
+                                {item.shelfLocation || shelfLocation || 'Rak Belum Diset'}
+                              </span>
+                              <span>•</span>
+                            </>
+                          )}
                           <span>Rp {(item.priceValue ?? priceValue).toLocaleString('id-ID')}</span>
                           <span>•</span>
                           <span>{item.source === 'SUMBANGAN_ORTU' ? `Donasi: ${item.donorName || 'Ortu'}` : 'Beli Sekolah'}</span>

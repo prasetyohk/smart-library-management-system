@@ -143,25 +143,38 @@ export const BookManagement: React.FC<BookManagementProps> = ({
     setCurrentPage(1);
   }, [search, selectedCategory, labelFilter, shelfFilter, statusFilter, sortBy, itemsPerPage, mainTab]);
 
-  // Scroll listener untuk Back to Top floating button
+  // Scroll listener untuk Back to Top floating button (sinkron dengan container main-content-scroll dan window)
   React.useEffect(() => {
     const handleScroll = () => {
       if (typeof window !== 'undefined') {
-        if (window.scrollY > 250) {
+        const scrollEl = document.getElementById('main-content-scroll');
+        const scrollY = scrollEl ? scrollEl.scrollTop : window.scrollY;
+        if (scrollY > 220) {
           setShowBackToTop(true);
         } else {
           setShowBackToTop(false);
         }
       }
     };
+    const scrollEl = document.getElementById('main-content-scroll');
+    if (scrollEl) {
+      scrollEl.addEventListener('scroll', handleScroll, { passive: true });
+    }
     window.addEventListener('scroll', handleScroll, { passive: true });
     return () => {
+      if (scrollEl) {
+        scrollEl.removeEventListener('scroll', handleScroll);
+      }
       window.removeEventListener('scroll', handleScroll);
     };
   }, []);
 
   const scrollToTop = () => {
     if (typeof window !== 'undefined') {
+      const scrollEl = document.getElementById('main-content-scroll');
+      if (scrollEl) {
+        scrollEl.scrollTo({ top: 0, behavior: 'smooth' });
+      }
       window.scrollTo({ top: 0, behavior: 'smooth' });
       soundFx.playScanBeep();
     }
@@ -170,10 +183,15 @@ export const BookManagement: React.FC<BookManagementProps> = ({
   const [selectedBookForCopies, setSelectedBookForCopies] = useState<Book | null>(null);
   const [newCopiesCount, setNewCopiesCount] = useState<number>(1);
   const [expandedBookIds, setExpandedBookIds] = useState<Record<string, boolean>>({});
-  const [isShelfRowEnabled, setIsShelfRowEnabled] = useState<boolean>(true);
+  
+  // Fitur Rak & Baris Fisik: Default OFF sesuai instruksi SBTH (Buku disusun murni per Kategori DDC)
+  const [isShelfFeatureEnabled, setIsShelfFeatureEnabled] = useState<boolean>(() => libraryStore.isShelfFeatureEnabled());
+  const [isShelfRowEnabled, setIsShelfRowEnabled] = useState<boolean>(() => libraryStore.isShelfRowFeatureEnabled());
+  const [isCategoryWrap, setIsCategoryWrap] = useState<boolean>(true); // Wrap badge kategori agar tidak perlu repot geser
 
-  // Sinkronisasi status fitur baris rak
+  // Sinkronisasi status fitur rak & baris
   React.useEffect(() => {
+    setIsShelfFeatureEnabled(libraryStore.isShelfFeatureEnabled());
     setIsShelfRowEnabled(libraryStore.isShelfRowFeatureEnabled());
   }, []);
 
@@ -597,7 +615,12 @@ export const BookManagement: React.FC<BookManagementProps> = ({
       setCurrentPage(page);
       soundFx.playScanBeep();
       if (position === 'BOTTOM' && typeof window !== 'undefined') {
-        window.scrollTo({ top: 380, behavior: 'smooth' });
+        const scrollEl = document.getElementById('main-content-scroll');
+        if (scrollEl) {
+          scrollEl.scrollTo({ top: 380, behavior: 'smooth' });
+        } else {
+          window.scrollTo({ top: 380, behavior: 'smooth' });
+        }
       }
     };
 
@@ -748,15 +771,17 @@ export const BookManagement: React.FC<BookManagementProps> = ({
               <span>Stock Opname</span>
             </button>
 
-            <button
-              type="button"
-              onClick={() => setIsShelfModalOpen(true)}
-              className="flex-1 sm:flex-initial px-3 py-2 rounded-xl bg-surface border border-border hover:bg-surface-2 text-text font-semibold text-xs flex items-center justify-center gap-1.5 transition cursor-pointer"
-              title="Kelola Struktur & Penamaan Rak SBTH"
-            >
-              <MapPin className="h-4 w-4 text-amber-500" />
-              <span>Template Rak</span>
-            </button>
+            {isShelfFeatureEnabled && (
+              <button
+                type="button"
+                onClick={() => setIsShelfModalOpen(true)}
+                className="flex-1 sm:flex-initial px-3 py-2 rounded-xl bg-surface border border-border hover:bg-surface-2 text-text font-semibold text-xs flex items-center justify-center gap-1.5 transition cursor-pointer"
+                title="Kelola Struktur & Penamaan Rak SBTH"
+              >
+                <MapPin className="h-4 w-4 text-amber-500" />
+                <span>Template Rak</span>
+              </button>
+            )}
 
             <button
               type="button"
@@ -1309,25 +1334,27 @@ export const BookManagement: React.FC<BookManagementProps> = ({
               </select>
             </div>
 
-            {/* Shelf Location Filter */}
-            <div className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl bg-surface-2 border border-border text-xs">
-              <Layers className="h-3.5 w-3.5 text-amber-500" />
-              <select
-                value={shelfFilter}
-                onChange={(e) => setShelfFilter(e.target.value)}
-                className="bg-transparent border-none outline-hidden text-xs text-text cursor-pointer font-medium max-w-[150px] truncate"
-                title="Filter berdasarkan lokasi rak fisik buku"
-              >
-                <option value="ALL" className="bg-surface text-text">
-                  📍 Semua Rak Fisik
-                </option>
-                {uniqueShelves.map((sh) => (
-                  <option key={sh} value={sh} className="bg-surface text-text">
-                    {sh}
+            {/* Shelf Location Filter (Hanya Tampil Jika Setting Rak ON) */}
+            {isShelfFeatureEnabled && (
+              <div className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl bg-surface-2 border border-border text-xs">
+                <Layers className="h-3.5 w-3.5 text-amber-500" />
+                <select
+                  value={shelfFilter}
+                  onChange={(e) => setShelfFilter(e.target.value)}
+                  className="bg-transparent border-none outline-hidden text-xs text-text cursor-pointer font-medium max-w-[150px] truncate"
+                  title="Filter berdasarkan lokasi rak fisik buku"
+                >
+                  <option value="ALL" className="bg-surface text-text">
+                    📍 Semua Rak Fisik
                   </option>
-                ))}
-              </select>
-            </div>
+                  {uniqueShelves.map((sh) => (
+                    <option key={sh} value={sh} className="bg-surface text-text">
+                      {sh}
+                    </option>
+                  ))}
+                </select>
+              </div>
+            )}
 
             {/* Sort Dropdown */}
             <div className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl bg-surface-2 border border-border text-xs">
@@ -1343,25 +1370,46 @@ export const BookManagement: React.FC<BookManagementProps> = ({
               </select>
             </div>
 
-            {/* Toggle Fitur Baris Rak (ON / OFF) */}
+            {/* Toggle Fitur Rak & Baris (ON / OFF - Default: OFF Sesuai Standar SBTH) */}
             <button
               type="button"
               onClick={() => {
-                const next = !isShelfRowEnabled;
-                setIsShelfRowEnabled(next);
-                libraryStore.setShelfRowFeatureEnabled(next);
+                const next = !isShelfFeatureEnabled;
+                setIsShelfFeatureEnabled(next);
+                libraryStore.setShelfFeatureEnabled(next);
                 soundFx.playScanBeep();
               }}
               className={`px-3 py-1.5 rounded-xl border text-xs font-semibold flex items-center gap-1.5 transition cursor-pointer shadow-2xs ${
-                isShelfRowEnabled
+                isShelfFeatureEnabled
                   ? 'bg-amber-500/15 border-amber-500/40 text-amber-500 hover:bg-amber-500/25'
                   : 'bg-surface-2 border-border text-text-muted hover:text-text'
               }`}
-              title="Klik untuk ON/OFF kolom Baris pada Posisi Rak di tabel koleksi buku"
+              title="Klik untuk ON/OFF fitur setting Rak & Baris (Default: OFF, SBTH menyusun buku murni berdasarkan kategori e-DDC)"
             >
-              <Layers className="h-3.5 w-3.5" />
-              <span>Kolom Baris: <strong className={isShelfRowEnabled ? 'text-amber-500 font-extrabold' : 'text-text-muted'}>{isShelfRowEnabled ? 'ON' : 'OFF'}</strong></span>
+              <MapPin className="h-3.5 w-3.5" />
+              <span>Setting Rak: <strong className={isShelfFeatureEnabled ? 'text-amber-500 font-extrabold' : 'text-text-muted'}>{isShelfFeatureEnabled ? 'ON' : 'OFF'}</strong></span>
             </button>
+
+            {isShelfFeatureEnabled && (
+              <button
+                type="button"
+                onClick={() => {
+                  const next = !isShelfRowEnabled;
+                  setIsShelfRowEnabled(next);
+                  libraryStore.setShelfRowFeatureEnabled(next);
+                  soundFx.playScanBeep();
+                }}
+                className={`px-3 py-1.5 rounded-xl border text-xs font-semibold flex items-center gap-1.5 transition cursor-pointer shadow-2xs ${
+                  isShelfRowEnabled
+                    ? 'bg-sky-500/15 border-sky-500/40 text-sky-500 hover:bg-sky-500/25'
+                    : 'bg-surface-2 border-border text-text-muted hover:text-text'
+                }`}
+                title="Klik untuk ON/OFF kolom Baris/Sap pada posisi rak"
+              >
+                <Layers className="h-3.5 w-3.5" />
+                <span>Kolom Baris: <strong className={isShelfRowEnabled ? 'text-sky-500 font-extrabold' : 'text-text-muted'}>{isShelfRowEnabled ? 'ON' : 'OFF'}</strong></span>
+              </button>
+            )}
 
             {/* View Mode Toggle (Cards, Table Tanpa Cover, Grid) */}
             <div className="flex items-center p-1 rounded-xl bg-surface-2 border border-border">
@@ -1405,37 +1453,57 @@ export const BookManagement: React.FC<BookManagementProps> = ({
           </div>
         </div>
 
-        {/* Category Chips Bar */}
-        <div className="flex items-center gap-1.5 overflow-x-auto pb-1 scrollbar-none">
-          <button
-            type="button"
-            onClick={() => setSelectedCategory('ALL')}
-            className={`px-3 py-1.5 rounded-xl text-xs font-semibold whitespace-nowrap transition ${
-              selectedCategory === 'ALL'
-                ? 'bg-amber-500 text-slate-950 shadow-xs'
-                : 'bg-surface-2 text-text-muted hover:text-text'
+        {/* Category Chips Bar: Ramping & Fleksibel (Wrap atau 1 Baris dengan Toggle) */}
+        <div className="space-y-1">
+          <div className="flex items-center justify-between gap-2">
+            <span className="text-[10px] font-bold uppercase tracking-wider text-text-muted">
+              Kategori e-DDC Dewey Decimal:
+            </span>
+            <button
+              type="button"
+              onClick={() => setIsCategoryWrap((w) => !w)}
+              className="text-[10px] text-amber-500 hover:text-amber-600 font-semibold px-2 py-0.5 rounded-md hover:bg-surface-2 transition cursor-pointer"
+            >
+              {isCategoryWrap ? '↔️ Mode 1 Baris Geser' : '↕️ Tampilkan Semua (Wrap)'}
+            </button>
+          </div>
+
+          <div
+            className={`flex items-center gap-1.5 pb-1 ${
+              isCategoryWrap ? 'flex-wrap' : 'overflow-x-auto scrollbar-thin scrollbar-thumb-border'
             }`}
           >
-            {language === 'zh' ? '全部' : language === 'en' ? 'All' : 'Semua'} ({books.length})
-          </button>
-          {categories.map((cat) => (
             <button
-              key={cat.id}
               type="button"
-              onClick={() => setSelectedCategory(cat.id)}
-              className={`px-3 py-1.5 rounded-xl text-xs font-semibold whitespace-nowrap flex items-center gap-1.5 transition ${
-                selectedCategory === cat.id
-                  ? 'bg-surface-2 border border-amber-500 text-amber-500 font-bold'
-                  : 'bg-surface-2 text-text-muted hover:text-text'
+              onClick={() => setSelectedCategory('ALL')}
+              className={`px-2.5 py-1 rounded-full text-[11px] font-bold whitespace-nowrap transition cursor-pointer ${
+                selectedCategory === 'ALL'
+                  ? 'bg-amber-500 text-slate-950 shadow-xs ring-1 ring-amber-400'
+                  : 'bg-surface-2 text-text-muted hover:text-text border border-border/80'
               }`}
             >
-              <span
-                className="h-2 w-2 rounded-full"
-                style={{ backgroundColor: cat.colorHex }}
-              />
-              {cat.shortName}
+              {language === 'zh' ? '全部' : language === 'en' ? 'All' : 'Semua'} ({books.length})
             </button>
-          ))}
+            {categories.map((cat) => (
+              <button
+                key={cat.id}
+                type="button"
+                onClick={() => setSelectedCategory(cat.id)}
+                className={`px-2.5 py-1 rounded-full text-[11px] font-semibold whitespace-nowrap flex items-center gap-1.5 transition cursor-pointer border ${
+                  selectedCategory === cat.id
+                    ? 'bg-surface-2 border-amber-500 text-amber-500 font-bold shadow-xs'
+                    : 'bg-surface-2 border-border/80 text-text-muted hover:text-text hover:border-amber-500/40'
+                }`}
+                title={`Kategori ${cat.name} (${cat.ddcCode || ''})`}
+              >
+                <span
+                  className="h-2 w-2 rounded-full shrink-0 shadow-2xs"
+                  style={{ backgroundColor: cat.colorHex }}
+                />
+                <span>{cat.shortName}</span>
+              </button>
+            ))}
+          </div>
         </div>
 
         {/* Physical Status Filter Pills (Semua, Tersedia, Dipinjam, Rusak, Hilang, Dimusnahkan) */}
@@ -1519,7 +1587,7 @@ export const BookManagement: React.FC<BookManagementProps> = ({
             </span>
           </button>
 
-          {selectedItemIds.length > 0 && (
+          {selectedItemIds.length > 0 && isShelfFeatureEnabled && (
             <>
               <span className="text-xs font-semibold text-text whitespace-nowrap">Pindah ke:</span>
               <select
@@ -1612,8 +1680,8 @@ export const BookManagement: React.FC<BookManagementProps> = ({
                   <th className="py-3 px-4">No & Judul Buku</th>
                   <th className="py-3 px-3">Kategori</th>
                   <th className="py-3 px-3">ISBN & Eksemplar</th>
-                  <th className="py-3 px-3">Posisi Rak (Cepat)</th>
-                  {isShelfRowEnabled && <th className="py-3 px-3">Baris (Cepat)</th>}
+                  {isShelfFeatureEnabled && <th className="py-3 px-3">Posisi Rak</th>}
+                  {isShelfFeatureEnabled && isShelfRowEnabled && <th className="py-3 px-3">Baris</th>}
                   <th className="py-3 px-3">Kondisi / Status</th>
                   <th className="py-3 px-3 text-right">Nilai Aset</th>
                   <th className="py-3 px-4 text-right">Aksi</th>
@@ -1734,38 +1802,40 @@ export const BookManagement: React.FC<BookManagementProps> = ({
                         const parsedShelf = parseShelfLocation(book.shelfLocation);
                         return (
                           <>
-                            <td className="py-3 px-3 whitespace-nowrap">
-                              {/* Inline quick shelf changer dropdown */}
-                              <div className="inline-flex items-center gap-1 bg-surface-2 px-2 py-1 rounded-lg border border-border">
-                                <MapPin className="h-3 w-3 text-amber-500 shrink-0" />
-                                <select
-                                  value={shelves.some((s) => s.name === parsedShelf.shelfName) ? parsedShelf.shelfName : parsedShelf.shelfName || ''}
-                                  onChange={(e) => {
-                                    const newShelf = e.target.value;
-                                    const combined = combineShelfLocation(newShelf, parsedShelf.rowName, isShelfRowEnabled);
-                                    libraryStore.updateBookShelf(book.id, combined);
-                                    soundFx.playSuccessChime();
-                                    setRefreshTick((r) => r + 1);
-                                  }}
-                                  className="bg-transparent text-[11px] font-semibold text-text outline-hidden cursor-pointer max-w-[130px] truncate"
-                                  title="Klik untuk memilih nama rak buku ini"
-                                >
-                                  <option value="" className="bg-surface text-text">Pilih Rak...</option>
-                                  {shelves.map((sh) => (
-                                    <option key={sh.id} value={sh.name} className="bg-surface text-text">
-                                      {sh.name} ({sh.categoryName || sh.code})
-                                    </option>
-                                  ))}
-                                  {parsedShelf.shelfName && !shelves.some((s) => s.name === parsedShelf.shelfName) && (
-                                    <option value={parsedShelf.shelfName} className="bg-surface text-text">
-                                      {parsedShelf.shelfName}
-                                    </option>
-                                  )}
-                                </select>
-                              </div>
-                            </td>
+                            {isShelfFeatureEnabled && (
+                              <td className="py-3 px-3 whitespace-nowrap">
+                                {/* Inline quick shelf changer dropdown */}
+                                <div className="inline-flex items-center gap-1 bg-surface-2 px-2 py-1 rounded-lg border border-border">
+                                  <MapPin className="h-3 w-3 text-amber-500 shrink-0" />
+                                  <select
+                                    value={shelves.some((s) => s.name === parsedShelf.shelfName) ? parsedShelf.shelfName : parsedShelf.shelfName || ''}
+                                    onChange={(e) => {
+                                      const newShelf = e.target.value;
+                                      const combined = combineShelfLocation(newShelf, parsedShelf.rowName, isShelfRowEnabled);
+                                      libraryStore.updateBookShelf(book.id, combined);
+                                      soundFx.playSuccessChime();
+                                      setRefreshTick((r) => r + 1);
+                                    }}
+                                    className="bg-transparent text-[11px] font-semibold text-text outline-hidden cursor-pointer max-w-[130px] truncate"
+                                    title="Klik untuk memilih nama rak buku ini"
+                                  >
+                                    <option value="" className="bg-surface text-text">Pilih Rak...</option>
+                                    {shelves.map((sh) => (
+                                      <option key={sh.id} value={sh.name} className="bg-surface text-text">
+                                        {sh.name} ({sh.categoryName || sh.code})
+                                      </option>
+                                    ))}
+                                    {parsedShelf.shelfName && !shelves.some((s) => s.name === parsedShelf.shelfName) && (
+                                      <option value={parsedShelf.shelfName} className="bg-surface text-text">
+                                        {parsedShelf.shelfName}
+                                      </option>
+                                    )}
+                                  </select>
+                                </div>
+                              </td>
+                            )}
 
-                            {isShelfRowEnabled && (
+                            {isShelfFeatureEnabled && isShelfRowEnabled && (
                               <td className="py-3 px-3 whitespace-nowrap">
                                 <div className="inline-flex items-center gap-1 bg-surface-2 px-2 py-1 rounded-lg border border-border">
                                   <Layers className="h-3 w-3 text-sky-500 shrink-0" />
@@ -1995,6 +2065,7 @@ export const BookManagement: React.FC<BookManagementProps> = ({
                         {book.pageCount && <span>• 📄 {book.pageCount} Hal</span>}
                         {/* Quick Inline Shelf Selector */}
                         {(() => {
+                          if (!isShelfFeatureEnabled) return null;
                           const parsedShelf = parseShelfLocation(book.shelfLocation);
                           return (
                             <div className="inline-flex items-center gap-1.5 flex-wrap">

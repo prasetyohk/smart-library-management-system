@@ -98,6 +98,7 @@ const STORAGE_KEYS = {
   KEYBOARD_SHORTCUTS: 'sbth_library_keyboard_shortcuts_v1',
   FONT_SIZE: 'sbth_library_font_size_v1',
   SHELF_ROW_ENABLED: 'sbth_library_shelf_row_enabled_v1',
+  SHELF_FEATURE_ENABLED: 'sbth_library_shelf_feature_enabled_v1',
 };
 
 export class LibraryStore {
@@ -2865,6 +2866,23 @@ Periode: Minggu ke-2 Oktober 2026
     if (list.length === 0) return false;
     this.saveShelves(list);
     return true;
+  }
+
+  // Toggle Fitur Lokasi Rak & Baris (ON / OFF) - Default: false (OFF) sesuai instruksi SBTH
+  public isShelfFeatureEnabled(): boolean {
+    if (!this.isClient()) return false;
+    const raw = localStorage.getItem(STORAGE_KEYS.SHELF_FEATURE_ENABLED);
+    if (raw === null) return false; // Default OFF
+    try {
+      return JSON.parse(raw) === true;
+    } catch {
+      return false;
+    }
+  }
+
+  public setShelfFeatureEnabled(enabled: boolean): void {
+    if (!this.isClient()) return;
+    localStorage.setItem(STORAGE_KEYS.SHELF_FEATURE_ENABLED, JSON.stringify(enabled));
   }
 
   // Toggle Fitur Baris Rak (Row/Sap) ON / OFF

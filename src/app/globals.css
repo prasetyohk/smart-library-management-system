@@ -95,11 +95,11 @@ h1, h2, h3, .font-display {
   background: #94a3b8;
 }
 
-/* Print Stylesheet for Tom & Jerry 103 and Thermal Rolls */
+/* Print Stylesheet for Tom & Jerry 103, Spine Labels, Slips, and Thermal Rolls */
 @media print {
   @page {
     size: A4 portrait;
-    margin: 4mm 6mm;
+    margin: 5mm;
   }
 
   body {
@@ -107,10 +107,24 @@ h1, h2, h3, .font-display {
     color: #000000 !important;
     margin: 0 !important;
     padding: 0 !important;
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
   }
 
   .print\:hidden {
     display: none !important;
+  }
+
+  /* Aturan mutlak persegi panjang siku 90 derajat tanpa rounded untuk seluruh label agar mudah dipotong presisi */
+  .tj103-label,
+  .tj103-label *,
+  .sbth-spine-label,
+  .sbth-spine-label *,
+  .sbth-slip-label,
+  .sbth-slip-label *,
+  .thermal-label,
+  .thermal-label * {
+    border-radius: 0 !important;
   }
 
   .tj103-sheet {
@@ -126,7 +140,7 @@ h1, h2, h3, .font-display {
     grid-template-columns: repeat(3, 64mm) !important;
     grid-auto-rows: 32mm !important;
     column-gap: 3mm !important;
-    row-gap: 2mm !important;
+    row-gap: 2.5mm !important;
     justify-content: center !important;
     align-content: start !important;
   }
@@ -138,7 +152,8 @@ h1, h2, h3, .font-display {
     box-sizing: border-box !important;
     page-break-inside: avoid !important;
     break-inside: avoid !important;
-    border: 0.5pt solid #dddddd !important;
+    border: 0.5pt solid #000000 !important;
+    border-radius: 0 !important;
     overflow: hidden !important;
     margin: 0 !important;
     padding: 0 !important;
@@ -152,7 +167,8 @@ h1, h2, h3, .font-display {
     page-break-after: always !important;
     break-after: page !important;
     box-sizing: border-box !important;
-    border: none !important;
+    border: 1pt solid #000000 !important;
+    border-radius: 0 !important;
     margin: 0 !important;
   }
 
@@ -165,13 +181,13 @@ h1, h2, h3, .font-display {
     width: 100% !important;
   }
 
-  /* Mode Standar Lanskap (74 mm x 40 mm) */
+  /* Mode Standar Lanskap (74 mm x 40 mm): 2 kolom x 6-7 baris efisien di kertas A4 */
   .sbth-spine-grid {
     display: grid !important;
     grid-template-columns: repeat(2, 74mm) !important;
     grid-auto-rows: 40mm !important;
-    column-gap: 8mm !important;
-    row-gap: 5mm !important;
+    column-gap: 4mm !important;
+    row-gap: 3mm !important;
     justify-content: center !important;
     align-content: start !important;
   }
@@ -183,26 +199,30 @@ h1, h2, h3, .font-display {
     box-sizing: border-box !important;
     page-break-inside: avoid !important;
     break-inside: avoid !important;
-    border: 1pt solid #000000 !important; /* Garis batas potong manual tegas */
+    border: 1.2pt solid #000000 !important; /* Garis batas potong manual tegas siku 90 derajat */
+    border-radius: 0 !important;
     overflow: hidden !important;
     margin: 0 !important;
-    padding: 1.5mm !important;
+    padding: 0.8mm !important;
     background: #ffffff !important;
     color: #000000 !important;
   }
 
-  /* Opsi Mode Potret (40 mm x 74 mm) */
+  /* Opsi Mode Potret (40 mm x 74 mm): 4 kolom x 3 baris efisien di kertas A4 */
   .sbth-spine-grid.portrait {
     grid-template-columns: repeat(4, 40mm) !important;
     grid-auto-rows: 74mm !important;
-    column-gap: 5mm !important;
-    row-gap: 5mm !important;
+    column-gap: 4mm !important;
+    row-gap: 4mm !important;
+    justify-content: center !important;
+    align-content: start !important;
   }
 
   .sbth-spine-label.portrait {
     width: 40mm !important;
     height: 74mm !important;
     max-height: 74mm !important;
+    border-radius: 0 !important;
   }
 
   /* Slip Cap Bagian Dalam Buku SBTH (Ukuran Kotak 6 x 2.5 cm untuk Potong Manual) */
@@ -218,8 +238,8 @@ h1, h2, h3, .font-display {
     display: grid !important;
     grid-template-columns: repeat(3, 60mm) !important;
     grid-auto-rows: 25mm !important;
-    column-gap: 5mm !important;
-    row-gap: 4mm !important;
+    column-gap: 4mm !important;
+    row-gap: 3mm !important;
     justify-content: center !important;
     align-content: start !important;
   }
@@ -231,7 +251,8 @@ h1, h2, h3, .font-display {
     box-sizing: border-box !important;
     page-break-inside: avoid !important;
     break-inside: avoid !important;
-    border: 1pt solid #000000 !important; /* Garis batas potong manual tegas */
+    border: 1pt solid #000000 !important; /* Garis batas potong manual tegas siku 90 derajat */
+    border-radius: 0 !important;
     overflow: hidden !important;
     margin: 0 !important;
     padding: 1mm 1.5mm !important;

@@ -35,6 +35,7 @@ export const LabelPrintGenerator: React.FC<LabelPrintGeneratorProps> = ({
 }) => {
   const [template, setTemplate] = useState<PrintTemplateType>('SPINE_SBTH');
   const [spineOrientation, setSpineOrientation] = useState<'LANDSCAPE' | 'PORTRAIT'>('LANDSCAPE');
+  const [spineBoxWidth, setSpineBoxWidth] = useState<'CENTERED' | 'FULL'>('CENTERED');
   const [customShelfCode, setCustomShelfCode] = useState<string>('SR');
   const [startOffsetIndex, setStartOffsetIndex] = useState<number>(0); // 0 to 11 (position 1 to 12)
   const [selectedBarcodes, setSelectedBarcodes] = useState<string[]>(preSelectedBarcodes);
@@ -339,47 +340,81 @@ export const LabelPrintGenerator: React.FC<LabelPrintGeneratorProps> = ({
               </div>
             </div>
           ) : template === 'SPINE_SBTH' ? (
-            <div className="space-y-1.5 flex flex-col justify-center">
+            <div className="space-y-2 flex flex-col justify-center">
               <div className="flex items-center justify-between">
-                <label className="font-bold text-slate-700 dark:text-slate-300 flex items-center gap-1">
-                  <span>Ukuran 7.4 x 4 cm:</span>
+                <label className="font-bold text-slate-700 dark:text-slate-300 text-xs flex items-center gap-1">
+                  <span>Orientasi Punggung:</span>
                 </label>
                 <div className="flex items-center gap-1">
                   <button
                     type="button"
                     onClick={() => setSpineOrientation('LANDSCAPE')}
-                    className={`px-2 py-0.5 rounded text-[10px] font-semibold transition ${
+                    className={`px-2 py-1 rounded-none text-[11px] font-bold transition cursor-pointer ${
                       spineOrientation === 'LANDSCAPE'
-                        ? 'bg-amber-500 text-white font-bold'
+                        ? 'bg-amber-500 text-slate-950 shadow-xs'
                         : 'bg-slate-200 dark:bg-slate-800 text-slate-600 dark:text-slate-400'
                     }`}
                   >
-                    Lanskap (7.4x4cm)
+                    Lanskap (7.4x4 cm)
                   </button>
                   <button
                     type="button"
                     onClick={() => setSpineOrientation('PORTRAIT')}
-                    className={`px-2 py-0.5 rounded text-[10px] font-semibold transition ${
+                    className={`px-2 py-1 rounded-none text-[11px] font-bold transition cursor-pointer ${
                       spineOrientation === 'PORTRAIT'
-                        ? 'bg-amber-500 text-white font-bold'
+                        ? 'bg-amber-500 text-slate-950 shadow-xs'
                         : 'bg-slate-200 dark:bg-slate-800 text-slate-600 dark:text-slate-400'
                     }`}
                   >
-                    Potret (4x7.4cm)
+                    Potret (4x7.4 cm)
                   </button>
                 </div>
               </div>
-              <div className="flex items-center gap-2">
+
+              {/* Mode Lanskap: Opsi Lebar Kotak Nomor Panggil */}
+              {spineOrientation === 'LANDSCAPE' && (
+                <div className="flex items-center justify-between text-[11px] pt-1.5 border-t border-slate-200 dark:border-slate-800">
+                  <span className="text-slate-600 dark:text-slate-400">Posisi Kotak:</span>
+                  <div className="flex items-center gap-1">
+                    <button
+                      type="button"
+                      onClick={() => setSpineBoxWidth('CENTERED')}
+                      className={`px-2 py-0.5 rounded-none text-[10px] font-semibold transition cursor-pointer ${
+                        spineBoxWidth === 'CENTERED'
+                          ? 'bg-emerald-600 text-white font-bold'
+                          : 'bg-slate-200 dark:bg-slate-800 text-slate-600 dark:text-slate-400'
+                      }`}
+                      title="Kotak 38mm di tengah pas pada punggung buku"
+                    >
+                      Tengah (38mm)
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setSpineBoxWidth('FULL')}
+                      className={`px-2 py-0.5 rounded-none text-[10px] font-semibold transition cursor-pointer ${
+                        spineBoxWidth === 'FULL'
+                          ? 'bg-emerald-600 text-white font-bold'
+                          : 'bg-slate-200 dark:bg-slate-800 text-slate-600 dark:text-slate-400'
+                      }`}
+                      title="Kotak selebar stiker penuh (74mm)"
+                    >
+                      Penuh (74mm)
+                    </button>
+                  </div>
+                </div>
+              )}
+
+              <div className="flex items-center gap-2 pt-1 border-t border-slate-200 dark:border-slate-800">
                 <input
                   type="text"
                   value={customShelfCode}
                   onChange={(e) => setCustomShelfCode(e.target.value.toUpperCase())}
                   placeholder="SR"
                   maxLength={6}
-                  className="w-16 h-8 rounded-lg border border-amber-500/60 bg-white dark:bg-slate-900 px-2 text-center text-xs font-mono font-bold text-amber-500 outline-hidden focus:ring-1 focus:ring-amber-500"
+                  className="w-14 h-7 rounded-none border border-black bg-white dark:bg-slate-900 px-1.5 text-center text-xs font-mono font-bold text-black dark:text-amber-400 outline-none focus:ring-1 focus:ring-amber-500"
                 />
                 <p className="text-[10px] text-slate-500 dark:text-slate-400 leading-tight">
-                  Kode Rak: <strong>[{customShelfCode || 'SR'}]</strong> • KOP resmi SBTH & Nomor Panggil 4-Baris (Tanpa Barcode).
+                  Rak: <strong>[{customShelfCode || 'SR'}]</strong> • Format 4 Baris: [Rak / DDC / Pengarang / 1 Huruf Judul]. Tanpa barcode & tanpa judul buku.
                 </p>
               </div>
             </div>
@@ -452,14 +487,14 @@ export const LabelPrintGenerator: React.FC<LabelPrintGeneratorProps> = ({
 
             {/* TEMPLATE A: TOM & JERRY 103 (3 COLS x 4 ROWS PER A4 SHEET) */}
             {template === 'TJ_103' && (
-              <div className="tj103-sheet bg-white text-black p-4 rounded-xl shadow-lg border border-slate-300 mx-auto">
+              <div className="tj103-sheet bg-white text-black p-4 rounded-none shadow-lg border border-slate-300 mx-auto">
                 <div className="tj103-grid grid grid-cols-3 gap-3 print:gap-[4mm]">
                   {tj103Slots.map((slot, idx) => {
                     if (slot.isSpacer) {
                       return (
                         <div
                           key={`spacer-${idx}`}
-                          className="tj103-label border-2 border-dashed border-slate-200 dark:border-slate-700 rounded-lg flex flex-col items-center justify-center text-slate-300 dark:text-slate-600 text-[10px] p-2 min-h-[120px] print:border-none print:opacity-0"
+                          className="tj103-label border-2 border-dashed border-slate-200 dark:border-slate-700 rounded-none flex flex-col items-center justify-center text-slate-300 dark:text-slate-600 text-[10px] p-2 min-h-[120px] print:border-none print:opacity-0"
                         >
                           <span>(Slot #{slot.slotIndex} Kosong)</span>
                         </div>
@@ -473,7 +508,7 @@ export const LabelPrintGenerator: React.FC<LabelPrintGeneratorProps> = ({
                     return (
                       <div
                         key={ei.item.id}
-                        className="tj103-label relative border border-slate-300 rounded-lg overflow-hidden bg-white text-black shadow-xs flex flex-col justify-between min-h-[128px] print:min-h-[32mm] print:h-[32mm] print:w-[64mm] print:shadow-none print:border-slate-400"
+                        className="tj103-label relative border border-slate-300 rounded-none overflow-hidden bg-white text-black shadow-xs flex flex-col justify-between min-h-[128px] print:min-h-[32mm] print:h-[32mm] print:w-[64mm] print:shadow-none print:border-slate-400"
                       >
                         {/* 1. Header Warna Kategori (5mm solid color band) */}
                         <div
@@ -493,7 +528,7 @@ export const LabelPrintGenerator: React.FC<LabelPrintGeneratorProps> = ({
                             <span className="text-[9px] font-extrabold text-slate-800 tracking-tight">
                               PERPUS SBTH TK
                             </span>
-                            <span className="text-[8px] font-bold text-slate-500 bg-slate-100 px-1 rounded">
+                            <span className="text-[8px] font-bold text-slate-500 bg-slate-100 px-1 rounded-none">
                               Copy #{ei.item.copyNumber}
                             </span>
                           </div>
@@ -538,7 +573,7 @@ export const LabelPrintGenerator: React.FC<LabelPrintGeneratorProps> = ({
                   return (
                     <div
                       key={ei.item.id}
-                      className="thermal-label border border-slate-300 rounded-md overflow-hidden bg-white text-black p-2 w-[160px] h-[120px] print:w-[40mm] print:h-[30mm] flex flex-col justify-between text-center shadow-md print:shadow-none print:break-after-page"
+                      className="thermal-label border border-slate-300 rounded-none overflow-hidden bg-white text-black p-2 w-[160px] h-[120px] print:w-[40mm] print:h-[30mm] flex flex-col justify-between text-center shadow-md print:shadow-none print:break-after-page"
                     >
                       <div
                         className="h-3.5 px-1.5 flex items-center justify-between text-white font-bold text-[8px] uppercase tracking-wider shrink-0"
@@ -572,27 +607,27 @@ export const LabelPrintGenerator: React.FC<LabelPrintGeneratorProps> = ({
               </div>
             )}
 
-            {/* TEMPLATE C: LABEL PUNGGUNG RAK SBTH (7.4 x 4 CM KOTAK POTONG MANUAL) */}
+            {/* TEMPLATE C: LABEL PUNGGUNG RAK SBTH (7.4 x 4 CM LANSKAP / 4 x 7.4 CM POTRET - KOTAK SIKU 90 DERAJAT) */}
             {template === 'SPINE_SBTH' && (
-              <div className="sbth-spine-sheet bg-white text-black p-4 rounded-xl shadow-lg border border-slate-300 mx-auto">
-                <div className="print:hidden mb-4 p-3 bg-amber-50 dark:bg-amber-950/40 rounded-2xl border border-amber-200 dark:border-amber-800 text-xs text-amber-900 dark:text-amber-200 flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+              <div className="sbth-spine-sheet bg-white text-black p-4 rounded-none shadow-lg border border-slate-300 mx-auto">
+                <div className="print:hidden mb-4 p-3 bg-amber-50 dark:bg-amber-950/40 rounded-xl border border-amber-200 dark:border-amber-800 text-xs text-amber-900 dark:text-amber-200 flex flex-col sm:flex-row sm:items-center justify-between gap-2">
                   <div className="flex items-center gap-2">
                     <span className="text-lg">📏</span>
                     <div>
-                      <strong>Standar Label Punggung Buku Fisik SBTH (7.4 x 4 cm Kotak Potong Manual):</strong>
+                      <strong>Standar Label Punggung Buku Fisik SBTH (Presisi Siku 90° - Tanpa Barcode):</strong>
                       <p className="text-[11px] text-amber-800/80 dark:text-amber-300/80">
-                        Dilengkapi KOP resmi SBTH (Logo kiri, teks tengah), strip warna DDC, & kotak 4 baris nomor panggil untuk dipotong manual (Tanpa Barcode di Punggung).
+                        Format resmi 4 baris: <strong>SR</strong> (Kode Rak), <strong>DDC</strong>, <strong>Pengarang</strong> (3 huruf), <strong>Judul Depan</strong> (1 huruf). Tersedia mode Lanskap (7.4x4 cm) dan Potret (4x7.4 cm).
                       </p>
                     </div>
                   </div>
                   <div className="flex items-center gap-2">
-                    <span className="font-mono text-xs bg-white dark:bg-slate-900 px-2.5 py-1 rounded-lg border border-amber-300">
-                      Ukuran: <strong>7.4 x 4 cm</strong>
+                    <span className="font-mono text-xs bg-white dark:bg-slate-900 px-2.5 py-1 rounded-md border border-amber-300">
+                      Ukuran: <strong>{spineOrientation === 'LANDSCAPE' ? '7.4 x 4 cm' : '4 x 7.4 cm'}</strong>
                     </span>
                     <button
                       type="button"
                       onClick={() => setSpineOrientation(o => o === 'LANDSCAPE' ? 'PORTRAIT' : 'LANDSCAPE')}
-                      className="px-2.5 py-1 rounded-lg bg-amber-500/20 text-amber-800 dark:text-amber-300 border border-amber-500/40 font-semibold text-[11px] hover:bg-amber-500/30 transition cursor-pointer"
+                      className="px-2.5 py-1 rounded-md bg-amber-500/20 text-amber-800 dark:text-amber-300 border border-amber-500/40 font-semibold text-[11px] hover:bg-amber-500/30 transition cursor-pointer"
                     >
                       {spineOrientation === 'LANDSCAPE' ? '🔄 Ganti ke Potret (4 x 7.4 cm)' : '🔄 Ganti ke Lanskap (7.4 x 4 cm)'}
                     </button>
@@ -612,12 +647,11 @@ export const LabelPrintGenerator: React.FC<LabelPrintGeneratorProps> = ({
                       book?.authorCode,
                       book?.titleCode
                     );
-                    const slip = getSbthInsideSlipData(ei.item.itemBarcode, ei.item.copyNumber, book?.createdAt || ei.item.acquisitionDate);
 
                     return (
                       <div
                         key={ei.item.id}
-                        className={`sbth-spine-label ${spineOrientation === 'PORTRAIT' ? 'portrait' : ''} border-2 border-black rounded-lg print:rounded-none overflow-hidden bg-white text-black flex flex-col justify-between shadow-xs mx-auto ${
+                        className={`sbth-spine-label ${spineOrientation === 'PORTRAIT' ? 'portrait' : ''} border-2 border-black rounded-none overflow-hidden bg-white text-black flex flex-col justify-between shadow-xs mx-auto ${
                           spineOrientation === 'LANDSCAPE'
                             ? 'w-[280px] h-[155px] print:w-[74mm] print:h-[40mm] print:max-h-[40mm]'
                             : 'w-[160px] h-[280px] print:w-[40mm] print:h-[74mm] print:max-h-[74mm]'
@@ -650,62 +684,41 @@ export const LabelPrintGenerator: React.FC<LabelPrintGeneratorProps> = ({
                           <span className="font-mono text-[7px] print:text-[5pt] opacity-90 shrink-0">#{ei.item.copyNumber}</span>
                         </div>
 
-                        {/* 3. KONTEN LABEL PUNGGUNG (TANPA BARCODE) */}
+                        {/* 3. KONTEN LABEL PUNGGUNG: FORMAT 4 BARIS (SR, DDC, PENGARANG, JUDUL DEPAN) SIKU 90° - TANPA BARCODE & TANPA JUDUL BUKU */}
                         {spineOrientation === 'LANDSCAPE' ? (
-                          <div className="flex-1 flex items-stretch gap-2 p-1.5 min-h-0">
-                            {/* Kotak Call Number 4-Baris Vertikal (Tegas & Jelas di Rak) */}
-                            <div className="w-[28mm] shrink-0 border-2 border-black rounded-xs flex flex-col justify-center divide-y-2 divide-black font-mono text-center bg-slate-50 shadow-2xs">
-                              <div className="py-0.5 font-black text-[11px] print:text-[8.5pt] text-black tracking-widest leading-none">{customShelfCode || spine.shelfCode}</div>
-                              <div className="py-0.5 font-black text-[11px] print:text-[8.5pt] text-black tracking-wider leading-none">{spine.ddc}</div>
-                              <div className="py-0.5 font-black text-[11px] print:text-[8.5pt] text-black tracking-widest uppercase leading-none">{spine.authorCode}</div>
-                              <div className="py-0.5 font-bold text-[11px] print:text-[8.5pt] text-black lowercase leading-none">{spine.titleCode}</div>
-                            </div>
-
-                            {/* Info Buku & Lokasi Rak Fisik (Tanpa Barcode) */}
-                            <div className="flex-1 flex flex-col justify-between py-0.5 min-w-0 text-left">
-                              <div>
-                                <p className="text-[9.5px] print:text-[7pt] font-black text-black leading-tight line-clamp-2">
-                                  {book?.title || 'Buku Cerita SBTH'}
-                                </p>
-                                <p className="text-[8px] print:text-[5.5pt] text-slate-700 leading-tight mt-0.5 truncate">
-                                  {book?.author || 'Penulis SBTH'} • {book?.publisher || ''} {book?.publicationYear ? `(${book.publicationYear})` : ''}
-                                </p>
+                          <div className="flex-1 flex items-center justify-center p-1 min-h-0 bg-white">
+                            {/* Kotak Call Number 4-Baris Presisi Siku 90 Derajat */}
+                            <div className={`${spineBoxWidth === 'FULL' ? 'w-full' : 'w-[38mm]'} h-full max-h-[25mm] border-2 border-black rounded-none flex flex-col justify-stretch divide-y-2 divide-black font-mono text-center bg-white`}>
+                              <div className="flex-1 flex items-center justify-center font-black text-xs print:text-[9.5pt] text-black tracking-widest leading-none">
+                                {customShelfCode || spine.shelfCode}
                               </div>
-
-                              <div className="space-y-0.5 pt-0.5 border-t border-slate-300">
-                                <div className="flex items-center justify-between text-[7.5px] print:text-[5pt] font-mono text-slate-700">
-                                  <span className="font-bold">No. Panggil: ({spine.ddc} {spine.authorCode} {spine.titleCode})</span>
-                                  <span>Copy #{ei.item.copyNumber}</span>
-                                </div>
-                                <div className="flex items-center justify-between text-[7px] print:text-[4.5pt] text-slate-600 font-mono">
-                                  <span className="truncate max-w-[110px]">📍 {book?.shelfLocation || cat.shelfLocation || 'Rak Buku'}</span>
-                                  <span className="font-bold text-black">No: {slip.accessionNumber}</span>
-                                </div>
+                              <div className="flex-1 flex items-center justify-center font-black text-xs print:text-[9.5pt] text-black tracking-wider leading-none">
+                                {spine.ddc}
+                              </div>
+                              <div className="flex-1 flex items-center justify-center font-black text-xs print:text-[9.5pt] text-black tracking-widest uppercase leading-none">
+                                {spine.authorCode}
+                              </div>
+                              <div className="flex-1 flex items-center justify-center font-bold text-xs print:text-[9.5pt] text-black lowercase leading-none">
+                                {spine.titleCode}
                               </div>
                             </div>
                           </div>
                         ) : (
-                          // Mode Potret (4 x 7.4 cm)
-                          <div className="flex-1 flex flex-col justify-between p-1.5 min-h-0 text-center">
-                            {/* Kotak Call Number 4-Baris Vertikal */}
-                            <div className="border-2 border-black rounded-xs flex flex-col justify-center divide-y-2 divide-black font-mono text-center bg-slate-50 my-1 shadow-2xs">
-                              <div className="py-1 font-black text-xs print:text-[9.5pt] text-black tracking-widest leading-none">{customShelfCode || spine.shelfCode}</div>
-                              <div className="py-1 font-black text-xs print:text-[9.5pt] text-black tracking-wider leading-none">{spine.ddc}</div>
-                              <div className="py-1 font-black text-xs print:text-[9.5pt] text-black tracking-widest uppercase leading-none">{spine.authorCode}</div>
-                              <div className="py-1 font-bold text-xs print:text-[9.5pt] text-black lowercase leading-none">{spine.titleCode}</div>
-                            </div>
-
-                            {/* Info Buku di bawah kotak (Tanpa Barcode) */}
-                            <div className="w-full space-y-0.5 pt-1 border-t border-slate-300">
-                              <p className="text-[8.5px] print:text-[6.5pt] font-black text-black line-clamp-2 leading-tight">
-                                {book?.title}
-                              </p>
-                              <p className="text-[7.5px] print:text-[5pt] text-slate-700 truncate leading-none">
-                                {book?.author}
-                              </p>
-                              <p className="text-[7px] print:text-[4.5pt] font-mono text-slate-600 leading-none">
-                                ({spine.ddc} {spine.authorCode} {spine.titleCode}) • Copy #{ei.item.copyNumber}
-                              </p>
+                          // Mode Potret (4 x 7.4 cm): Kotak Call Number 4-Baris Vertikal Siku 90°
+                          <div className="flex-1 flex flex-col justify-center p-1.5 min-h-0 bg-white">
+                            <div className="w-full h-full min-h-[52mm] border-2 border-black rounded-none flex flex-col justify-stretch divide-y-2 divide-black font-mono text-center bg-white">
+                              <div className="flex-1 flex items-center justify-center font-black text-base print:text-[13pt] text-black tracking-widest leading-none">
+                                {customShelfCode || spine.shelfCode}
+                              </div>
+                              <div className="flex-1 flex items-center justify-center font-black text-base print:text-[13pt] text-black tracking-wider leading-none">
+                                {spine.ddc}
+                              </div>
+                              <div className="flex-1 flex items-center justify-center font-black text-base print:text-[13pt] text-black tracking-widest uppercase leading-none">
+                                {spine.authorCode}
+                              </div>
+                              <div className="flex-1 flex items-center justify-center font-bold text-base print:text-[13pt] text-black lowercase leading-none">
+                                {spine.titleCode}
+                              </div>
                             </div>
                           </div>
                         )}
@@ -716,20 +729,20 @@ export const LabelPrintGenerator: React.FC<LabelPrintGeneratorProps> = ({
               </div>
             )}
 
-            {/* TEMPLATE D: SLIP CAP BAGIAN DALAM BUKU SBTH (6 x 2.5 CM KOTAK POTONG MANUAL) */}
+            {/* TEMPLATE D: SLIP CAP BAGIAN DALAM BUKU SBTH (6 x 2.5 CM KOTAK SIKU 90 DERAJAT POTONG MANUAL) */}
             {template === 'SLIP_DALAM_SBTH' && (
-              <div className="sbth-slip-sheet bg-white text-black p-4 rounded-xl shadow-lg border border-slate-300 mx-auto">
-                <div className="print:hidden mb-4 p-3 bg-blue-50 dark:bg-blue-950/40 rounded-2xl border border-blue-200 dark:border-blue-800 text-xs text-blue-900 dark:text-blue-200 flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+              <div className="sbth-slip-sheet bg-white text-black p-4 rounded-none shadow-lg border border-slate-300 mx-auto">
+                <div className="print:hidden mb-4 p-3 bg-blue-50 dark:bg-blue-950/40 rounded-xl border border-blue-200 dark:border-blue-800 text-xs text-blue-900 dark:text-blue-200 flex flex-col sm:flex-row sm:items-center justify-between gap-2">
                   <div className="flex items-center gap-2">
                     <span className="text-xl">📑</span>
                     <div>
-                      <strong>Slip Cap Bagian Dalam Buku Fisik SBTH (Ukuran 6 x 2.5 cm Kotak Potong Manual):</strong>
+                      <strong>Slip Cap Bagian Dalam Buku Fisik SBTH (Ukuran 6 x 2.5 cm Kotak Presisi Siku 90°):</strong>
                       <p className="text-[11px] text-blue-800/80 dark:text-blue-300/80">
-                        Dilengkapi KOP resmi SBTH (Logo di kiri, Tulisan di tengah), No. Daftar 4 Digit (contoh: <code>0101</code>) dan Tanggal (<code>DD/MM/TTTT</code>) dengan garis kotak potong manual.
+                        Dilengkapi KOP resmi SBTH (Logo di kiri, Tulisan di tengah), No. Daftar 4 Digit (contoh: <code>0101</code>) dan Tanggal (<code>DD/MM/TTTT</code>) dengan garis potong siku 90°.
                       </p>
                     </div>
                   </div>
-                  <span className="font-mono text-xs bg-white dark:bg-slate-900 px-3 py-1 rounded-lg border border-blue-300 shrink-0">
+                  <span className="font-mono text-xs bg-white dark:bg-slate-900 px-3 py-1 rounded-md border border-blue-300 shrink-0">
                     Ukuran: <strong>6 x 2.5 cm</strong>
                   </span>
                 </div>
@@ -742,7 +755,7 @@ export const LabelPrintGenerator: React.FC<LabelPrintGeneratorProps> = ({
                     return (
                       <div
                         key={ei.item.id}
-                        className="sbth-slip-label border border-black print:border-[1pt] print:border-black rounded-lg print:rounded-none overflow-hidden bg-white text-black p-1.5 w-full sm:w-[250px] h-[125px] print:w-[60mm] print:h-[25mm] print:max-h-[25mm] print:shadow-none shadow-xs mx-auto flex flex-col justify-between"
+                        className="sbth-slip-label border border-black print:border-[1pt] print:border-black rounded-none overflow-hidden bg-white text-black p-1.5 w-full sm:w-[250px] h-[125px] print:w-[60mm] print:h-[25mm] print:max-h-[25mm] print:shadow-none shadow-xs mx-auto flex flex-col justify-between"
                       >
                         {/* 1. KOP Resmi SBTH (Logo di kiri, Teks di tengah) */}
                         <div className="flex items-center gap-1.5 border-b border-black pb-0.5 px-0.5 shrink-0 bg-white">
@@ -766,18 +779,18 @@ export const LabelPrintGenerator: React.FC<LabelPrintGeneratorProps> = ({
                         <div className="my-0.5 flex items-stretch gap-1.5 min-h-0">
                           {/* Kolom Kiri: Kotak No. Daftar & Tanggal */}
                           <div className="w-[52%] flex flex-col justify-center space-y-0.5 font-mono text-[8.5px] print:text-[6pt]">
-                            <div className="flex items-center justify-between border border-black/80 px-1 py-0.5 rounded-xs bg-slate-50">
+                            <div className="flex items-center justify-between border border-black/80 px-1 py-0.5 rounded-none bg-slate-50">
                               <span className="font-semibold text-slate-800 text-[7.5px] print:text-[5pt]">No. Daftar :</span>
                               <span className="font-black text-[9.5px] print:text-[7pt] text-black tracking-wider">{slip.accessionNumber}</span>
                             </div>
-                            <div className="flex items-center justify-between border border-black/80 px-1 py-0.5 rounded-xs bg-slate-50">
+                            <div className="flex items-center justify-between border border-black/80 px-1 py-0.5 rounded-none bg-slate-50">
                               <span className="font-semibold text-slate-800 text-[7.5px] print:text-[5pt]">Tanggal :</span>
                               <span className="font-bold text-[8.5px] print:text-[6pt] text-black">{slip.dateStr}</span>
                             </div>
                           </div>
 
                           {/* Kolom Kanan: Barcode Scanner Code-128 dari Nomor Daftar 4 Digit */}
-                          <div className="flex-1 flex flex-col items-center justify-center overflow-hidden border border-slate-300 rounded-xs py-0.5 bg-white">
+                          <div className="flex-1 flex flex-col items-center justify-center overflow-hidden border border-slate-300 rounded-none py-0.5 bg-white">
                             <BarcodeSvg
                               value={slip.accessionNumber}
                               width={1.15}

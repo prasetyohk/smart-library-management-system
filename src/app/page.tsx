@@ -423,16 +423,16 @@ export default function Home() {
   };
 
   return (
-    <div className="min-h-screen bg-slate-50 dark:bg-slate-950 text-slate-900 dark:text-slate-100 flex flex-col font-sans">
+    <div className="h-screen max-h-screen overflow-hidden bg-slate-50 dark:bg-slate-950 text-slate-900 dark:text-slate-100 flex flex-col font-sans">
       {appMode === 'PUSTAKAWAN' ? (
-        <div className="flex-1 flex min-h-screen overflow-x-clip">
+        <div className="flex-1 flex h-screen max-h-screen overflow-hidden">
           {/* ======================================================== */}
-          {/* 1. MODERN LEFT SIDEBAR (MODE PERPUSTAKAWAN)               */}
+          {/* 1. MODERN LEFT SIDEBAR (MODE PERPUSTAKAWAN - FIXED / NON-SCROLLING) */}
           {/* Sembunyikan total jika Portal Siswa sedang aktif agar bersih */}
           {/* ======================================================== */}
           {!isStudentPortalOpen && (
             <aside
-              className={`print:hidden sticky top-0 h-screen max-h-screen self-start overflow-hidden flex flex-col shrink-0 border-r border-border bg-surface transition-all duration-300 z-30 select-none ${
+              className={`print:hidden h-screen max-h-screen flex flex-col shrink-0 border-r border-border bg-surface transition-all duration-300 z-30 select-none ${
                 isSidebarCollapsed ? 'w-20' : 'w-64'
               }`}
             >
@@ -862,9 +862,9 @@ export default function Home() {
           )}
 
           {/* ======================================================== */}
-          {/* 2. MAIN WORKSPACE & TOP BAR                              */}
+          {/* 2. MAIN WORKSPACE & TOP BAR (SCROLLABLE CONTENT AREA)    */}
           {/* ======================================================== */}
-          <div className="flex-1 flex flex-col min-w-0">
+          <div id="main-content-scroll" className="flex-1 h-screen max-h-screen overflow-y-auto overflow-x-hidden flex flex-col min-w-0">
             {/* Top Bar (Clean & Slim 54px) */}
             <header className="print:hidden sticky top-0 z-20 h-14 bg-surface/90 backdrop-blur-md border-b border-border px-4 sm:px-6 flex items-center justify-between gap-3 shadow-xs">
               {/* Left: Active Tab Title & Breadcrumb */}
@@ -1069,7 +1069,7 @@ export default function Home() {
         /* ======================================================== */
         /* 3. MODE SISWA (KIOSK LAYAR PENUH ANAK TK)                */
         /* ======================================================== */
-        <div className="flex-1 flex flex-col min-h-screen">
+        <div className="flex-1 flex flex-col h-screen max-h-screen overflow-y-auto">
           <header className="print:hidden sticky top-0 z-40 bg-surface/95 backdrop-blur-md border-b border-border shadow-xs">
             <div className="max-w-7xl mx-auto px-4 sm:px-6 h-16 flex items-center justify-between gap-3">
               <div className="flex items-center gap-3">
