@@ -19,7 +19,24 @@
 [![Dewey Decimal DDC](https://img.shields.io/badge/e--DDC_Perpusnas-000--900-amber?style=for-the-badge)](https://perpusnas.go.id/)
 
 > 📖 **Dokumentasi Teknis Lengkap:** [Cetak Biru Arsitektur & Keamanan Sistem](docs/ARCHITECTURE_AND_SECURITY.md)  
-> 💼 **Portfolio Showcase:** [Smart Library Management System](https://github.com/prasetyohk/smart-library-management-system)
+> 💼 **Portfolio Showcase:** [Smart Library Management System](https://github.com/prasetyohk/smart-library-management-system)  
+> 🎬 **Tonton Demo di YouTube:** [Video Demonstrasi Perpustakaan](https://www.youtube.com/watch?v=qpy3rqYP45o)
+
+</div>
+
+---
+
+## 🎬 Video Demonstrasi Sistem (Live Demo Walkthrough)
+
+Tonton demonstrasi langsung alur operasional sistem perpustakaan modern (Katalog OPAC Kiosk Anak, Generator Cetak Label Punggung & Slip Presisi, Meja Sirkulasi, e-DDC Perpusnas, dan Keamanan Data):
+
+<div align="center">
+
+[![Sistem Perpustakaan SBTH - Video Demonstrasi](https://img.youtube.com/vi/qpy3rqYP45o/maxresdefault.jpg)](https://www.youtube.com/watch?v=qpy3rqYP45o)
+
+[![Tonton di YouTube](https://img.shields.io/badge/YouTube-Tonton_Video_Demo-red?style=for-the-badge&logo=youtube)](https://www.youtube.com/watch?v=qpy3rqYP45o)
+
+*💡 Tips: Klik gambar pratinjau atau tombol merah di atas untuk memutar video langsung di YouTube.*
 
 </div>
 

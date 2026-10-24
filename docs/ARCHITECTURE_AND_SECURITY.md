@@ -1,6 +1,7 @@
 # 🛡️ Cetak Biru Arsitektur & Keamanan Sistem Perpustakaan Modern
 ### Production-Grade System Architecture & Enterprise Security Specification
-**Sistem Manajemen Perpustakaan Terpadu (Smart Library Management System)**
+**Sistem Manajemen Perpustakaan Terpadu (Smart Library Management System)**  
+> 🎬 **Video Demonstrasi Langsung:** [Tonton Demo Sistem di YouTube (Walkthrough)](https://www.youtube.com/watch?v=qpy3rqYP45o)
 
 ---
 
