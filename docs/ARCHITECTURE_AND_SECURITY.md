@@ -186,7 +186,7 @@ Sistem Manajemen Perpustakaan Modern ini dirancang dan dikembangkan dengan stand
 - **Nama Pengembang:** **Prasetyo H.K.**
 - **GitHub:** [@prasetyohk](https://github.com/prasetyohk)
 - **X (Twitter):** [@prasetyohk](https://x.com/prasetyohk)
-- **Email:** [prasetyohandydrops@gmail.com](mailto:prasetyohandydrops@gmail.com)
+- **Email:** [handy.paynet@gmail.com](mailto:handy.paynet@gmail.com)
 
 > 💼 **Layanan & Kerja Sama:**
 > Menerima konsultasi arsitektur sistem, pengembangan aplikasi web/desktop khusus sekolah & instansi, kustomisasi standar perpustakaan SLiMS, serta migrasi sistem ke cloud SaaS. Silakan hubungi melalui Email atau DM di platform X.

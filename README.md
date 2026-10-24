@@ -236,7 +236,7 @@ Aplikasi dan sistem perpustakaan modern ini dirancang serta dikembangkan oleh:
 - **Nama Pengembang:** **Prasetyo H.K.**
 - **GitHub:** [@prasetyohk](https://github.com/prasetyohk)
 - **X (Twitter):** [@prasetyohk](https://x.com/prasetyohk)
-- **Email:** [prasetyohandydrops@gmail.com](mailto:prasetyohandydrops@gmail.com)
+- **Email:** [handy.paynet@gmail.com](mailto:handy.paynet@gmail.com)
 
 > 💼 **Terbuka untuk Kerja Sama:**  
 > Menerima jasa pembuatan sistem manajemen perpustakaan sekolah/kampus, sistem informasi kasir/apotek/retail, kustomisasi SLiMS, migrasi database lokal ke cloud, serta pembuatan aplikasi web & desktop kustom berstandar enterprise. Hubungi via Email atau direct message di X!
