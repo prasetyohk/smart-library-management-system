@@ -252,7 +252,7 @@ Aplikasi dan sistem perpustakaan modern ini dirancang serta dikembangkan oleh:
 
 - **Nama Pengembang:** **Prasetyo H.K.**
 - **GitHub:** [@prasetyohk](https://github.com/prasetyohk)
-- **X (Twitter):** [@prasetyohk](https://x.com/prasetyo_hk)
+- **X (Twitter):** [@prasetyo_hk](https://x.com/prasetyo_hk)
 - **Email:** [handy.paynet@gmail.com](mailto:handy.paynet@gmail.com)
 
 > 💼 **Terbuka untuk Kerja Sama:**  
