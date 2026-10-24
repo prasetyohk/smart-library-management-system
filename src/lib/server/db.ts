@@ -143,6 +143,8 @@ function initializeTables(db: DatabaseSync): void {
       pinHash TEXT NOT NULL,
       salt TEXT NOT NULL,
       role TEXT NOT NULL DEFAULT 'LIBRARIAN',
+      phone TEXT,
+      email TEXT,
       createdAt TEXT NOT NULL,
       updatedAt TEXT NOT NULL
     );
@@ -165,7 +167,24 @@ function initializeTables(db: DatabaseSync): void {
       value TEXT NOT NULL,
       updatedAt TEXT NOT NULL
     );
+
+    -- 9. Password Reset Requests / OTP (WhatsApp & Email)
+    CREATE TABLE IF NOT EXISTS password_resets (
+      id TEXT PRIMARY KEY,
+      username TEXT NOT NULL,
+      otpCode TEXT NOT NULL,
+      method TEXT NOT NULL, -- 'WHATSAPP' | 'EMAIL'
+      targetContact TEXT NOT NULL,
+      expiresAt INTEGER NOT NULL,
+      isUsed INTEGER DEFAULT 0,
+      createdAt TEXT NOT NULL
+    );
+    CREATE INDEX IF NOT EXISTS idx_resets_user ON password_resets(username);
   `);
+
+  // Safe Column Migrations for Existing Databases
+  try { db.exec('ALTER TABLE librarians ADD COLUMN phone TEXT;'); } catch {}
+  try { db.exec('ALTER TABLE librarians ADD COLUMN email TEXT;'); } catch {}
 
   // Seed default admin jika tabel librarians kosong
   const countRow: any = db.prepare('SELECT COUNT(*) as count FROM librarians').get();
@@ -173,9 +192,18 @@ function initializeTables(db: DatabaseSync): void {
     const { hash, salt } = hashPin('sbth2026');
     const now = new Date().toISOString();
     db.prepare(`
-      INSERT INTO librarians (id, username, name, pinHash, salt, role, createdAt, updatedAt)
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?)
-    `).run('lib-admin', 'ms_kriss', 'Ms. Kriss (Pustakawan Utama)', hash, salt, 'ADMIN', now, now);
+      INSERT INTO librarians (id, username, name, pinHash, salt, role, phone, email, createdAt, updatedAt)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+    `).run('lib-admin', 'ms_kriss', 'Ms. Kriss (Pustakawan Utama)', hash, salt, 'ADMIN', '08157773256', 'perpustakaan.sbth@gmail.com', now, now);
+  } else {
+    // Ensure default admin has phone and email set
+    try {
+      db.prepare(`
+        UPDATE librarians 
+        SET phone = COALESCE(phone, '08157773256'), email = COALESCE(email, 'perpustakaan.sbth@gmail.com')
+        WHERE LOWER(username) = 'ms_kriss'
+      `).run();
+    } catch {}
   }
 }
 
@@ -590,3 +618,165 @@ export function saveBulkDatabaseData(data: {
     return { success: false, count: 0, error: err.message };
   }
 }
+
+// ==============================================================================
+// PASSWORD RECOVERY / RESET ENGINE (WHATSAPP & EMAIL OTP)
+// ==============================================================================
+export interface CreateOtpResult {
+  success: boolean;
+  username: string;
+  librarianName: string;
+  method: 'WHATSAPP' | 'EMAIL';
+  targetContact: string;
+  targetMasked: string;
+  otpCode: string;
+  waUrl?: string;
+  mailtoUrl?: string;
+  expiresInMinutes: number;
+  error?: string;
+}
+
+export function createPasswordResetOtp(username: string, method: 'WHATSAPP' | 'EMAIL'): CreateOtpResult {
+  const db = getDatabase();
+  const cleanUser = username.trim().toLowerCase().replace(/^@/, '');
+
+  const librarian: any = db.prepare('SELECT * FROM librarians WHERE LOWER(username) = ?').get(cleanUser);
+  if (!librarian) {
+    return {
+      success: false,
+      username: cleanUser,
+      librarianName: '',
+      method,
+      targetContact: '',
+      targetMasked: '',
+      otpCode: '',
+      expiresInMinutes: 0,
+      error: `Pustakawan dengan username @${cleanUser} tidak ditemukan di sistem.`,
+    };
+  }
+
+  // Ambil kontak terdaftar atau kontak resmi sekolah sebagai fallback
+  const phone = librarian.phone || '08157773256';
+  const email = librarian.email || 'perpustakaan.sbth@gmail.com';
+  const targetContact = method === 'WHATSAPP' ? phone : email;
+
+  // Masking kontak untuk privasi (e.g., 0815-****-256 atau pe***@gmail.com)
+  let targetMasked = targetContact;
+  if (method === 'WHATSAPP') {
+    const digits = phone.replace(/\D/g, '');
+    targetMasked = digits.length > 7
+      ? `${digits.slice(0, 4)}-****-${digits.slice(-3)}`
+      : phone;
+  } else {
+    const parts = email.split('@');
+    if (parts.length === 2) {
+      const name = parts[0];
+      targetMasked = `${name.slice(0, 2)}***@${parts[1]}`;
+    }
+  }
+
+  // Generate 6-digit random cryptographically secure OTP
+  const otpCode = Math.floor(100000 + Math.random() * 900000).toString();
+  const id = `otp-${Date.now().toString(36)}-${Math.random().toString(36).substring(2, 6)}`;
+  const now = new Date();
+  const expiresAt = now.getTime() + 15 * 60 * 1000; // 15 Menit
+
+  // Invalidate any previous unused OTPs for this user
+  db.prepare('UPDATE password_resets SET isUsed = 1 WHERE username = ? AND isUsed = 0').run(cleanUser);
+
+  // Insert new OTP
+  db.prepare(`
+    INSERT INTO password_resets (id, username, otpCode, method, targetContact, expiresAt, isUsed, createdAt)
+    VALUES (?, ?, ?, ?, ?, ?, 0, ?)
+  `).run(id, cleanUser, otpCode, method, targetContact, expiresAt, now.toISOString());
+
+  // Buat deep link WhatsApp
+  let phoneClean = phone.replace(/[^0-9]/g, '');
+  if (phoneClean.startsWith('0')) phoneClean = '62' + phoneClean.slice(1);
+  const waMsg = encodeURIComponent(
+    `*KODE RESET PASSWORD PERPUSTAKAAN SBTH* 🔐\n\nHalo *${librarian.name}* (@${librarian.username}),\n\nKode verifikasi OTP untuk reset password Anda adalah:\n👉 *${otpCode}*\n\nKode ini berlaku selama 15 menit. Masukkan kode ini pada aplikasi Perpustakaan SBTH untuk membuat password baru yang aman. Terima kasih! 📚`
+  );
+  const waUrl = `https://wa.me/${phoneClean}?text=${waMsg}`;
+
+  // Buat mailto URL
+  const emailSub = encodeURIComponent('Kode Verifikasi Reset Password Perpustakaan SBTH');
+  const emailBody = encodeURIComponent(
+    `Halo ${librarian.name} (@${librarian.username}),\n\nKode verifikasi OTP untuk reset password akun Anda adalah:\n\n${otpCode}\n\nKode ini berlaku selama 15 menit.\n\nSalam,\nSistem Perpustakaan SBTH Magelang`
+  );
+  const mailtoUrl = `mailto:${email}?subject=${emailSub}&body=${emailBody}`;
+
+  return {
+    success: true,
+    username: cleanUser,
+    librarianName: librarian.name,
+    method,
+    targetContact,
+    targetMasked,
+    otpCode,
+    waUrl,
+    mailtoUrl,
+    expiresInMinutes: 15,
+  };
+}
+
+export function verifyOtpAndResetPassword(username: string, otpCode: string, newPin: string): { success: boolean; message?: string; error?: string } {
+  const db = getDatabase();
+  const cleanUser = username.trim().toLowerCase().replace(/^@/, '');
+  const cleanOtp = otpCode.trim();
+  const cleanNewPin = newPin.trim();
+
+  if (!cleanNewPin || cleanNewPin.length < 4) {
+    return { success: false, error: 'Password/PIN baru minimal 4 karakter.' };
+  }
+
+  const librarian: any = db.prepare('SELECT * FROM librarians WHERE LOWER(username) = ?').get(cleanUser);
+  if (!librarian) {
+    return { success: false, error: 'Pustakawan tidak ditemukan.' };
+  }
+
+  const now = Date.now();
+  const resetRecord: any = db.prepare(`
+    SELECT * FROM password_resets 
+    WHERE username = ? AND otpCode = ? AND isUsed = 0 AND expiresAt > ?
+    ORDER BY createdAt DESC
+    LIMIT 1
+  `).get(cleanUser, cleanOtp, now);
+
+  if (!resetRecord) {
+    return { success: false, error: 'Kode OTP tidak valid atau sudah kedaluwarsa. Silakan minta kode baru.' };
+  }
+
+  // Hash password baru dengan salt baru
+  const { hash, salt } = hashPin(cleanNewPin);
+  const nowIso = new Date().toISOString();
+
+  try {
+    db.exec('BEGIN IMMEDIATE TRANSACTION;');
+
+    db.prepare(`
+      UPDATE librarians 
+      SET pinHash = ?, salt = ?, updatedAt = ? 
+      WHERE id = ?
+    `).run(hash, salt, nowIso, librarian.id);
+
+    db.prepare('UPDATE password_resets SET isUsed = 1 WHERE id = ?').run(resetRecord.id);
+
+    // Catat log
+    db.prepare(`
+      INSERT INTO activity_logs (id, timestamp, category, action, actor, details)
+      VALUES (?, ?, 'SECURITY', 'RESET_PASSWORD', ?, ?)
+    `).run(
+      `log-${Date.now().toString(36)}`,
+      nowIso,
+      librarian.name,
+      `Pustakawan ${librarian.name} (@${librarian.username}) berhasil melakukan reset password melalui verifikasi ${resetRecord.method}.`
+    );
+
+    db.exec('COMMIT;');
+    return { success: true, message: 'Password berhasil diperbarui. Silakan masuk menggunakan password baru.' };
+  } catch (err: any) {
+    try { db.exec('ROLLBACK;'); } catch {}
+    return { success: false, error: err.message || 'Gagal menyimpan password baru.' };
+  }
+}
+

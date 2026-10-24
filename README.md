@@ -19,7 +19,7 @@
 [![Dewey Decimal DDC](https://img.shields.io/badge/e--DDC_Perpusnas-000--900-amber?style=for-the-badge)](https://perpusnas.go.id/)
 
 > 📖 **Dokumentasi Teknis Lengkap:** [Cetak Biru Arsitektur & Keamanan Sistem](docs/ARCHITECTURE_AND_SECURITY.md)  
-> 🔗 **Repositori:** [Private Repo (SBTH)](https://github.com/prasetyohk/Sistem-Perpustakaan-SBTH) • [Public Showcase](https://github.com/prasetyohk/smart-library-management-system)
+> 💼 **Portfolio Showcase:** [Smart Library Management System](https://github.com/prasetyohk/smart-library-management-system)
 
 </div>
 
@@ -137,15 +137,17 @@ Portal interaktif khusus siswa untuk melihat buku yang sedang dipinjam, histori 
   - Menghilangkan batasan kuota 5-10MB browser dan mencegah antarmuka patah-patah (*UI freeze*) dengan proses penyimpanan asinkron di balik layar.
 - **Jaminan Transaksi ACID Sirkulasi**:
   - Alur peminjaman dan pengembalian dieksekusi secara atomik di sisi server (`BEGIN IMMEDIATE TRANSACTION ... COMMIT`). Tidak ada buku yang berstatus dipinjam tanpa riwayat sirkulasi yang sah.
-- **Sinkronisasi Multi-Device Jaringan Sekolah (Multi-Silo Solved)**:
-  - Satu PC bertindak sebagai server lokal, dan laptop guru lain serta tablet siswa di jaringan WiFi/LAN sekolah dapat mengakses database yang sama secara real-time (`http://[IP_KOMPUTER]:3000`).
-- **Otentikasi Server Cryptographic (PBKDF2 + Salt)**:
-  - Seluruh verifikasi dipindahkan ke server dengan hashing PBKDF2 10.000 iterasi + salt acak dan sesi HttpOnly cookie. Password tidak pernah tersimpan telanjang di browser atau terbaca via F12.
+- **Pilihan 2 Mode Deployment Fleksibel**:
+  - **Mode 1 (On-Premise Local Server + WiFi)**: 1 unit PC utama di meja sirkulasi bertindak sebagai host server. Laptop guru lain dan tablet murid di jaringan sekolah dapat mengakses database yang sama secara real-time via LAN/Wi-Fi (`http://<IP_KOMPUTER_SERVER>:3000`).
+  - **Mode 2 (Cloud / VPS Server 24 Jam)**: Dapat di-deploy ke VPS atau cloud hosting (PostgreSQL/Supabase) agar katalog dan sirkulasi dapat diakses online oleh siswa dan wali murid dari rumah.
+- **Otentikasi Kriptografis (PBKDF2 + Salt)**:
+  - Seluruh verifikasi dipindahkan ke server dengan hashing PBKDF2 10.000 iterasi + salt acak dan sesi HttpOnly cookie. Kredensial tidak pernah tersimpan telanjang di browser atau terbaca via F12.
+- **Fitur Pemulihan Password Mandiri (WhatsApp & Email OTP)**:
+  - Pustakawan yang lupa PIN/Password dapat melakukan reset mandiri melalui verifikasi kode OTP 6-digit yang dikirimkan via WhatsApp atau Email resmi.
 - **Perlindungan Bot Telegram (.env.local)**:
-  - Token bot Telegram dan kunci sensitif diproteksi di `.env.local` server dengan penjaga Anti-Open Relay.
-- **Cetak Biru Arsitektur & Roadmap Cloud**:
-  - Pelajari arsitektur sistem dan panduan migrasi ke PostgreSQL/Supabase pada dokumen [Cetak Biru Arsitektur & Keamanan](docs/ARCHITECTURE_AND_SECURITY.md).
-
+  - Token bot Telegram dan kunci sensitif diproteksi di `.env.local` server dengan penjaga Anti-Open Relay (terlindungi oleh `.gitignore`).
+- **Cetak Biru Arsitektur Lengkap**:
+  - Pelajari arsitektur sistem dan panduan teknis pada dokumen [Cetak Biru Arsitektur & Keamanan](docs/ARCHITECTURE_AND_SECURITY.md).
 
 ---
 
@@ -179,16 +181,19 @@ HENTIKAN_APLIKASI.bat
 
 ```bash
 # 1. Clone repositori
-git clone https://github.com/prasetyohk/Sistem-Perpustakaan-SBTH.git
-cd Sistem-Perpustakaan-SBTH
+git clone https://github.com/prasetyohk/smart-library-management-system.git
+cd smart-library-management-system
 
 # 2. Pasang dependensi
 npm install
 
-# 3. Jalankan server lokal Next.js
+# 3. Konfigurasi Variabel Lingkungan
+cp .env.example .env.local
+
+# 4. Jalankan server lokal Next.js
 npm run dev
 
-# 4. Buka di browser
+# 5. Buka di browser
 # http://localhost:3000
 ```
 
@@ -199,10 +204,13 @@ npm run dev
 ```text
 ├── public/                 # Aset statis & logo resmi KB-TK SBTH
 ├── docs/
+│   ├── ARCHITECTURE_AND_SECURITY.md # Cetak biru arsitektur & keamanan enterprise
 │   └── screenshots/        # Tangkapan layar resolusi tinggi fitur aplikasi
 ├── src/
-│   ├── app/                # Next.js App Router (globals.css, layout.tsx, page.tsx)
+│   ├── app/                # Next.js App Router (layout, page, API routes)
+│   │   └── api/            # Server API (auth, recovery, circulation, sync, telegram)
 │   ├── components/
+│   │   ├── auth/           # PinAuthModal, AdminAuthModal, AdminPasswordRecoveryModal
 │   │   ├── books/          # ScanIsbnModal, BookManagement, EditBookModal
 │   │   ├── categories/     # CategoryManagementModal (e-DDC & Quick Color Picker)
 │   │   ├── labels/         # LabelPrintGenerator (Punggung 7.4x4 cm & Slip 6x2.5 cm)
@@ -210,9 +218,10 @@ npm run dev
 │   │   ├── portal/         # StudentPortalModal (Kiosk Anak)
 │   │   └── analytics/      # AnalyticsModal (Statistik & Nilai Aset)
 │   ├── lib/
+│   │   ├── server/         # Database SQLite (WAL), PBKDF2 Auth, Session Cookies
 │   │   ├── eddc.ts         # 10 Kelas DDC, Subdivisi Perpusnas, Excel Exporter, Auto-Matcher
 │   │   ├── constants.ts    # Standar nomor panggil SBTH & opsi format buku
-│   │   ├── storage.ts      # Engine database lokal & audit trail
+│   │   ├── storage.ts      # Client state engine & sync bridge
 │   │   └── i18n.ts         # Kamus trilingual (Indonesia, English, Mandarin)
 │   └── types/              # Definisi interface TypeScript
 └── README.md               # Dokumentasi utama proyek
@@ -220,7 +229,22 @@ npm run dev
 
 ---
 
+## 👨‍💻 Profil Pengembang & Kontak Kolaborasi
+
+Aplikasi dan sistem perpustakaan modern ini dirancang serta dikembangkan oleh:
+
+- **Nama Pengembang:** **Prasetyo H.K.**
+- **GitHub:** [@prasetyohk](https://github.com/prasetyohk)
+- **X (Twitter):** [@prasetyohk](https://x.com/prasetyohk)
+- **Email:** [prasetyohandydrops@gmail.com](mailto:prasetyohandydrops@gmail.com)
+
+> 💼 **Terbuka untuk Kerja Sama:**  
+> Menerima jasa pembuatan sistem manajemen perpustakaan sekolah/kampus, sistem informasi kasir/apotek/retail, kustomisasi SLiMS, migrasi database lokal ke cloud, serta pembuatan aplikasi web & desktop kustom berstandar enterprise. Hubungi via Email atau direct message di X!
+
+---
+
 ## 📄 Lisensi & Hak Cipta
 
-Dikembangkan khusus untuk **Perpustakaan KB-TK Bhakti Tunas Harapan (SBTH) Magelang**.  
-Dilisensikan di bawah [MIT License](LICENSE).
+Dilisensikan di bawah [MIT License](LICENSE).  
+Hak Cipta Desain Khusus © **KB-TK Bhakti Tunas Harapan (SBTH) Magelang**.
+

@@ -1,37 +1,44 @@
 # 🛡️ Cetak Biru Arsitektur & Keamanan Sistem Perpustakaan Modern
-### Dari Prototipe "Vibe Coding" Menuju "Production-Grade System"
-**KB-TK Bhakti Tunas Harapan (SBTH) • Magelang**
+### Production-Grade System Architecture & Enterprise Security Specification
+**Sistem Manajemen Perpustakaan Terpadu (Smart Library Management System)**
 
 ---
 
-## 📌 1. Latar Belakang & Analisis Masalah ("The Vibe Coding Problem")
+## 📌 1. Prinsip Desain & Komparasi Standar Sistem Perpustakaan
 
-Tren pengembangan aplikasi berbasis AI (*vibe coding*) sering kali memukau pengguna dengan tampilan antarmuka (UI/UX) yang modern dan fitur visual yang interaktif. Namun, ketika diaplikasikan tanpa pemahaman arsitektur sistem (*system design*) dan algoritma yang matang, aplikasi tersebut rentan mengalami kegagalan fatal pada lingkungan produksi:
+Pengembangan aplikasi perpustakaan modern membutuhkan fondasi arsitektur sistem (*system design*) dan algoritma yang tangguh agar mampu menangani sirkulasi buku harian, ribuan katalog eksemplar, dan multi-pengguna secara bersamaan tanpa risiko kehilangan data.
 
-| Karakteristik Vibe Coding Instan | Bahaya di Lingkungan Produksi | Solusi Arsitektur Baru SBTH |
+Berikut adalah komparasi antara model penyimpanan sisi klien biasa (*client-side storage*) dengan Arsitektur Standar Industri yang diimplementasikan pada sistem ini:
+
+| Parameter Arsitektur | Keterbatasan Model Sisi Klien Biasa (`localStorage`) | Keunggulan Sistem Produksi (SBTH Production Engine) |
 | :--- | :--- | :--- |
-| **Penyimpanan murni di `localStorage` Browser** | Kuota browser sangat terbatas (5MB - 10MB). Pembersihan cache browser (*Clear History*) menghapus seluruh data perpustakaan seketika. | **Native SQLite Engine (WAL Mode)** di disk PC lokal (`data/sbth_library.db`), tahan jutaan data tanpa limit browser. |
-| **Main Thread Blocking (UI Freeze)** | Operasi JSON serialisasi array buku besar pada thread utama menyebabkan animasi patah-patah (*jank*). | **Asynchronous Background Persistence** & non-blocking server API routes. |
-| **Data Terisolasi (Multi-Silo Problem)** | Data di laptop guru A tidak pernah sinkron dengan laptop guru B karena masing-masing menyimpan di browser lokal sendiri. | **Centralized LAN Server Sync**; seluruh perangkat di jaringan sekolah mengakses satu database SQLite terpusat secara real-time. |
-| **Client-Side Auth & Hardcoded PIN** | PIN tersimpan teks telanjang (*plaintext*) di `localStorage` (terbaca via F12). Adanya celah bypass PIN master (`1234`, `sbth2026`). | **Server-Side Cryptographic Hash (PBKDF2 + Salt)** dan **HttpOnly Session Cookie**. Kredensial tidak pernah terekspos di browser. |
-| **Telegram API Open Relay** | `botToken` dan `chatId` dikirim dari browser, endpoint `/api/telegram` dapat disalahgunakan pihak luar untuk spamming. | **Token disimpan di `.env.local` server**, endpoint diproteksi validasi sesi pustakawan resmi. |
-| **Ketiadaan Transaksi Database (No ACID)** | Status buku berubah tapi riwayat sirkulasi gagal dibuat saat koneksi/baterai putus, menyebabkan data korup. | **Atomic ACID Transactions** (`BEGIN IMMEDIATE TRANSACTION ... COMMIT`) pada sirkulasi pinjam dan kembali. |
+| **Penyimpanan Data** | Kuota browser sangat terbatas (5MB - 10MB). Pembersihan cache browser (*Clear History*) menghapus seluruh data perpustakaan seketika. | **Native SQLite Engine (WAL Mode)** di disk PC lokal (`data/sbth_library.db`), sanggup menampung puluhan ribu eksemplar dengan integritas data permanen. |
+| **Kinerja Antarmuka** | Operasi JSON serialisasi array buku besar pada thread utama menyebabkan animasi tersendat (*main-thread UI freeze*). | **Asynchronous Background Persistence** & non-blocking Next.js server API routes dengan throughput tinggi. |
+| **Akses Multi-Perangkat** | Data di laptop staf A tidak pernah sinkron dengan laptop staf B karena masing-masing terisolasi di browser lokal (*data silo*). | **Centralized Local Network (LAN) Server**; seluruh perangkat di jaringan sekolah mengakses satu database server terpusat secara *real-time*. |
+| **Otentikasi & Keamanan** | Kredensial tersimpan dalam bentuk teks biasa (*plaintext*) di browser dan dapat diintip melalui F12 DevTools. Adanya celah bypass hardcoded. | **Server-Side Cryptographic Hash (PBKDF2 + Salt)** dan **HttpOnly Session Cookie**. Kredensial tidak pernah terekspos di browser F12. |
+| **Pemulihan Akses** | Jika lupa password, pengguna terkunci total atau harus mengedit kode sumber program secara manual. | **Self-Service Password Reset via WhatsApp & Email OTP** terenkripsi dengan masa kedaluwarsa 15 menit dan validasi atomik di server. |
+| **Perlindungan Integrasi API** | Kunci rahasia API (seperti Bot Telegram) dikirim dari browser sehingga rawan disalahgunakan pihak luar (*open relay*). | **Kunci API disimpan eksklusif di `.env.local` server**, endpoint diproteksi otorisasi sesi dan validasi origin jaringan internal. |
+| **Integritas Transaksi** | Status buku berubah tetapi riwayat sirkulasi gagal dibuat saat koneksi/baterai putus, menyebabkan inkonsistensi data (*No ACID*). | **Atomic ACID Transactions** (`BEGIN IMMEDIATE TRANSACTION ... COMMIT`) pada seluruh alur sirkulasi peminjaman dan pengembalian. |
 
 ---
 
-## 🏛️ 2. Topologi Arsitektur Sistem Baru
+## 🏛️ 2. Topologi Arsitektur Sistem
+
+Sistem dirancang dengan arsitektur berlapis (*multi-tier architecture*) yang memisahkan antara antarmuka pengguna, lapisan keamanan, logika bisnis, dan basis data:
 
 ```mermaid
 graph TD
     subgraph ClientLayer ["1. Presentation Layer (Browser / Desktop Client)"]
-        UI[Next.js 16 App Router + React 19]
-        Tailwind[Tailwind CSS v4 + Responsive UI]
-        Scanner[Barcode Scanner USB & Web Camera]
-        OpacKiosk[Kiosk Anak Ramah Trilingual ID/EN/ZH]
+        UI["Next.js 16 App Router + React 19"]
+        Tailwind["Tailwind CSS v4 + Responsive Design System"]
+        Scanner["Barcode Scanner USB & Web Camera"]
+        OpacKiosk["Kiosk Anak Ramah Trilingual (ID / EN / ZH)"]
+        LabelEngine["Generator Cetak Label Presisi (CSS @media print)"]
     end
 
     subgraph SecurityLayer ["2. Security & Session Boundary"]
-        AuthRoute["/api/auth/login (PBKDF2 + Salted Hash)"]
+        AuthRoute["/api/auth/login (PBKDF2 10.000 Iterasi + Salt)"]
+        RecoveryRoute["/api/auth/recovery (WhatsApp & Email OTP Engine)"]
         SessionCookie["HttpOnly Secure Session Cookie (SameSite=Lax)"]
         EnvConfig["Server Environment (.env.local Protection)"]
     end
@@ -44,10 +51,10 @@ graph TD
 
     subgraph PersistenceLayer ["4. Persistence Layer (Local PC Disk)"]
         SQLiteDB[("SQLite Database Engine: data/sbth_library.db (WAL Mode)")]
-        Tables["Tables: books, book_items, members, loans, loan_items, librarians, logs"]
+        Tables["Tabel: books, book_items, members, loans, loan_items, librarians, password_resets, activity_logs"]
     end
 
-    subgraph CloudRoadmap ["5. Multi-Branch Cloud Roadmap (Optional Online)"]
+    subgraph CloudRoadmap ["5. Multi-Branch Cloud Roadmap (Online Deployment)"]
         SupabasePostgres[("Cloud PostgreSQL / Supabase")]
         RLSPolicies["Row Level Security (RLS) Policies"]
     end
@@ -60,90 +67,130 @@ graph TD
 
 ---
 
-## 🔒 3. Implementasi Keamanan Tingkat Server (Security Hardening)
+## 🌐 3. Pilihan Mode Deployment (Fleksibilitas Arsitektur)
+
+Sistem dirancang untuk mendukung **2 Mode Deployment Fleksibel** sesuai kebutuhan dan infrastruktur institusi:
+
+### 🏢 Mode 1: On-Premise Local Server (1 PC Server + Multi-Device WiFi / LAN)
+*Sangat direkomendasikan untuk sekolah yang mengutamakan kecepatan maksimal, bebas biaya bulanan cloud, dan privasi data 100% di lingkungan internal.*
+
+- **Topologi:** 1 unit Komputer di meja sirkulasi perpustakaan difungsikan sebagai **Host Server Lokal**. Seluruh laptop guru, staf tata usaha, dan tablet siswa di perpustakaan terhubung ke jaringan WiFi/LAN sekolah yang sama.
+- **Mekanisme Akses:**
+  1. Komputer Host Server menjalankan aplikasi (`npm run dev` atau file `.exe`).
+  2. Buka Command Prompt pada komputer server, ketik `ipconfig` untuk melihat IP lokal (misalnya: `192.168.1.50`).
+  3. Laptop guru lain atau tablet murid cukup membuka browser dan mengetik alamat:
+     ```text
+     http://<IP_KOMPUTER_SERVER>:3000
+     # Contoh: http://192.168.1.50:3000
+     ```
+  4. Seluruh transaksi dari semua perangkat langsung tersimpan ke satu database SQLite terpusat (`data/sbth_library.db`) secara *real-time*.
+
+### ☁️ Mode 2: Cloud / VPS Server (Online Multi-Branch & Akses 24 Jam)
+*Cocok jika sekolah ingin membuka katalog buku (OPAC) dan layanan pinjaman untuk diakses oleh wali murid dari rumah atau antar cabang sekolah yang berbeda lokasi geografis.*
+
+- **Topologi:** Aplikasi di-deploy ke server Cloud (VPS Ubuntu dengan Docker/PM2 atau Vercel) dan database menggunakan PostgreSQL terkelola (Supabase / Neon).
+- **Mekanisme Akses:** Pengguna mengakses melalui domain resmi sekolah bersertifikat SSL (misalnya: `https://perpustakaan.sekolah.sch.id`).
+
+---
+
+## 🔒 4. Keamanan Tingkat Server & Enkripsi Kriptografis
 
 ### A. Otentikasi Pustakawan & Hashing Kriptografis
-- **Algoritma:** PBKDF2 (*Password-Based Key Derivation Function 2*) menggunakan modul standar `node:crypto`.
-- **Pengacakan Salt:** Setiap password/PIN diberi salt acak unik 16-byte (`crypto.randomBytes(16)`).
-- **Perbandingan Waktu Aman:** Validasi hash menggunakan `crypto.timingSafeEqual` untuk mencegah serangan *timing attack*.
-- **Perlindungan F12 Application:** Atribut `pin` secara otomatis dibersihkan (*sanitized*) sebelum disimpan di memori klien. Siapa pun yang membuka Developer Tools (F12) tidak akan menemukan password atau PIN dalam bentuk teks biasa.
+- **Algoritma:** PBKDF2 (*Password-Based Key Derivation Function 2*) menggunakan modul bawaan `node:crypto`.
+- **Pengacakan Salt:** Setiap password atau PIN diberi salt acak unik 16-byte (`crypto.randomBytes(16)`).
+- **Perlindungan Timing Attack:** Verifikasi hash menggunakan `crypto.timingSafeEqual` untuk mencegah analisa waktu respon.
+- **Sanitasi Klien (Anti-F12 Leak):** Atribut password/PIN secara otomatis dibersihkan (*sanitized*) dari state browser. Membuka Developer Tools (F12 Application Local Storage) tidak akan pernah menampilkan kredensial akun dalam bentuk teks biasa.
 
-### B. Proteksi Endpoint Telegram & Rahasia `.env.local`
-- Token Telegram Bot dan Chat ID disimpan eksklusif pada variabel lingkungan server (`.env.local`):
-  ```env
-  TELEGRAM_BOT_TOKEN=123456789:ABCDefGhIJKlmNoPQRsTUVwxyZ
-  TELEGRAM_CHAT_ID=-1001234567890
-  SESSION_SECRET=sbth-library-production-secure-auth-secret-key-2026
-  ```
-- Endpoint `/api/telegram` memeriksa apakah permintaan berasal dari sesi pustakawan terverifikasi atau dari `localhost`. Permintaan asing dari luar jaringan akan ditolak secara otomatis (*HTTP 401 Unauthorized*).
+### B. Proteksi Variabel Lingkungan & Anti-Open Relay
+Variabel sensitif disimpan eksklusif pada berkas lingkungan server (`.env.local`) yang **tidak pernah di-commit ke Git**:
 
----
-
-## 💾 4. Integritas Data & Transaksi ACID (Circulation Engine)
-
-Operasi sirkulasi perpustakaan (peminjaman dan pengembalian) dijalankan dalam satu blok transaksi atomik pada SQLite di file `src/lib/server/db.ts`:
-
-### Siklus Peminjaman Atomik (Borrow Transaction):
-1. **Validasi Kuota Anggota:** Memeriksa apakah jumlah buku aktif yang dipinjam belum melebihi `maxLoanLimit`.
-2. **Kunci Eksemplar:** Memastikan seluruh barcode buku berstatus `AVAILABLE`. Jika salah satu sedang dipinjam atau rusak, transaksi dibatalkan seketika (*Rollback*).
-3. **Pencatatan Master Pinjaman:** Membuat baris baru pada tabel `loans`.
-4. **Pencatatan Item Pinjaman:** Membuat baris pada tabel `loan_items`.
-5. **Pembaruan Inventaris:** Mengubah status eksemplar pada `book_items` menjadi `BORROWED` dan menaikkan `totalLoanCount` pada tabel `books`.
-6. **Audit Trail:** Mencatat log aktivitas pustakawan penanggung jawab.
-7. **Commit:** Seluruh perubahan disimpan serentak. Jika terjadi kegagalan sistem pada salah satu langkah di atas, database otomatis kembali ke kondisi semula sebelum transaksi dimulai.
-
----
-
-## 🌐 5. Solusi Multi-Silo (Sinkronisasi Multi-Device di Sekolah)
-
-Untuk memungkinkan beberapa komputer guru atau tablet siswa mengakses perpustakaan secara bersamaan tanpa data terpisah (*silo*):
-
-1. **Jadikan 1 Komputer sebagai Host Server Perpustakaan:**
-   - Jalankan aplikasi di komputer utama perpustakaan:
-     ```bash
-     npm run dev
-     # atau jalankan 'Perpustakaan SBTH.exe'
-     ```
-   - Cek alamat IP lokal komputer tersebut di Command Prompt (`ipconfig`), misal: `192.168.1.15`.
-2. **Akses dari Laptop / Perangkat Lain di Jaringan yang Sama:**
-   - Buka browser di laptop guru lain atau tablet murid:
-     ```text
-     http://192.168.1.15:3000
-     ```
-   - Seluruh perangkat akan membaca dan menulis ke database SQLite yang sama (`data/sbth_library.db`), menjamin data selalu sinkron secara *real-time*.
-
----
-
-## ☁️ 6. Panduan Migrasi ke Cloud (PostgreSQL / Supabase dengan RLS)
-
-Jika sekolah ingin membuka perpustakaan untuk diakses online 24 jam oleh wali murid dari rumah melalui server cloud (seperti VPS Ubuntu atau Vercel + Supabase), berikut adalah arsitektur yang direkomendasikan:
-
-### Skema Tabel PostgreSQL & Row Level Security (RLS):
-
-```sql
--- 1. Aktifkan RLS pada seluruh tabel sensitif
-ALTER TABLE books ENABLE ROW LEVEL SECURITY;
-ALTER TABLE book_items ENABLE ROW LEVEL SECURITY;
-ALTER TABLE loans ENABLE ROW LEVEL SECURITY;
-ALTER TABLE members ENABLE ROW LEVEL SECURITY;
-
--- 2. Kebijakan Katalog Buku: Siapa saja (termasuk tamu publik) boleh melihat katalog
-CREATE POLICY "Katalog dapat dibaca publik" 
-ON books FOR SELECT 
-USING (true);
-
--- 3. Kebijakan Sirkulasi: Siswa hanya boleh melihat riwayat pinjaman miliknya sendiri
-CREATE POLICY "Siswa hanya melihat pinjamannya sendiri" 
-ON loans FOR SELECT 
-USING (auth.uid() = member_user_id);
-
--- 4. Kebijakan Pustakawan: Pustakawan dan Admin memiliki hak penuh (CRUD)
-CREATE POLICY "Pustakawan memiliki akses penuh" 
-ON loans FOR ALL 
-USING (auth.jwt() ->> 'role' IN ('ADMIN', 'LIBRARIAN'));
+```env
+# Format Variabel Lingkungan Server (.env.local)
+# CATATAN: Kredensial nyata dilindungi oleh .gitignore dan tidak pernah diunggah ke publik.
+TELEGRAM_BOT_TOKEN=your_telegram_bot_token_here
+TELEGRAM_CHAT_ID=your_telegram_channel_or_group_id_here
+SESSION_SECRET=your_random_32_character_session_secret_key_here
 ```
 
-### Panduan Deployment Cloud:
-1. **Frontend + API Routes:** Deploy ke **Vercel** atau VPS Ubuntu dengan reverse proxy **Nginx + PM2**.
-2. **Database:** Gunakan layanan PostgreSQL terkelola (**Supabase / Neon / Cloud SQL**).
-3. **Environment:** Masukkan `DATABASE_URL` dan `SESSION_SECRET` pada panel environment hosting cloud Anda.
+> [!IMPORTANT]
+> Seluruh endpoint sensitif (seperti `/api/telegram`) dilengkapi lapisan penjaga (*authorization guard*) yang memverifikasi bahwa permintaan berasal dari sesi pustakawan resmi atau lingkungan server internal. Akses tidak sah dari pihak luar akan otomatis ditolak dengan kode respon *HTTP 401 Unauthorized*.
+
+### C. Sistem Pemulihan Akses Mandiri (Self-Service Reset via WhatsApp & Email OTP)
+Jika pustakawan atau administrator lupa password atau PIN:
+1. Pustakawan membuka menu **"Lupa Password"** pada modal autentikasi.
+2. Memasukkan username akun dan memilih saluran pengiriman kode verifikasi (**WhatsApp** atau **Email**).
+3. Server membuat kode OTP 6-digit acak yang disimpan dalam tabel `password_resets` dengan masa berlaku **15 menit** dan status satu kali pakai (*single-use*).
+4. Pustakawan menerima kode OTP resmi, memasukkan kode tersebut bersama password/PIN baru yang diinginkan.
+5. Server memvalidasi kode secara atomik, memperbarui hash password dengan salt baru, mencatat kejadian pada *audit log*, dan mengaktifkan kredensial baru seketika.
+
+---
+
+## 💾 5. Integritas Sirkulasi & Transaksi ACID
+
+Operasi sirkulasi perpustakaan (peminjaman dan pengembalian) dijalankan dalam satu blok transaksi atomik pada SQLite (`src/lib/server/db.ts`):
+
+```mermaid
+sequenceDiagram
+    autonumber
+    actor Pustakawan
+    participant UI as Meja Sirkulasi
+    participant API as /api/db/circulation
+    participant DB as SQLite Engine (WAL)
+
+    Pustakawan->>UI: Scan Barcode Anggota & Buku
+    UI->>API: POST /api/db/circulation (Action: BORROW)
+    activate API
+    API->>DB: BEGIN IMMEDIATE TRANSACTION
+    API->>DB: Validasi Batas Pinjam Anggota
+    API->>DB: Kunci Status Eksemplar (Wajib AVAILABLE)
+    API->>DB: Insert Master Loan & Loan Items
+    API->>DB: Update Status Eksemplar -> BORROWED
+    API->>DB: Catat Activity Log (Pustakawan Penanggung Jawab)
+    API->>DB: COMMIT TRANSACTION
+    DB-->>API: Transaksi Sukses
+    deactivate API
+    API-->>UI: Respon Berhasil & Suara Chime
+```
+
+Jika terjadi gangguan daya listrik atau koneksi terputus di tengah proses, database SQLite otomatis melakukan *Rollback* ke kondisi awal, mencegah data korup atau buku hilang tanpa riwayat.
+
+---
+
+## 📋 6. Checklist Persiapan Implementasi (Deployment Readiness)
+
+Untuk institusi sekolah yang ingin mengimplementasikan sistem ini, berikut adalah daftar persiapan perangkat keras dan lunak yang direkomendasikan:
+
+### 🖥️ Kebutuhan Perangkat Keras (Hardware):
+1. **1 Unit Komputer Host Server (Meja Sirkulasi):**
+   - Prosesor: Minimal Intel Core i3 / AMD Ryzen 3 (atau setara).
+   - RAM: Minimal 4 GB (Disarankan 8 GB).
+   - Penyimpanan: SSD minimal 128 GB (untuk kecepatan pembacaan database SQLite).
+   - Sistem Operasi: Windows 10/11, macOS, atau Linux Ubuntu.
+2. **Perangkat Jaringan:**
+   - 1 Unit Router Wi-Fi / Switch LAN lokal sekolah.
+3. **Perangkat Input & Cetak:**
+   - Barcode Scanner USB (1D/2D) Plug-and-Play untuk pemindaian nomor daftar & ISBN.
+   - Printer Inkjet / Laser standar (untuk cetak label stiker A4 presisi).
+
+### ⚙️ Kebutuhan Perangkat Lunak (Software):
+1. **Runtime:** [Node.js](https://nodejs.org/) versi v20 LTS atau v24 LTS.
+2. **Browser:** Google Chrome, Microsoft Edge, atau Mozilla Firefox versi terbaru.
+3. **Variabel Lingkungan:** Salin `.env.example` menjadi `.env.local` dan isi kunci sesi acak.
+
+---
+
+## 👨‍💻 Profil Pengembang & Kontak Kolaborasi
+
+Sistem Manajemen Perpustakaan Modern ini dirancang dan dikembangkan dengan standar rekayasa perangkat lunak profesional oleh:
+
+- **Nama Pengembang:** **Prasetyo H.K.**
+- **GitHub:** [@prasetyohk](https://github.com/prasetyohk)
+- **X (Twitter):** [@prasetyohk](https://x.com/prasetyohk)
+- **Email:** [prasetyohandydrops@gmail.com](mailto:prasetyohandydrops@gmail.com)
+
+> 💼 **Layanan & Kerja Sama:**
+> Menerima konsultasi arsitektur sistem, pengembangan aplikasi web/desktop khusus sekolah & instansi, kustomisasi standar perpustakaan SLiMS, serta migrasi sistem ke cloud SaaS. Silakan hubungi melalui Email atau DM di platform X.
+
+---
+*Dokumentasi ini disusun sebagai standar arsitektur resmi Sistem Manajemen Perpustakaan Terpadu.*
+

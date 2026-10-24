@@ -1,10 +1,11 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
-import { Lock, X, KeyRound, AlertCircle, User, Loader2, ShieldCheck } from 'lucide-react';
+import { Lock, X, KeyRound, AlertCircle, User, Loader2, ShieldCheck, HelpCircle } from 'lucide-react';
 import { libraryStore } from '@/lib/storage';
 import { soundFx } from '@/lib/sound';
 import { Librarian } from '@/types';
+import { AdminPasswordRecoveryModal } from './AdminPasswordRecoveryModal';
 
 interface PinAuthModalProps {
   isOpen: boolean;
@@ -23,6 +24,7 @@ export const PinAuthModal: React.FC<PinAuthModalProps> = ({
   const [pin, setPin] = useState<string>('');
   const [errorMsg, setErrorMsg] = useState<string>('');
   const [isLoading, setIsLoading] = useState<boolean>(false);
+  const [isRecoveryOpen, setIsRecoveryOpen] = useState<boolean>(false);
 
   useEffect(() => {
     if (isOpen) {
@@ -255,6 +257,18 @@ export const PinAuthModal: React.FC<PinAuthModalProps> = ({
               </>
             )}
           </button>
+
+          {/* Tombol Lupa Password */}
+          <div className="pt-0.5 text-center">
+            <button
+              type="button"
+              onClick={() => setIsRecoveryOpen(true)}
+              className="text-[11px] font-semibold text-emerald-600 dark:text-emerald-400 hover:underline inline-flex items-center gap-1 cursor-pointer transition"
+            >
+              <KeyRound className="h-3 w-3" />
+              Lupa Password / PIN? Reset via WhatsApp atau Email
+            </button>
+          </div>
         </form>
 
         <div className="p-2.5 rounded-xl bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700 text-[11px] text-slate-500 dark:text-slate-400 space-y-0.5 text-left">
@@ -264,6 +278,17 @@ export const PinAuthModal: React.FC<PinAuthModalProps> = ({
           <p>• Kredensial tidak tersimpan dalam bentuk teks di browser (bebas dari intipan F12).</p>
           <p>• Otentikasi divalidasi langsung oleh server lokal menggunakan enkripsi PBKDF2 + Salt.</p>
         </div>
+
+        {/* Modal Pemulihan Akses */}
+        <AdminPasswordRecoveryModal
+          isOpen={isRecoveryOpen}
+          onClose={() => setIsRecoveryOpen(false)}
+          defaultUsername={selectedUsername}
+          onSuccess={(recoveredUser) => {
+            if (recoveredUser) setSelectedUsername(recoveredUser);
+            setIsRecoveryOpen(false);
+          }}
+        />
       </div>
     </div>
   );

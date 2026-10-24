@@ -4,6 +4,7 @@ import React, { useState } from 'react';
 import { ShieldCheck, X, KeyRound, AlertCircle, Loader2 } from 'lucide-react';
 import { libraryStore } from '@/lib/storage';
 import { soundFx } from '@/lib/sound';
+import { AdminPasswordRecoveryModal } from './AdminPasswordRecoveryModal';
 
 interface AdminAuthModalProps {
   isOpen: boolean;
@@ -20,6 +21,7 @@ export const AdminAuthModal: React.FC<AdminAuthModalProps> = ({
   const [password, setPassword] = useState<string>('');
   const [errorMsg, setErrorMsg] = useState<string>('');
   const [isLoading, setIsLoading] = useState<boolean>(false);
+  const [isRecoveryOpen, setIsRecoveryOpen] = useState<boolean>(false);
 
   if (!isOpen) return null;
 
@@ -164,6 +166,18 @@ export const AdminAuthModal: React.FC<AdminAuthModalProps> = ({
               )}
             </button>
           </div>
+
+          {/* Link Lupa Password Administrator */}
+          <div className="pt-1 text-center">
+            <button
+              type="button"
+              onClick={() => setIsRecoveryOpen(true)}
+              className="text-[11px] font-semibold text-amber-500 hover:text-amber-400 hover:underline inline-flex items-center gap-1 cursor-pointer transition"
+            >
+              <KeyRound className="h-3 w-3" />
+              Lupa Password Admin? Reset via WhatsApp atau Email
+            </button>
+          </div>
         </form>
 
         <div className="p-3 rounded-xl bg-surface-2 border border-border text-[11px] text-text-muted space-y-1 text-left">
@@ -172,6 +186,17 @@ export const AdminAuthModal: React.FC<AdminAuthModalProps> = ({
             Otentikasi divalidasi langsung oleh backend server lokal menggunakan enkripsi cryptographic salted hash. Kredensial tidak pernah terekspos di browser F12.
           </p>
         </div>
+
+        {/* Modal Pemulihan Akses Admin */}
+        <AdminPasswordRecoveryModal
+          isOpen={isRecoveryOpen}
+          onClose={() => setIsRecoveryOpen(false)}
+          defaultUsername={username}
+          onSuccess={(recoveredUser) => {
+            if (recoveredUser) setUsername(recoveredUser);
+            setIsRecoveryOpen(false);
+          }}
+        />
       </div>
     </div>
   );

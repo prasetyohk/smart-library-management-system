@@ -219,6 +219,7 @@ export interface Librarian {
   role: StaffRole;
   pin?: string;
   phone?: string;
+  email?: string;
   createdAt: string;
 }
 
