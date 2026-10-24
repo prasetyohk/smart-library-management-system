@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState } from 'react';
-import { ShieldCheck, X, KeyRound, AlertCircle, UserCheck } from 'lucide-react';
+import { ShieldCheck, X, KeyRound, AlertCircle, Loader2 } from 'lucide-react';
 import { libraryStore } from '@/lib/storage';
 import { soundFx } from '@/lib/sound';
 
@@ -19,33 +19,64 @@ export const AdminAuthModal: React.FC<AdminAuthModalProps> = ({
   const [username, setUsername] = useState<string>('ms_kriss');
   const [password, setPassword] = useState<string>('');
   const [errorMsg, setErrorMsg] = useState<string>('');
+  const [isLoading, setIsLoading] = useState<boolean>(false);
 
   if (!isOpen) return null;
 
-  const handleVerify = (e: React.FormEvent) => {
+  const handleVerify = async (e: React.FormEvent) => {
     e.preventDefault();
     setErrorMsg('');
 
     const cleanUser = username.trim();
     const cleanPass = password.trim();
 
-    const isAdmin = libraryStore.verifyAdminAccess(cleanUser, cleanPass);
-
-    if (isAdmin) {
-      soundFx.playSuccessChime();
-      setPassword('');
-      onSuccess();
-    } else {
-      soundFx.playErrorBeep();
-      setErrorMsg('Akses ditolak. Username atau Password Administrator salah.');
-      setPassword('');
+    if (!cleanUser || !cleanPass) {
+      setErrorMsg('Username dan Password wajib diisi.');
+      return;
     }
-  };
 
-  const handleQuickFillAdmin = () => {
-    setUsername('ms_kriss');
-    setPassword('sbth2026');
-    soundFx.playScanBeep();
+    setIsLoading(true);
+
+    try {
+      // Otentikasi aman ke Server Next.js
+      const res = await fetch('/api/auth/login', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          username: cleanUser,
+          pin: cleanPass,
+        }),
+      });
+
+      const data = await res.json();
+
+      if (data.success && data.librarian) {
+        if (data.librarian.role !== 'ADMIN') {
+          soundFx.playErrorBeep();
+          setErrorMsg('Akses ditolak. Akun Anda bukan berstatus Administrator.');
+          setPassword('');
+          setIsLoading(false);
+          return;
+        }
+
+        libraryStore.setCurrentLibrarian(data.librarian);
+        soundFx.playSuccessChime();
+        setPassword('');
+        setIsLoading(false);
+        onSuccess();
+        return;
+      }
+
+      soundFx.playErrorBeep();
+      setErrorMsg(data.error || 'Akses ditolak. Username atau Password Administrator belum sesuai.');
+      setPassword('');
+      setIsLoading(false);
+    } catch {
+      soundFx.playErrorBeep();
+      setErrorMsg('Gagal terhubung ke server otentikasi lokal.');
+      setPassword('');
+      setIsLoading(false);
+    }
   };
 
   return (
@@ -95,7 +126,7 @@ export const AdminAuthModal: React.FC<AdminAuthModalProps> = ({
               autoFocus
               value={password}
               onChange={(e) => setPassword(e.target.value)}
-              placeholder="Masukkan password admin (sbth2026)..."
+              placeholder="Masukkan password admin..."
               className="w-full rounded-xl border border-border bg-surface-2 px-3 py-2 text-xs font-medium text-text placeholder-text-muted outline-hidden focus:ring-1 focus:ring-amber-500 font-mono tracking-wider"
             />
           </div>
@@ -107,17 +138,6 @@ export const AdminAuthModal: React.FC<AdminAuthModalProps> = ({
             </div>
           )}
 
-          {/* Quick chip for developer/owner convenience */}
-          <div className="flex items-center justify-between pt-1">
-            <button
-              type="button"
-              onClick={handleQuickFillAdmin}
-              className="px-2.5 py-1 rounded-lg bg-amber-500/10 hover:bg-amber-500/20 text-amber-500 border border-amber-500/30 text-[11px] font-bold transition cursor-pointer"
-            >
-              ⚡ Isi Akun Admin (@ms_kriss / sbth2026)
-            </button>
-          </div>
-
           <div className="flex gap-2 pt-2">
             <button
               type="button"
@@ -128,18 +148,28 @@ export const AdminAuthModal: React.FC<AdminAuthModalProps> = ({
             </button>
             <button
               type="submit"
-              className="flex-1 py-2.5 rounded-xl bg-amber-500 hover:bg-amber-600 text-slate-950 text-xs font-bold shadow-md transition cursor-pointer flex items-center justify-center gap-1.5"
+              disabled={isLoading}
+              className="flex-1 py-2.5 rounded-xl bg-amber-500 hover:bg-amber-600 disabled:opacity-50 text-slate-950 text-xs font-bold shadow-md transition cursor-pointer flex items-center justify-center gap-1.5"
             >
-              <KeyRound className="h-4 w-4" />
-              Buka Pengaturan
+              {isLoading ? (
+                <>
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                  Memverifikasi...
+                </>
+              ) : (
+                <>
+                  <KeyRound className="h-4 w-4" />
+                  Buka Pengaturan
+                </>
+              )}
             </button>
           </div>
         </form>
 
         <div className="p-3 rounded-xl bg-surface-2 border border-border text-[11px] text-text-muted space-y-1 text-left">
-          <p className="font-semibold text-text">ℹ️ Hak Akses Admin:</p>
+          <p className="font-semibold text-text">🛡️ Keamanan Tingkat Server:</p>
           <p>
-            Akun bawaan: <strong>@ms_kriss</strong> • Password: <strong>sbth2026</strong>. Anda dapat mengubah password atau menambah admin lain di menu Pengaturan ➔ Tab Pustakawan.
+            Otentikasi divalidasi langsung oleh backend server lokal menggunakan enkripsi cryptographic salted hash. Kredensial tidak pernah terekspos di browser F12.
           </p>
         </div>
       </div>

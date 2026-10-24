@@ -147,15 +147,20 @@ export default function Home() {
       setDataVersion((v) => v + 1);
     };
     window.addEventListener('sbth_settings_updated', handleSettingsUpdated);
+    window.addEventListener('sbth_db_synced', handleSettingsUpdated);
     window.addEventListener('storage', handleSettingsUpdated);
     return () => {
       window.removeEventListener('sbth_settings_updated', handleSettingsUpdated);
+      window.removeEventListener('sbth_db_synced', handleSettingsUpdated);
       window.removeEventListener('storage', handleSettingsUpdated);
     };
   }, []);
 
   useEffect(() => {
     setMounted(true);
+    // Hidrasi otomatis dari database lokal PC SQLite (data/sbth_library.db)
+    libraryStore.hydrateFromServerDb().catch(() => {});
+
     const d = new Date();
     setCurrentDateStr(
       d.toLocaleDateString(language === 'zh' ? 'zh-CN' : language === 'en' ? 'en-US' : 'id-ID', {

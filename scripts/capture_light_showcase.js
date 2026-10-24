@@ -1,129 +1,117 @@
-const { chromium } = require('playwright-core');
-const fs = require('fs');
+const { chromium } = require('playwright');
 const path = require('path');
+const fs = require('fs');
 
-async function captureLightShowcase() {
-  const docsDir = path.resolve(__dirname, '../docs/screenshots');
-  const artifactDir = 'C:\\Users\\prase\\.gemini\\antigravity-ide\\brain\\62ddfd95-a89c-4079-82d0-57d033ab429a\\.tempmediaStorage';
-
-  if (!fs.existsSync(docsDir)) fs.mkdirSync(docsDir, { recursive: true });
-  if (!fs.existsSync(artifactDir)) fs.mkdirSync(artifactDir, { recursive: true });
-
-  const executablePath = 'C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe';
-  const browser = await chromium.launch({
-    executablePath,
-    headless: true,
-    args: ['--disable-gpu', '--no-sandbox', '--window-size=1440,900'],
+async function capture() {
+  const browser = await chromium.launch({ headless: true });
+  const context = await browser.newContext({
+    viewport: { width: 1440, height: 900 },
+    colorScheme: 'light',
   });
+  const page = await context.newPage();
 
-  const page = await browser.newPage({ viewport: { width: 1440, height: 900 } });
-  const wait = (ms) => page.waitForTimeout(ms);
+  const outDir = 'C:/Users/prase/.gemini/antigravity-ide/brain/62ddfd95-a89c-4079-82d0-57d033ab429a/.tempmediaStorage';
+  if (!fs.existsSync(outDir)) {
+    fs.mkdirSync(outDir, { recursive: true });
+  }
 
-  const saveShot = async (filename) => {
-    const docsPath = path.join(docsDir, filename);
-    const artPath = path.join(artifactDir, filename);
-    await page.screenshot({ path: docsPath, fullPage: false });
-    fs.copyFileSync(docsPath, artPath);
-    console.log(`📸 Saved: ${filename}`);
-  };
-
-  console.log('Navigating to http://localhost:3000 ...');
+  console.log('Navigating to http://localhost:3000...');
   await page.goto('http://localhost:3000', { waitUntil: 'networkidle' });
-  await wait(2000);
+  await page.waitForTimeout(1500);
 
-  // Force Light mode & Pustakawan
+  // Set Light theme
   await page.evaluate(() => {
-    localStorage.setItem('sbth_library_theme_v1', 'light');
-    localStorage.setItem('sbth_app_mode', 'PUSTAKAWAN');
-    localStorage.setItem('sbth_active_tab', 'CIRCULATION');
+    localStorage.setItem('sbth_theme', 'light');
     document.documentElement.classList.remove('dark');
-    document.documentElement.setAttribute('data-theme', 'light');
   });
-  await page.reload({ waitUntil: 'networkidle' });
-  await wait(2500);
+  await page.waitForTimeout(500);
 
-  // 1. Beranda / Sirkulasi (Light Mode)
-  await saveShot('light_01_beranda_sirkulasi.png');
+  // 1. Capture Koleksi Buku (Catalog) with 44 items
+  const booksNav = page.locator('button:has-text("Koleksi"), button:has-text("Books")');
+  if (await booksNav.count() > 0) {
+    await booksNav.first().click();
+    await page.waitForTimeout(1000);
+    await page.screenshot({ path: path.join(outDir, 'light_01_koleksi_buku_44_items.png') });
+    console.log('Captured: light_01_koleksi_buku_44_items.png');
+  }
 
-  // 2. Koleksi & Eksemplar
-  const booksBtn = page.locator('button:has-text("Koleksi & Eksemplar")').first();
-  if (await booksBtn.isVisible()) {
-    await booksBtn.click();
-    await wait(2000);
-    await saveShot('light_02_koleksi_buku.png');
-
-    // 3. Open Cetak Label Modal
-    const labelBtn = page.locator('button:has-text("Cetak Label")').first();
-    if (await labelBtn.isVisible()) {
-      await labelBtn.click();
-      await wait(2000);
-
-      // Default is SLIP_DALAM_SBTH (or click Slip Dalam Buku)
-      const slipBtn = page.locator('button:has-text("Slip Dalam Buku")').first();
-      if (await slipBtn.isVisible()) {
-        await slipBtn.click();
-        await wait(1200);
-      }
-      await saveShot('light_03_cetak_label_slip_dalam_3x10.png');
-
-      // 4. Punggung SBTH Lanskap
-      const spineBtn = page.locator('button:has-text("Punggung SBTH")').first();
-      if (await spineBtn.isVisible()) {
-        await spineBtn.click();
-        await wait(1200);
-
-        // Ensure Landscape
-        const lskpBtn = page.locator('button:has-text("Lanskap (7.4 × 4 cm)")').first();
-        if (await lskpBtn.isVisible()) {
-          await lskpBtn.click();
-          await wait(1000);
-        }
-        await saveShot('light_04_cetak_label_punggung_lanskap_2x6.png');
-
-        // 5. Punggung SBTH Potret
-        const ptrtBtn = page.locator('button:has-text("Potret (4 × 7.4 cm)")').first();
-        if (await ptrtBtn.isVisible()) {
-          await ptrtBtn.click();
-          await wait(1000);
-          await saveShot('light_05_cetak_label_punggung_potret_4x3.png');
-        }
-      }
-
-      // Close modal
-      const closeBtn = page.locator('div[class*="fixed inset-0"] button:has(.lucide-x)').last();
-      if (await closeBtn.isVisible()) {
-        await closeBtn.click();
-        await wait(1000);
-      }
+  // 2. Open Category & Color Management Modal
+  const categoryBtn = page.locator('button:has-text("Kategori & Warna")');
+  if (await categoryBtn.count() > 0) {
+    await categoryBtn.first().click();
+    await page.waitForTimeout(1000);
+    await page.screenshot({ path: path.join(outDir, 'light_02_eddc_category_colors_modal.png') });
+    console.log('Captured: light_02_eddc_category_colors_modal.png');
+    // Close modal
+    const closeBtn = page.locator('button:has-text("Tutup"), button:has-text("Close")');
+    if (await closeBtn.count() > 0) {
+      await closeBtn.first().click();
+      await page.waitForTimeout(500);
     }
   }
 
-  // 6. Katalog Siswa / OPAC
-  const opacBtn = page.locator('button:has-text("Katalog Visual"), button:has-text("Katalog Siswa"), button:has-text("Katalog Siswa (OPAC)")').first();
-  if (await opacBtn.isVisible()) {
-    await opacBtn.click();
-    await wait(2000);
-    await saveShot('light_06_katalog_siswa_opac.png');
-  }
+  // 3. Open Label Print Generator Modal with preselected items
+  const printBtn = page.locator('button:has-text("Cetak Label")');
+  if (await printBtn.count() > 0) {
+    await printBtn.first().click();
+    await page.waitForTimeout(1000);
 
-  // 7. Open Edit/Detail Buku Modal
-  // Go back to books tab
-  await page.evaluate(() => {
-    localStorage.setItem('sbth_active_tab', 'BOOKS');
-  });
-  await page.reload({ waitUntil: 'networkidle' });
-  await wait(2000);
+    // Select all available copies if not selected
+    const selectAllBtn = page.locator('button:has-text("Pilih Semua"), button:has-text("Select All")');
+    if (await selectAllBtn.count() > 0) {
+      await selectAllBtn.first().click();
+      await page.waitForTimeout(500);
+    }
 
-  // Click edit button on the first book row
-  const editBtn = page.locator('table tbody tr button:has(.lucide-edit), table tbody tr button:has(.lucide-square-pen)').first();
-  if (await editBtn.isVisible()) {
-    await editBtn.click();
-    await wait(1500);
-    await saveShot('light_07_edit_buku_modal.png');
+    // Capture 3: Slip Dalam Buku (3x10 Grid on A4)
+    const slipTab = page.locator('button:has-text("Slip Dalam Buku")');
+    if (await slipTab.count() > 0) {
+      await slipTab.first().click();
+      await page.waitForTimeout(800);
+      await page.screenshot({ path: path.join(outDir, 'light_03_slip_dalam_3x10_grid.png') });
+      console.log('Captured: light_03_slip_dalam_3x10_grid.png');
+    }
+
+    // Capture 4: Punggung Buku Lanskap (2x6 Grid on A4)
+    const spineTab = page.locator('button:has-text("Punggung SBTH")');
+    if (await spineTab.count() > 0) {
+      await spineTab.first().click();
+      await page.waitForTimeout(800);
+
+      // Ensure Lanskap orientation is active
+      const lanskapBtn = page.locator('button:has-text("Lanskap")');
+      if (await lanskapBtn.count() > 0) {
+        await lanskapBtn.first().click();
+        await page.waitForTimeout(600);
+      }
+      await page.screenshot({ path: path.join(outDir, 'light_04_spine_lanskap_2x6_grid.png') });
+      console.log('Captured: light_04_spine_lanskap_2x6_grid.png');
+
+      // Capture 5: Punggung Buku Potret (4x3 Grid on A4)
+      const potretBtn = page.locator('button:has-text("Potret")');
+      if (await potretBtn.count() > 0) {
+        await potretBtn.first().click();
+        await page.waitForTimeout(600);
+        await page.screenshot({ path: path.join(outDir, 'light_05_spine_potret_4x3_grid.png') });
+        console.log('Captured: light_05_spine_potret_4x3_grid.png');
+      }
+    }
+
+    // Capture 6: TJ-103 Grid on A4
+    const tjTab = page.locator('button:has-text("Tom & Jerry No. 103")');
+    if (await tjTab.count() > 0) {
+      await tjTab.first().click();
+      await page.waitForTimeout(800);
+      await page.screenshot({ path: path.join(outDir, 'light_06_tj103_3x4_grid.png') });
+      console.log('Captured: light_06_tj103_3x4_grid.png');
+    }
   }
 
   await browser.close();
-  console.log('🎉 Light showcase capture finished!');
+  console.log('All light theme showcase screenshots captured successfully!');
 }
 
-captureLightShowcase().catch(console.error);
+capture().catch((err) => {
+  console.error('Error during capture:', err);
+  process.exit(1);
+});

@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
-import { Lock, X, KeyRound, Check, AlertCircle, User } from 'lucide-react';
+import { Lock, X, KeyRound, AlertCircle, User, Loader2, ShieldCheck } from 'lucide-react';
 import { libraryStore } from '@/lib/storage';
 import { soundFx } from '@/lib/sound';
 import { Librarian } from '@/types';
@@ -22,6 +22,7 @@ export const PinAuthModal: React.FC<PinAuthModalProps> = ({
   const [selectedUsername, setSelectedUsername] = useState<string>('ms_kriss');
   const [pin, setPin] = useState<string>('');
   const [errorMsg, setErrorMsg] = useState<string>('');
+  const [isLoading, setIsLoading] = useState<boolean>(false);
 
   useEffect(() => {
     if (isOpen) {
@@ -32,69 +33,65 @@ export const PinAuthModal: React.FC<PinAuthModalProps> = ({
       }
       setPin('');
       setErrorMsg('');
+      setIsLoading(false);
     }
   }, [isOpen]);
 
   if (!isOpen) return null;
 
-  const handleVerify = (e: React.FormEvent) => {
+  const handleVerify = async (e: React.FormEvent) => {
     e.preventDefault();
     setErrorMsg('');
 
     const cleanPin = pin.trim();
+    if (!cleanPin) {
+      setErrorMsg('Silakan masukkan PIN atau Password.');
+      return;
+    }
 
-    if (authMode === 'PIN_QUICK') {
-      const matched = libraryStore.verifyLibrarianPin(cleanPin);
-      if (matched || cleanPin === '1234' || cleanPin.toLowerCase() === 'sbth2026') {
-        const activeLib = matched || librarians[0] || {
-          id: 'admin',
-          name: 'Ms. Kriss (Admin)',
-          username: 'ms_kriss',
-          role: 'ADMIN' as const,
+    setIsLoading(true);
+
+    try {
+      // 1. Otentikasi Aman Sisi Server (Next.js Server API + Salted Hash di SQLite)
+      const targetUsername = authMode === 'USERNAME_PASS' ? selectedUsername : (librarians[0]?.username || 'ms_kriss');
+      const res = await fetch('/api/auth/login', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          username: targetUsername,
           pin: cleanPin,
-          createdAt: new Date().toISOString(),
-        };
-        libraryStore.setCurrentLibrarian(activeLib);
+        }),
+      });
+
+      const data = await res.json();
+
+      if (data.success && data.librarian) {
+        // Simpan sesi terotentikasi (tanpa plaintext PIN di localStorage)
+        libraryStore.setCurrentLibrarian(data.librarian);
         libraryStore.addActivityLog({
           category: 'AUTH',
           action: 'LOGIN_PUSTAKAWAN',
-          actor: activeLib.name,
-          details: `Pustakawan ${activeLib.name} (@${activeLib.username}) berhasil masuk ke Meja Pustakawan via PIN cepat.`,
+          actor: data.librarian.name,
+          details: `Pustakawan ${data.librarian.name} (@${data.librarian.username}) berhasil masuk melalui otentikasi server aman.`,
         });
 
         soundFx.playSuccessChime();
         setPin('');
+        setIsLoading(false);
         onSuccess();
         return;
       }
-    } else {
-      const authenticated = libraryStore.authenticateLibrarian(selectedUsername, cleanPin);
-      if (authenticated || cleanPin === '1234' || cleanPin.toLowerCase() === 'sbth2026') {
-        const activeLib = authenticated || librarians.find((l) => l.username === selectedUsername) || librarians[0];
-        if (activeLib) {
-          libraryStore.setCurrentLibrarian(activeLib);
-          libraryStore.addActivityLog({
-            category: 'AUTH',
-            action: 'LOGIN_PUSTAKAWAN',
-            actor: activeLib.name,
-            details: `Pustakawan ${activeLib.name} (@${activeLib.username}) berhasil masuk ke Meja Pustakawan via username & password.`,
-          });
-        }
 
-        soundFx.playSuccessChime();
-        setPin('');
-        onSuccess();
-        return;
-      }
+      // Jika gagal verifikasi di server
+      soundFx.playErrorBeep();
+      setErrorMsg(data.error || 'Password atau PIN salah. Silakan periksa kembali.');
+      setPin('');
+      setIsLoading(false);
+    } catch {
+      soundFx.playErrorBeep();
+      setErrorMsg('Gagal menghubungi server otentikasi.');
+      setIsLoading(false);
     }
-
-    soundFx.playErrorBeep();
-    setErrorMsg(
-      authMode === 'USERNAME_PASS'
-        ? `Password/PIN untuk @${selectedUsername} belum sesuai.`
-        : 'PIN salah. Coba 1234 atau sbth2026.'
-    );
-    setPin('');
   };
 
   const handleNumberClick = (num: string) => {
@@ -106,12 +103,6 @@ export const PinAuthModal: React.FC<PinAuthModalProps> = ({
 
   const handleBackspace = () => {
     setPin((prev) => prev.slice(0, -1));
-  };
-
-  const handleQuickFill = (user: string, code: string) => {
-    setSelectedUsername(user);
-    setPin(code);
-    soundFx.playScanBeep();
   };
 
   return (
@@ -133,76 +124,76 @@ export const PinAuthModal: React.FC<PinAuthModalProps> = ({
             Akses Meja Pustakawan
           </h3>
           <p className="text-xs text-slate-500 mt-1">
-            Masuk untuk membuka sirkulasi, manajemen eksemplar, dan pencatatan buku
+            Dilindungi otentikasi server terenkripsi (Server-Side Salted Hash)
           </p>
         </div>
 
-        {/* Tab switch: Username & PIN vs PIN Cepat Touchscreen */}
-        <div className="flex p-1 rounded-xl bg-slate-100 dark:bg-slate-800 text-xs font-semibold">
+        {/* Tab switch */}
+        <div className="grid grid-cols-2 gap-1 p-1 rounded-2xl bg-slate-100 dark:bg-slate-800 text-xs font-semibold">
           <button
             type="button"
             onClick={() => {
               setAuthMode('USERNAME_PASS');
               setErrorMsg('');
+              setPin('');
             }}
-            className={`flex-1 py-1.5 rounded-lg transition cursor-pointer ${
+            className={`py-2 rounded-xl transition cursor-pointer ${
               authMode === 'USERNAME_PASS'
                 ? 'bg-white dark:bg-slate-700 text-blue-600 dark:text-blue-400 shadow-xs'
                 : 'text-slate-500 hover:text-slate-800 dark:hover:text-slate-200'
             }`}
           >
-            Username & PIN
+            Username & Password
           </button>
           <button
             type="button"
             onClick={() => {
               setAuthMode('PIN_QUICK');
               setErrorMsg('');
+              setPin('');
             }}
-            className={`flex-1 py-1.5 rounded-lg transition cursor-pointer ${
+            className={`py-2 rounded-xl transition cursor-pointer ${
               authMode === 'PIN_QUICK'
                 ? 'bg-white dark:bg-slate-700 text-blue-600 dark:text-blue-400 shadow-xs'
                 : 'text-slate-500 hover:text-slate-800 dark:hover:text-slate-200'
             }`}
           >
-            Keypad Layar Sentuh
+            PIN Layar Sentuh
           </button>
         </div>
 
-        <form onSubmit={handleVerify} className="space-y-3">
+        <form onSubmit={handleVerify} className="space-y-3 pt-1">
           {authMode === 'USERNAME_PASS' ? (
-            <div className="space-y-2.5 text-left">
+            <div className="space-y-2 text-left">
               <div>
-                <label className="text-xs font-semibold text-slate-700 dark:text-slate-300 flex items-center gap-1.5 mb-1">
-                  <User className="h-3.5 w-3.5 text-blue-500" />
-                  <span>Pilih Akun Pustakawan:</span>
+                <label className="text-[11px] font-semibold text-slate-500 dark:text-slate-400 flex items-center gap-1 mb-1">
+                  <User className="h-3.5 w-3.5" /> Pilih Akun Pustakawan:
                 </label>
                 <select
                   value={selectedUsername}
                   onChange={(e) => setSelectedUsername(e.target.value)}
-                  className="w-full rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 px-3 py-2 text-xs font-medium text-slate-800 dark:text-slate-200 outline-hidden focus:border-blue-600"
+                  className="w-full rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 px-3 py-2 text-xs font-semibold text-slate-800 dark:text-slate-200 outline-hidden focus:border-blue-600"
                 >
                   {librarians.map((lib) => (
                     <option key={lib.id} value={lib.username}>
-                      {lib.name} (@{lib.username}) • {lib.role}
+                      {lib.name} (@{lib.username}) - {lib.role}
                     </option>
                   ))}
-                  <option value="ms_kriss">Ms. Kriss (Pustakawan Utama) • ADMIN</option>
                 </select>
               </div>
 
               <div>
-                <label className="text-xs font-semibold text-slate-700 dark:text-slate-300 block mb-1">
-                  PIN / Password Pustakawan:
+                <label className="text-[11px] font-semibold text-slate-500 dark:text-slate-400 flex items-center gap-1 mb-1">
+                  <KeyRound className="h-3.5 w-3.5" /> Password / PIN:
                 </label>
                 <input
                   type="password"
                   autoFocus
-                  maxLength={24}
+                  maxLength={32}
                   value={pin}
                   onChange={(e) => setPin(e.target.value)}
-                  placeholder="Ketik PIN (1234 atau sbth2026)..."
-                  className="w-full text-center tracking-[0.2em] text-lg font-bold rounded-2xl border-2 border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 py-2 outline-hidden focus:border-blue-600"
+                  placeholder="Masukkan Password atau PIN..."
+                  className="w-full text-center tracking-[0.2em] text-base font-bold rounded-2xl border-2 border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 py-2 outline-hidden focus:border-blue-600"
                 />
               </div>
             </div>
@@ -227,25 +218,7 @@ export const PinAuthModal: React.FC<PinAuthModalProps> = ({
             </div>
           )}
 
-          {/* Quick 1-Click Fill Chips */}
-          <div className="flex items-center justify-center gap-2 pt-0.5">
-            <button
-              type="button"
-              onClick={() => handleQuickFill('ms_kriss', '1234')}
-              className="px-2.5 py-1 rounded-lg bg-blue-500/10 hover:bg-blue-500/20 text-blue-600 dark:text-blue-400 border border-blue-500/30 text-[11px] font-bold transition cursor-pointer"
-            >
-              ⚡ PIN Cepat: 1234
-            </button>
-            <button
-              type="button"
-              onClick={() => handleQuickFill('ms_kriss', 'sbth2026')}
-              className="px-2.5 py-1 rounded-lg bg-indigo-500/10 hover:bg-indigo-500/20 text-indigo-600 dark:text-indigo-400 border border-indigo-500/30 text-[11px] font-bold transition cursor-pointer"
-            >
-              🔑 Master: @ms_kriss / sbth2026
-            </button>
-          </div>
-
-          {/* Quick Numpad for Touchscreen / Tablet */}
+          {/* Quick Numpad for Touchscreen */}
           {authMode === 'PIN_QUICK' && (
             <div className="grid grid-cols-3 gap-2 pt-1">
               {['1', '2', '3', '4', '5', '6', '7', '8', '9', 'C', '0', '⌫'].map((k) => (
@@ -267,18 +240,29 @@ export const PinAuthModal: React.FC<PinAuthModalProps> = ({
 
           <button
             type="submit"
-            className="w-full py-3 rounded-2xl bg-blue-600 hover:bg-blue-700 text-white font-bold text-xs shadow-md shadow-blue-600/30 flex items-center justify-center gap-2 transition cursor-pointer"
+            disabled={isLoading}
+            className="w-full py-3 rounded-2xl bg-blue-600 hover:bg-blue-700 disabled:opacity-50 text-white font-bold text-xs shadow-md shadow-blue-600/30 flex items-center justify-center gap-2 transition cursor-pointer"
           >
-            <KeyRound className="h-4 w-4" />
-            Buka Mode Pustakawan
+            {isLoading ? (
+              <>
+                <Loader2 className="h-4 w-4 animate-spin" />
+                Memverifikasi Keamanan Server...
+              </>
+            ) : (
+              <>
+                <ShieldCheck className="h-4 w-4" />
+                Verifikasi & Buka Akses
+              </>
+            )}
           </button>
         </form>
 
         <div className="p-2.5 rounded-xl bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700 text-[11px] text-slate-500 dark:text-slate-400 space-y-0.5 text-left">
-          <p className="font-semibold text-slate-700 dark:text-slate-200">ℹ️ Informasi Akses:</p>
-          <p>• <strong>Username:</strong> @ms_kriss (Pustakawan Utama / Admin)</p>
-          <p>• <strong>PIN:</strong> 1234 atau <strong>sbth2026</strong></p>
-          <p className="text-[10px] text-slate-400 pt-0.5">Pengaturan sistem dilindungi khusus dengan verifikasi Akun Admin.</p>
+          <p className="font-semibold text-slate-700 dark:text-slate-200 flex items-center gap-1">
+            <ShieldCheck className="h-3.5 w-3.5 text-emerald-600" /> Keamanan Terproteksi:
+          </p>
+          <p>• Kredensial tidak tersimpan dalam bentuk teks di browser (bebas dari intipan F12).</p>
+          <p>• Otentikasi divalidasi langsung oleh server lokal menggunakan enkripsi PBKDF2 + Salt.</p>
         </div>
       </div>
     </div>

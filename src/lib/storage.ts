@@ -103,9 +103,82 @@ const STORAGE_KEYS = {
 
 export class LibraryStore {
   private static instance: LibraryStore;
+  private syncTimer: any = null;
 
   private isClient(): boolean {
     return typeof window !== 'undefined';
+  }
+
+  /**
+   * Memicu sinkronisasi asinkron non-blocking ke SQLite di server lokal
+   * Menghindari UI freeze dan memastikan data tersimpan aman di disk PC (data/sbth_library.db)
+   */
+  public triggerServerSync(): void {
+    if (!this.isClient()) return;
+    if (this.syncTimer) clearTimeout(this.syncTimer);
+    this.syncTimer = setTimeout(() => {
+      this.syncToServerAsync();
+    }, 1200);
+  }
+
+  public async syncToServerAsync(): Promise<void> {
+    if (!this.isClient()) return;
+    try {
+      const payload = {
+        books: this.getBooks(),
+        items: this.getBookItems(),
+        members: this.getMembers(),
+        loans: this.getLoans(),
+        settings: {
+          schoolProfile: this.getSchoolProfile(),
+          loanRules: this.getLoanRules(),
+          shelves: this.getShelves(),
+          categories: this.getCategories(),
+        },
+      };
+      await fetch('/api/db/sync', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload),
+      });
+    } catch {
+      // Background non-blocking sync
+    }
+  }
+
+  public async hydrateFromServerDb(): Promise<boolean> {
+    if (!this.isClient()) return false;
+    try {
+      const res = await fetch('/api/db/sync');
+      const data = await res.json();
+      if (data.success && data.data) {
+        const { books, items, members, loans } = data.data;
+        let updated = false;
+        if (books && books.length > 0) {
+          localStorage.setItem(STORAGE_KEYS.BOOKS, JSON.stringify(books));
+          updated = true;
+        }
+        if (items && items.length > 0) {
+          localStorage.setItem(STORAGE_KEYS.ITEMS, JSON.stringify(items));
+          updated = true;
+        }
+        if (members && members.length > 0) {
+          localStorage.setItem(STORAGE_KEYS.MEMBERS, JSON.stringify(members));
+          updated = true;
+        }
+        if (loans && loans.length > 0) {
+          localStorage.setItem(STORAGE_KEYS.LOANS, JSON.stringify(loans));
+          updated = true;
+        }
+        if (updated) {
+          window.dispatchEvent(new CustomEvent('sbth_db_synced'));
+        }
+        return true;
+      }
+    } catch {
+      // Offline fallback
+    }
+    return false;
   }
 
   // --- BOOKS ---
@@ -131,6 +204,7 @@ export class LibraryStore {
   public saveBooks(books: Book[]): void {
     if (!this.isClient()) return;
     localStorage.setItem(STORAGE_KEYS.BOOKS, JSON.stringify(books));
+    this.triggerServerSync();
   }
 
   public findBookByIsbn(isbn: string): Book | undefined {
@@ -201,6 +275,7 @@ export class LibraryStore {
   public saveBookItems(items: BookItem[]): void {
     if (!this.isClient()) return;
     localStorage.setItem(STORAGE_KEYS.ITEMS, JSON.stringify(items));
+    this.triggerServerSync();
   }
 
   public findItemByBarcode(barcode: string): BookItem | undefined {
@@ -788,6 +863,7 @@ export class LibraryStore {
   public saveMembers(members: Member[]): void {
     if (!this.isClient()) return;
     localStorage.setItem(STORAGE_KEYS.MEMBERS, JSON.stringify(members));
+    this.triggerServerSync();
   }
 
   public deleteMember(id: string): void {
@@ -864,6 +940,7 @@ export class LibraryStore {
   public saveLoans(loans: Loan[]): void {
     if (!this.isClient()) return;
     localStorage.setItem(STORAGE_KEYS.LOANS, JSON.stringify(loans));
+    this.triggerServerSync();
   }
 
   public createLoan(
@@ -1863,38 +1940,26 @@ Periode: Minggu ke-2 Oktober 2026
     return { promotedCount, graduatedCount };
   }
 
-  // --- LIBRARIANS & PIN/PASSWORD MANAGEMENT ---
+  // --- LIBRARIANS & KEAMANAN OTENTIKASI ---
   public getLibrarians(): Librarian[] {
-    if (!this.isClient()) return DEFAULT_LIBRARIANS;
+    if (!this.isClient()) return DEFAULT_LIBRARIANS.map(({ pin, ...rest }) => rest);
     const data = localStorage.getItem(STORAGE_KEYS.LIBRARIANS);
-    if (!data) return DEFAULT_LIBRARIANS;
+    if (!data) return DEFAULT_LIBRARIANS.map(({ pin, ...rest }) => rest);
     try {
       const parsed: Librarian[] = JSON.parse(data);
-      let modified = false;
-      parsed.forEach((l) => {
-        if (l.username === 'siti_rahma' || l.name.includes('Siti Rahma')) {
-          l.name = 'Ms. Kriss (Pustakawan Utama)';
-          l.username = 'ms_kriss';
-          l.pin = 'sbth2026';
-          modified = true;
-        }
-      });
-      if (!parsed.some((l) => l.username === 'ms_kriss')) {
-        parsed.unshift(DEFAULT_LIBRARIANS[0]);
-        modified = true;
-      }
-      if (modified) {
-        this.saveLibrarians(parsed);
-      }
-      return parsed;
+      // Sanitasi: pastikan atribut pin tidak pernah berada di memori client
+      return parsed.map(({ pin, ...rest }) => rest);
     } catch {
-      return DEFAULT_LIBRARIANS;
+      return DEFAULT_LIBRARIANS.map(({ pin, ...rest }) => rest);
     }
   }
 
   public saveLibrarians(librarians: Librarian[]): void {
     if (!this.isClient()) return;
-    localStorage.setItem(STORAGE_KEYS.LIBRARIANS, JSON.stringify(librarians));
+    // KEAMANAN KRITIS: Hapus atribut 'pin' sebelum serialisasi ke localStorage
+    // agar kredensial tidak pernah terbaca telanjang oleh siapa pun di F12 Application
+    const sanitized = librarians.map(({ pin, ...rest }) => rest);
+    localStorage.setItem(STORAGE_KEYS.LIBRARIANS, JSON.stringify(sanitized));
   }
 
   public addLibrarian(lib: Omit<Librarian, 'id' | 'createdAt'>): Librarian {
@@ -1921,7 +1986,9 @@ Periode: Minggu ke-2 Oktober 2026
 
   public verifyLibrarianPin(pin: string): Librarian | null {
     const list = this.getLibrarians();
-    const found = list.find((item) => item.pin === pin.trim());
+    const cleanPin = pin.trim();
+    if (!cleanPin) return null;
+    const found = list.find((item) => item.pin && item.pin === cleanPin);
     return found || null;
   }
 
@@ -1929,23 +1996,16 @@ Periode: Minggu ke-2 Oktober 2026
     const list = this.getLibrarians();
     const cleanUser = username.trim().toLowerCase().replace(/^@/, '');
     const cleanPin = pinOrPass.trim();
+    if (!cleanPin) return null;
 
-    // Check by username & pin
+    // Otentikasi ketat tanpa master bypass hardcoded
     const found = list.find(
-      (l) => l.username.toLowerCase().replace(/^@/, '') === cleanUser && (l.pin === cleanPin || cleanPin === '1234')
+      (l) => l.username.toLowerCase().replace(/^@/, '') === cleanUser && l.pin === cleanPin
     );
-    if (found) return found;
-
-    // Fallback for Master Admin
-    if ((cleanUser === 'ms_kriss' || cleanUser === 'admin') && (cleanPin === 'sbth2026' || cleanPin === '1234')) {
-      return list.find((l) => l.role === 'ADMIN') || list[0];
-    }
-    return null;
+    return found || null;
   }
 
   public verifyAdminAccess(username: string, pinOrPass: string): boolean {
-    const cleanPin = pinOrPass.trim();
-    if (cleanPin === 'sbth2026') return true;
     const lib = this.authenticateLibrarian(username, pinOrPass);
     if (lib && lib.role === 'ADMIN') return true;
     return false;
@@ -1957,7 +2017,7 @@ Periode: Minggu ke-2 Oktober 2026
     if (!raw) return DEFAULT_LIBRARIANS[0];
     try {
       const parsed = JSON.parse(raw);
-      return parsed && parsed.id ? parsed : DEFAULT_LIBRARIANS[0];
+      return parsed && parsed.id ? (({ pin, ...rest }) => rest)(parsed) : DEFAULT_LIBRARIANS[0];
     } catch {
       return DEFAULT_LIBRARIANS[0];
     }
@@ -1968,9 +2028,12 @@ Periode: Minggu ke-2 Oktober 2026
     if (!librarian) {
       localStorage.removeItem(STORAGE_KEYS.CURRENT_LIBRARIAN);
     } else {
-      localStorage.setItem(STORAGE_KEYS.CURRENT_LIBRARIAN, JSON.stringify(librarian));
+      // Keamanan: Hapus pin dari sesi aktif di localStorage
+      const sanitized = (({ pin, ...rest }) => rest)(librarian);
+      localStorage.setItem(STORAGE_KEYS.CURRENT_LIBRARIAN, JSON.stringify(sanitized));
     }
   }
+
 
   // --- KEYBOARD SHORTCUTS CONFIGURATION ---
   public getKeyboardShortcuts(): KeyboardShortcutConfig {

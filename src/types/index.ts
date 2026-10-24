@@ -217,10 +217,11 @@ export interface Librarian {
   name: string;
   username: string;
   role: StaffRole;
-  pin: string;
+  pin?: string;
   phone?: string;
   createdAt: string;
 }
+
 
 export interface SchoolProfile {
   name: string;

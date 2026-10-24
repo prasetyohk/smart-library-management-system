@@ -12,8 +12,14 @@
 [![React 19](https://img.shields.io/badge/React-19.0-blue?style=for-the-badge&logo=react)](https://react.dev/)
 [![TypeScript](https://img.shields.io/badge/TypeScript-5.0-3178C6?style=for-the-badge&logo=typescript)](https://www.typescriptlang.org/)
 [![Tailwind CSS v4](https://img.shields.io/badge/Tailwind_CSS-v4.0-38B2AC?style=for-the-badge&logo=tailwind-css)](https://tailwindcss.com/)
-[![Standard SLiMS 9](https://img.shields.io/badge/SLiMS_9_Bulian-Compatible-emerald?style=for-the-badge)](https://slims.web.id/)
+[![Database SQLite](https://img.shields.io/badge/Database-SQLite_WAL_Mode-003B57?style=for-the-badge&logo=sqlite)](https://sqlite.org/)
+[![ACID Transactions](https://img.shields.io/badge/ACID_Circulation-Guaranteed-emerald?style=for-the-badge)]()
+[![Security Hardened](https://img.shields.io/badge/Security-PBKDF2_Server_Auth-purple?style=for-the-badge)]()
+[![Standard SLiMS 9](https://img.shields.io/badge/SLiMS_9_Bulian-Compatible-teal?style=for-the-badge)](https://slims.web.id/)
 [![Dewey Decimal DDC](https://img.shields.io/badge/e--DDC_Perpusnas-000--900-amber?style=for-the-badge)](https://perpusnas.go.id/)
+
+> 📖 **Dokumentasi Teknis Lengkap:** [Cetak Biru Arsitektur & Keamanan Sistem](docs/ARCHITECTURE_AND_SECURITY.md)  
+> 🔗 **Repositori:** [Private Repo (SBTH)](https://github.com/prasetyohk/Sistem-Perpustakaan-SBTH) • [Public Showcase](https://github.com/prasetyohk/smart-library-management-system)
 
 </div>
 
@@ -124,6 +130,22 @@ Portal interaktif khusus siswa untuk melihat buku yang sedang dipinjam, histori 
 - **Paginasi Fleksibel (10 / 20 / 50 / 100 Buku per View)**: Mencegah scroll terlalu jauh saat mengelola puluhan atau ratusan judul buku, dilengkapi penomoran halaman cerdas (`1`, `2`, `3`, ..., `N`). Preferensi tersimpan otomatis di browser pustakawan.
 - **Dual Pagination Bar (Atas & Bawah)**: Bilah navigasi paginasi tersedia di **bagian atas** dan di **bagian bawah** daftar buku agar pustakawan tidak perlu repot scroll bolak-balik saat berpindah halaman.
 - **Floating Button "Kembali ke Atas" (Back to Top)**: Tombol melayang cerdas dengan *smooth scroll* otomatis yang muncul saat halaman digulir ke bawah, memudahkan pustakawan melompat kembali ke navigasi atas seketika.
+
+### 🛡️ 6. Arsitektur Tangguh & Keamanan Server (Production-Grade)
+- **Database Lokal PC SQLite (WAL Mode)**:
+  - Seluruh data buku, anggota, dan riwayat disimpan di file disk `data/sbth_library.db` (bebas dari risiko terhapus saat cache browser di-clear).
+  - Menghilangkan batasan kuota 5-10MB browser dan mencegah antarmuka patah-patah (*UI freeze*) dengan proses penyimpanan asinkron di balik layar.
+- **Jaminan Transaksi ACID Sirkulasi**:
+  - Alur peminjaman dan pengembalian dieksekusi secara atomik di sisi server (`BEGIN IMMEDIATE TRANSACTION ... COMMIT`). Tidak ada buku yang berstatus dipinjam tanpa riwayat sirkulasi yang sah.
+- **Sinkronisasi Multi-Device Jaringan Sekolah (Multi-Silo Solved)**:
+  - Satu PC bertindak sebagai server lokal, dan laptop guru lain serta tablet siswa di jaringan WiFi/LAN sekolah dapat mengakses database yang sama secara real-time (`http://[IP_KOMPUTER]:3000`).
+- **Otentikasi Server Cryptographic (PBKDF2 + Salt)**:
+  - Seluruh verifikasi dipindahkan ke server dengan hashing PBKDF2 10.000 iterasi + salt acak dan sesi HttpOnly cookie. Password tidak pernah tersimpan telanjang di browser atau terbaca via F12.
+- **Perlindungan Bot Telegram (.env.local)**:
+  - Token bot Telegram dan kunci sensitif diproteksi di `.env.local` server dengan penjaga Anti-Open Relay.
+- **Cetak Biru Arsitektur & Roadmap Cloud**:
+  - Pelajari arsitektur sistem dan panduan migrasi ke PostgreSQL/Supabase pada dokumen [Cetak Biru Arsitektur & Keamanan](docs/ARCHITECTURE_AND_SECURITY.md).
+
 
 ---
 

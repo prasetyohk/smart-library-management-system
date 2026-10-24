@@ -32,6 +32,7 @@ yarn-error.log*
 
 # env files (can opt-in for committing if needed)
 .env*
+!.env.example
 
 # vercel
 .vercel
@@ -48,3 +49,10 @@ video_verified_color.png
 demo_videos/
 test_video/
 ~$*
+
+# local SQLite database files (contains real school records)
+data/*.db
+data/*.db-journal
+data/*.db-wal
+data/*.db-shm
+
